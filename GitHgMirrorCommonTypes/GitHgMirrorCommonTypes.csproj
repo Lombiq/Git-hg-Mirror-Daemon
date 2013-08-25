@@ -4,13 +4,14 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{81BAD149-A525-4CE1-9671-70F5314DAFE2}</ProjectGuid>
+    <ProjectGuid>{EC2E86CF-0ACB-442D-A23E-7D1E88061B81}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>GitHgMirrorRunner</RootNamespace>
-    <AssemblyName>GitHgMirrorRunner</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <RootNamespace>GitHgMirrorCommonTypes</RootNamespace>
+    <AssemblyName>GitHgMirrorCommonTypes</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -39,17 +40,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Mirror.cs" />
-    <Compile Include="MirroringException.cs" />
-    <Compile Include="Runner.cs" />
+    <Compile Include="MirroringConfiguration.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Settings.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\GitHgMirrorCommonTypes\GitHgMirrorCommonTypes.csproj">
-      <Project>{ec2e86cf-0acb-442d-a23e-7d1e88061b81}</Project>
-      <Name>GitHgMirrorCommonTypes</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

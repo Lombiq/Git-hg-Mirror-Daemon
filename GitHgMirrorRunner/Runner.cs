@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GitHgMirrorCommonTypes;
 
 namespace GitHgMirrorRunner
 {
@@ -31,31 +32,36 @@ namespace GitHgMirrorRunner
             {
                 Directory.CreateDirectory(_settings.RepositoriesDirectoryPath);
             }
+            
 
-            var mirror = new Mirror(_settings, _eventLog);
+            var currentPage = 1;
+            _mirrorTasks.Add(Task.Factory.StartNew(page =>
+                {
+                    var mirror = new Mirror(_settings, _eventLog);
 
-            var hgCloneUri = new Uri("https://bitbucket.org/lehoczky_zoltan/hg-test");
-            var gitCloneUri = new Uri("git://github.com/Piedone/git-test");
-            var direction = MirrorDirection.GitToHg;
-            try
-            {
-                mirror.MirrorRepositories(hgCloneUri, gitCloneUri, direction);
-            }
-            catch (Exception ex)
-            {
-                _eventLog.WriteEntry(String.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", hgCloneUri, gitCloneUri, direction, ex), EventLogEntryType.Error); 
-            }
-
-            for (int i = 0; i < _settings.ParallelisationDegree; i++)
-            {
-                _mirrorTasks.Add(Task.Run(() =>
+                    var testConfig = new MirroringConfiguration
                     {
-                        if (_cancellationTokenSource.IsCancellationRequested)
+                        HgCloneUri = new Uri("https://bitbucket.org/lehoczky_zoltan/hg-test"),
+                        GitCloneUri = new Uri("git://github.com/Piedone/git-test"),
+                        Direction = MirroringDirection.GitToHg
+                    };
+
+                    var configurations = new[] { testConfig };
+
+                    foreach (var configuration in configurations)
+                    {
+                        if (_cancellationTokenSource.IsCancellationRequested) return;
+
+                        try
                         {
-                            
+                            mirror.MirrorRepositories(testConfig);
                         }
-                    }, _cancellationTokenSource.Token));
-            }
+                        catch (Exception ex)
+                        {
+                            _eventLog.WriteEntry(String.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), EventLogEntryType.Error);
+                        }
+                    }
+                }, currentPage, _cancellationTokenSource.Token));
         }
 
         public void Stop()

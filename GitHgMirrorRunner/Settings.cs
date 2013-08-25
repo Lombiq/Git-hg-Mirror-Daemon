@@ -15,7 +15,12 @@ namespace GitHgMirrorRunner
         /// Must be an absolute path
         /// </summary>
         public string RepositoriesDirectoryPath { get; set; }
-        public int ParallelisationDegree { get; set; }
         public int BatchSize { get; set; }
+
+
+        public Settings()
+        {
+            BatchSize = 50;
+        }
     }
 }

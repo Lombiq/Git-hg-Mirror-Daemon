@@ -7,16 +7,10 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GitHgMirrorCommonTypes;
 
 namespace GitHgMirrorRunner
 {
-    enum MirrorDirection
-    {
-        GitToHg,
-        HgToGit,
-        TwoWay
-    }
-
     class Mirror
     {
         private readonly Settings _settings;
@@ -31,25 +25,25 @@ namespace GitHgMirrorRunner
         }
 
 
-        public void MirrorRepositories(Uri hgCloneUri, Uri gitCloneUri, MirrorDirection direction)
+        public void MirrorRepositories(MirroringConfiguration configuration)
         {
             StartHgProcessIfNotRunning();
 
 
-            var cloneDirectoryPath = Path.Combine(_settings.RepositoriesDirectoryPath, ToDirectoryName(hgCloneUri) + " - " + ToDirectoryName(gitCloneUri));
+            var cloneDirectoryPath = Path.Combine(_settings.RepositoriesDirectoryPath, ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri));
 
             if (!Directory.Exists(cloneDirectoryPath))
             {
                 Directory.CreateDirectory(cloneDirectoryPath);
-                _hgProcess.StandardInput.WriteLine("hg clone " + hgCloneUri + " \"" + cloneDirectoryPath + "\"");
+                _hgProcess.StandardInput.WriteLine("hg clone " + configuration.HgCloneUri + " \"" + cloneDirectoryPath + "\"");
             }
 
             _hgProcess.StandardInput.WriteLine("cd \"" + cloneDirectoryPath + "\"");
             _hgProcess.StandardInput.WriteLine(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty)); // Changing directory to other drive if necessary
-            if (direction == MirrorDirection.GitToHg)
+            if (configuration.Direction == MirroringDirection.GitToHg)
             {
-                _hgProcess.StandardInput.WriteLine("hg pull " + gitCloneUri);
-                _hgProcess.StandardInput.WriteLine("hg push " + hgCloneUri);
+                _hgProcess.StandardInput.WriteLine("hg pull " + configuration.GitCloneUri);
+                _hgProcess.StandardInput.WriteLine("hg push " + configuration.HgCloneUri);
             }
 
             _hgProcess.WaitForExit();
@@ -75,6 +69,7 @@ namespace GitHgMirrorRunner
             _hgProcess.ErrorDataReceived += (sender, e) =>
             {
                 _eventLog.WriteEntry(e.Data);
+                throw new MirroringException("Error from the hg process: " + e.Data);
             };
             _hgProcess.Exited += (sender, e) =>
             {
