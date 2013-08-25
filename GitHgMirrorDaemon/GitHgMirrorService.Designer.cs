@@ -28,23 +28,23 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.eventLog = new System.Diagnostics.EventLog();
-            ((System.ComponentModel.ISupportInitialize)(this.eventLog)).BeginInit();
+            this.serviceEventLog = new System.Diagnostics.EventLog();
+            ((System.ComponentModel.ISupportInitialize)(this.serviceEventLog)).BeginInit();
             // 
-            // eventLog
+            // serviceEventLog
             // 
-            this.eventLog.Log = "Log";
-            this.eventLog.Source = "GitHgMirrorDaemon";
+            this.serviceEventLog.Log = "Git-hg Mirror Daemon";
+            this.serviceEventLog.Source = "GitHgMirrorDaemon";
             // 
             // GitHgMirrorService
             // 
-            this.ServiceName = "Service1";
-            ((System.ComponentModel.ISupportInitialize)(this.eventLog)).EndInit();
+            this.ServiceName = "GitHgMirrorService";
+            ((System.ComponentModel.ISupportInitialize)(this.serviceEventLog)).EndInit();
 
         }
 
         #endregion
 
-        private System.Diagnostics.EventLog eventLog;
+        private System.Diagnostics.EventLog serviceEventLog;
     }
 }

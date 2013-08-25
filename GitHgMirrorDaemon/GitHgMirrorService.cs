@@ -20,7 +20,7 @@ namespace GitHgMirrorDaemon
 
         protected override void OnStart(string[] args)
         {
-            eventLog.WriteEntry("GitHgMirrorDaemon started.");
+            serviceEventLog.WriteEntry("GitHgMirrorDaemon started.");
 
             var timer = new System.Timers.Timer(10000);
             timer.Elapsed += timer_Elapsed;
@@ -30,15 +30,15 @@ namespace GitHgMirrorDaemon
         void timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
             ((System.Timers.Timer)sender).Enabled = false;
-            eventLog.WriteEntry("valami");
+            serviceEventLog.WriteEntry("valami");
             Thread.Sleep(60000);
-            eventLog.WriteEntry("valami2");
+            serviceEventLog.WriteEntry("valami2");
             Thread.Sleep(99999999);
         }
 
         protected override void OnStop()
         {
-            eventLog.WriteEntry("GitHgMirrorDaemon stopped.");
+            serviceEventLog.WriteEntry("GitHgMirrorDaemon stopped.");
         }
     }
 }
