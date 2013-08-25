@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirrorDaemon", "GitHgMirrorDaemon.csproj", "{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirrorRunner", "GitHgMirrorRunner\GitHgMirrorRunner.csproj", "{81BAD149-A525-4CE1-9671-70F5314DAFE2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirrorTester", "GitHgMirrorTester\GitHgMirrorTester.csproj", "{DF997DD8-35CF-4979-86C7-1E20EDF8E650}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirrorDaemon", "GitHgMirrorDaemon\GitHgMirrorDaemon.csproj", "{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,10 +13,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{81BAD149-A525-4CE1-9671-70F5314DAFE2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{81BAD149-A525-4CE1-9671-70F5314DAFE2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{81BAD149-A525-4CE1-9671-70F5314DAFE2}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -25,6 +21,10 @@ Global
 		{DF997DD8-35CF-4979-86C7-1E20EDF8E650}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DF997DD8-35CF-4979-86C7-1E20EDF8E650}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DF997DD8-35CF-4979-86C7-1E20EDF8E650}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
