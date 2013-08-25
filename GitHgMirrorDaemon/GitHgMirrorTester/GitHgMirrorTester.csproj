@@ -48,7 +48,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\GitHgMirrorRunner\GitHgMirrorRunner.csproj">
+    <ProjectReference Include="..\GitHgMirrorRunner\GitHgMirrorRunner.csproj">
       <Project>{81bad149-a525-4ce1-9671-70f5314dafe2}</Project>
       <Name>GitHgMirrorRunner</Name>
     </ProjectReference>
