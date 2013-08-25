@@ -20,6 +20,7 @@ namespace GitHgMirrorTester
 
                 var settings = new Settings
                 {
+                    HgExePath = @"C:\Program Files\TortoiseHg\hg.exe"
                 };
                 var runner = new Runner(settings, eventLog);
                 runner.Start();

@@ -18,6 +18,7 @@ namespace GitHgMirrorDaemon
             InitializeComponent();
         }
 
+
         protected override void OnStart(string[] args)
         {
             serviceEventLog.WriteEntry("GitHgMirrorDaemon started.");
