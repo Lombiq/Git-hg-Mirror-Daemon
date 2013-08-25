@@ -7,8 +7,8 @@
     <ProjectGuid>{DF997DD8-35CF-4979-86C7-1E20EDF8E650}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>GitHgMirrorTester</RootNamespace>
-    <AssemblyName>GitHgMirrorTester</AssemblyName>
+    <RootNamespace>GitHgMirror.Tester</RootNamespace>
+    <AssemblyName>GitHgMirror.Tester</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -48,9 +48,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GitHgMirrorRunner\GitHgMirrorRunner.csproj">
+    <ProjectReference Include="..\GitHgMirror.Runner\GitHgMirror.Runner.csproj">
       <Project>{81bad149-a525-4ce1-9671-70f5314dafe2}</Project>
-      <Name>GitHgMirrorRunner</Name>
+      <Name>GitHgMirror.Runner</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

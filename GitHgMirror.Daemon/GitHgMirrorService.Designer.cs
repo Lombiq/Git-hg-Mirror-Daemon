@@ -1,4 +1,4 @@
-﻿namespace GitHgMirrorDaemon
+﻿namespace GitHgMirror.Daemon
 {
     partial class GitHgMirrorService
     {
@@ -34,7 +34,7 @@
             // serviceEventLog
             // 
             this.serviceEventLog.Log = "Git-hg Mirror Daemon";
-            this.serviceEventLog.Source = "GitHgMirrorDaemon";
+            this.serviceEventLog.Source = "GitHgMirror.Daemon";
             // 
             // GitHgMirrorService
             // 

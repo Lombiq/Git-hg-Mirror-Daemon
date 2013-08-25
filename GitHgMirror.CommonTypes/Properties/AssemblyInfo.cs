@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("GitHgMirrorRunner")]
+[assembly: AssemblyTitle("GitHgMirror.CommonTypes")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("GitHgMirrorRunner")]
+[assembly: AssemblyProduct("GitHgMirror.CommonTypes")]
 [assembly: AssemblyCopyright("Copyright ©  2013")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("5ab4bb34-fa38-4818-a029-4deebd1dd4cf")]
+[assembly: Guid("9d3b6f42-ba8a-4ddd-997b-89bdb6704ffa")]
 
 // Version information for an assembly consists of the following four values:
 //

@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace GitHgMirrorDaemon
+namespace GitHgMirror.Daemon
 {
     public partial class GitHgMirrorService : ServiceBase
     {

@@ -6,11 +6,11 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using GitHgMirrorCommonTypes;
+using GitHgMirror.CommonTypes;
 
-namespace GitHgMirrorRunner
+namespace GitHgMirror.Runner
 {
-    public class Runner
+    public class MirrorRunner
     {
         private readonly Settings _settings;
         private readonly EventLog _eventLog;
@@ -19,7 +19,7 @@ namespace GitHgMirrorRunner
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
 
 
-        public Runner(Settings settings, EventLog eventLog)
+        public MirrorRunner(Settings settings, EventLog eventLog)
         {
             _settings = settings;
             _eventLog = eventLog;

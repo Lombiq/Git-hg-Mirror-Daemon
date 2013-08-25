@@ -6,7 +6,7 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GitHgMirrorDaemon
+namespace GitHgMirror.Daemon
 {
     [RunInstaller(true)]
     public class Installer : System.Configuration.Install.Installer

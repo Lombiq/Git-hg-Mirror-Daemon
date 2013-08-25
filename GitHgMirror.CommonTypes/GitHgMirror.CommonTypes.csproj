@@ -7,8 +7,8 @@
     <ProjectGuid>{EC2E86CF-0ACB-442D-A23E-7D1E88061B81}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>GitHgMirrorCommonTypes</RootNamespace>
-    <AssemblyName>GitHgMirrorCommonTypes</AssemblyName>
+    <RootNamespace>GitHgMirror.CommonTypes</RootNamespace>
+    <AssemblyName>GitHgMirror.CommonTypes</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />

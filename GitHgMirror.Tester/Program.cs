@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using GitHgMirrorRunner;
+using GitHgMirror.Runner;
 
-namespace GitHgMirrorTester
+namespace GitHgMirror.Tester
 {
     class Program
     {
@@ -14,7 +14,7 @@ namespace GitHgMirrorTester
 
         static void Main(string[] args)
         {
-            using (var eventLog = new System.Diagnostics.EventLog("Git-hg Mirror Daemon", ".", "GitHgMirrorTester"))
+            using (var eventLog = new System.Diagnostics.EventLog("Git-hg Mirror Daemon", ".", "GitHgMirror.Tester"))
             {
                 eventLog.EnableRaisingEvents = true;
 
@@ -31,7 +31,7 @@ namespace GitHgMirrorTester
                     RepositoriesDirectoryPath = @"D:\GitHgMirror\Repositories"
                 };
 
-                var runner = new Runner(settings, eventLog);
+                var runner = new MirrorRunner(settings, eventLog);
 
                 // On exit with Ctrl+C
                 Console.CancelKeyPress += (sender, e) =>
