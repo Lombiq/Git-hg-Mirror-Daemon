@@ -10,7 +10,11 @@ namespace GitHgMirrorRunner
     {
         public Uri ApiEndpointUrl { get; set; }
         public string ApiPassword { get; set; }
-        public string HgExePath { get; set; }
+
+        /// <summary>
+        /// Must be an absolute path
+        /// </summary>
+        public string RepositoriesDirectoryPath { get; set; }
         public int ParallelisationDegree { get; set; }
         public int BatchSize { get; set; }
     }
