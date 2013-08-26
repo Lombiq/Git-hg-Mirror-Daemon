@@ -16,11 +16,13 @@ namespace GitHgMirror.Runner
         /// </summary>
         public string RepositoriesDirectoryPath { get; set; }
         public int BatchSize { get; set; }
+        public int SecondsBetweenConfigurationCountChecks { get; set; }
 
 
         public Settings()
         {
             BatchSize = 50;
+            SecondsBetweenConfigurationCountChecks = 60;
         }
     }
 }

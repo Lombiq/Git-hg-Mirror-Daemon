@@ -16,7 +16,6 @@ namespace GitHgMirror.Runner
         public MirroringException(string message, Exception innerException)
             : base(message, innerException)
         {
-
         }
     }
 }

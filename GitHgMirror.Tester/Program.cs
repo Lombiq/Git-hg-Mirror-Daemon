@@ -28,7 +28,8 @@ namespace GitHgMirror.Tester
                 {
                     ApiEndpointUrl = new Uri("http://portal.lombiq.com.127-0-0-1.org.uk/api/GitHgMirror.Common/Mirrorings"),
                     ApiPassword = "Fsdfp342LE8%!",
-                    RepositoriesDirectoryPath = @"D:\GitHgMirror\Repositories"
+                    RepositoriesDirectoryPath = @"D:\GitHgMirror\Repositories",
+                    BatchSize = 1
                 };
 
                 var runner = new MirrorRunner(settings, eventLog);

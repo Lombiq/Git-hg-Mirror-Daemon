@@ -11,11 +11,12 @@ using GitHgMirror.CommonTypes;
 
 namespace GitHgMirror.Runner
 {
-    class Mirror
+    class Mirror : IDisposable
     {
         private readonly Settings _settings;
         private readonly EventLog _eventLog;
-        private Process _hgProcess;
+
+        private readonly CommandRunner _commandRunner = new CommandRunner();
 
 
         public Mirror(Settings settings, EventLog eventLog)
@@ -27,59 +28,42 @@ namespace GitHgMirror.Runner
 
         public void MirrorRepositories(MirroringConfiguration configuration)
         {
-            StartHgProcessIfNotRunning();
-
-
-            var cloneDirectoryPath = Path.Combine(_settings.RepositoriesDirectoryPath, ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri));
-
-            if (!Directory.Exists(cloneDirectoryPath))
+            try
             {
-                Directory.CreateDirectory(cloneDirectoryPath);
-                _hgProcess.StandardInput.WriteLine("hg clone " + configuration.HgCloneUri + " \"" + cloneDirectoryPath + "\"");
-            }
+                var cloneDirectoryPath = Path.Combine(_settings.RepositoriesDirectoryPath, ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri));
+                var quotedHgCloneUrl = configuration.HgCloneUri.ToString().EncloseInQuotes();
+                var quotedGitCloneUrl = configuration.GitCloneUri.ToString().EncloseInQuotes();
 
-            _hgProcess.StandardInput.WriteLine("cd \"" + cloneDirectoryPath + "\"");
-            _hgProcess.StandardInput.WriteLine(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty)); // Changing directory to other drive if necessary
-            if (configuration.Direction == MirroringDirection.GitToHg)
+                if (!Directory.Exists(cloneDirectoryPath))
+                {
+                    Directory.CreateDirectory(cloneDirectoryPath);
+                    RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
+                }
+
+                RunCommandAndLogOutput("cd \"" + cloneDirectoryPath + "\"");
+                RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty)); // Changing directory to other drive if necessary
+                
+                if (configuration.Direction == MirroringDirection.GitToHg)
+                {
+                    RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                    RunCommandAndLogOutput("hg push " + quotedHgCloneUrl);
+                }
+            }
+            catch (CommandException ex)
             {
-                _hgProcess.StandardInput.WriteLine("hg pull " + configuration.GitCloneUri);
-                _hgProcess.StandardInput.WriteLine("hg push " + configuration.HgCloneUri);
+                throw new MirroringException(String.Format("An exception occured while mirroring the repositories {0} and {1} in direction {2}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
             }
-
-            _hgProcess.WaitForExit();
         }
 
-        private void StartHgProcessIfNotRunning()
+        public void Dispose()
         {
-            if (_hgProcess != null) return;
+            _commandRunner.Dispose();
+        }
 
-            _hgProcess = new Process();
 
-            _hgProcess.StartInfo.UseShellExecute = false;
-            _hgProcess.StartInfo.RedirectStandardOutput = true;
-            _hgProcess.StartInfo.RedirectStandardError = true;
-            _hgProcess.StartInfo.RedirectStandardInput = true;
-            _hgProcess.StartInfo.FileName = "cmd";
-            _hgProcess.StartInfo.WorkingDirectory = @"C:\";
-
-            _hgProcess.OutputDataReceived += (sender, e) =>
-            {
-                _eventLog.WriteEntry(e.Data);
-            };
-            _hgProcess.ErrorDataReceived += (sender, e) =>
-            {
-                _eventLog.WriteEntry(e.Data);
-                throw new MirroringException("Error from the hg process: " + e.Data);
-            };
-            _hgProcess.Exited += (sender, e) =>
-            {
-                _eventLog.WriteEntry("exit");
-            };
-
-            _hgProcess.Start();
-
-            _hgProcess.BeginOutputReadLine();
-            _hgProcess.BeginErrorReadLine();
+        private void RunCommandAndLogOutput(string command)
+        {
+            _eventLog.WriteEntry(_commandRunner.RunCommand(command));
         }
 
 
