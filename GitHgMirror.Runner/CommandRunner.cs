@@ -34,7 +34,7 @@ namespace GitHgMirror.Runner
             if (!String.IsNullOrEmpty(_error))
             {
                 // Waiting for error lines to gather
-                for (int i = 0; i < 5; i++)
+                for (int i = 0; i < 10; i++)
                 {
                     _waitHandle.WaitOne(1000);
                     _waitHandle.Reset();
