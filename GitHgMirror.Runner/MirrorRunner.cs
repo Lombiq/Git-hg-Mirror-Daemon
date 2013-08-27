@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using GitHgMirror.CommonTypes;
+using Newtonsoft.Json;
 
 namespace GitHgMirror.Runner
 {
@@ -109,8 +111,14 @@ namespace GitHgMirror.Runner
 
         private int FetchConfigurationPageCount()
         {
-            var count = 3; // Will come from webservice
-            return (int)Math.Ceiling((double)count / (double)_settings.BatchSize);
+            using (var wc = new WebClient())
+            {
+                // Setting UTF-8 is needed for accented characters to work properly.
+                wc.Headers.Add(HttpRequestHeader.ContentType, "application/json; charset=utf-8");
+                var apiUrl = _settings.ApiEndpointUrl.ToString();
+                var count = int.Parse(wc.DownloadString(apiUrl + (!apiUrl.EndsWith("/") ? "/" : "") + "Count?password=" + _settings.ApiPassword));
+                return (int)Math.Ceiling((double)count / (double)_settings.BatchSize);
+            }
         }
 
         /// <summary>
@@ -118,27 +126,15 @@ namespace GitHgMirror.Runner
         /// </summary>
         private List<MirroringConfiguration> FetchConfigurations(int page)
         {
-            return new[]
+            using (var wc = new WebClient())
             {
-                new MirroringConfiguration
-                {
-                    HgCloneUri = new Uri("https://bitbucket.org/lehoczky_zoltan/hg-test"),
-                    GitCloneUri = new Uri("git://github.com/Piedone/git-test"),
-                    Direction = MirroringDirection.GitToHg
-                },
-                new MirroringConfiguration
-                {
-                    HgCloneUri = new Uri("https://bitbucket.org/Lombiq/orchard-hg"),
-                    GitCloneUri = new Uri("git+https://git01.codeplex.com/orchard.git"),
-                    Direction = MirroringDirection.GitToHg
-                },
-                new MirroringConfiguration
-                {
-                    HgCloneUri = new Uri("https://bitbucket.org/Lombiq/orchard-mvc-mini-profiler-module-hg"),
-                    GitCloneUri = new Uri("git+https://git01.codeplex.com/orchardprofiler.git"),
-                    Direction = MirroringDirection.GitToHg
-                }
-            }.Skip(page * _settings.BatchSize).Take(_settings.BatchSize).ToList();
+                // Setting UTF-8 is needed for accented characters to work properly.
+                wc.Headers.Add(HttpRequestHeader.ContentType, "application/json; charset=utf-8");
+                var apiUrl = _settings.ApiEndpointUrl.ToString();
+                var skip = page * _settings.BatchSize;
+                var json = wc.DownloadString(apiUrl + "?password=" + _settings.ApiPassword + "&skip=" + skip + "&take=" + _settings.BatchSize);
+                return JsonConvert.DeserializeObject<IEnumerable<MirroringConfiguration>>(json).ToList();
+            }
         }
     }
 }
