@@ -42,11 +42,23 @@ namespace GitHgMirror.Runner
 
                 RunCommandAndLogOutput("cd \"" + cloneDirectoryPath + "\"");
                 RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty)); // Changing directory to other drive if necessary
-                
-                if (configuration.Direction == MirroringDirection.GitToHg)
+
+                switch (configuration.Direction)
                 {
-                    RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
-                    RunCommandAndLogOutput("hg push " + quotedHgCloneUrl);
+                    case MirroringDirection.GitToHg:
+                        RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                        RunCommandAndLogOutput("hg push " + quotedHgCloneUrl);
+                        break;
+                    case MirroringDirection.HgToGit:
+                        RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+                        RunCommandAndLogOutput("hg push " + quotedGitCloneUrl);
+                        break;
+                    case MirroringDirection.TwoWay:
+                        RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                        RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+                        RunCommandAndLogOutput("hg push " + quotedGitCloneUrl);
+                        RunCommandAndLogOutput("hg push " + quotedHgCloneUrl);
+                        break;
                 }
             }
             catch (CommandException ex)
