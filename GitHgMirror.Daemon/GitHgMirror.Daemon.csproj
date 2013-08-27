@@ -68,6 +68,16 @@
       <SubType>Designer</SubType>
     </EmbeddedResource>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GitHgMirror.CommonTypes\GitHgMirror.CommonTypes.csproj">
+      <Project>{ec2e86cf-0acb-442d-a23e-7d1e88061b81}</Project>
+      <Name>GitHgMirror.CommonTypes</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\GitHgMirror.Runner\GitHgMirror.Runner.csproj">
+      <Project>{81bad149-a525-4ce1-9671-70f5314dafe2}</Project>
+      <Name>GitHgMirror.Runner</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
