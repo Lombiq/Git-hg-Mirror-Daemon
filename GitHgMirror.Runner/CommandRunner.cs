@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GitHgMirror.Runner
@@ -11,6 +12,7 @@ namespace GitHgMirror.Runner
     public class CommandRunner : IDisposable
     {
         private Process _process;
+        private static ManualResetEvent _waitHandle = new ManualResetEvent(false);
         private string _error = string.Empty;
 
 
@@ -31,6 +33,13 @@ namespace GitHgMirror.Runner
 
             if (!String.IsNullOrEmpty(_error))
             {
+                // Waiting for error lines to gather
+                for (int i = 0; i < 5; i++)
+                {
+                    _waitHandle.WaitOne(1000);
+                    _waitHandle.Reset();
+                }
+
                 var error = _error;
                 _error = string.Empty;
                 throw new CommandException(String.Format("Executing command \"{0}\" failed with the output \"{1}\" and error \"{2}\".", command, output, error), output, error);
@@ -63,7 +72,8 @@ namespace GitHgMirror.Runner
 
             _process.ErrorDataReceived += (sender, e) =>
             {
-                _error += e.Data;
+                _error += Environment.NewLine + e.Data;
+                _waitHandle.Set();
             };
 
             _process.Start();
