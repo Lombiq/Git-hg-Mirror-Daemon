@@ -81,26 +81,60 @@ namespace GitHgMirror.Runner
                 // Refreshing will run until cancelled
                 while (!_cancellationTokenSource.IsCancellationRequested)
                 {
-                    var configurations = FetchConfigurations(pageNum);
-
-                    for (int c = 0; c < configurations.Count; c++)
+                    try
                     {
-                        if (_cancellationTokenSource.IsCancellationRequested)
-                        {
-                            mirror.Dispose();
-                            _cancellationTokenSource.Token.ThrowIfCancellationRequested();
-                        }
+                        var configurations = FetchConfigurations(pageNum);
 
-                        var configuration = configurations[c];
+                        for (int c = 0; c < configurations.Count; c++)
+                        {
+                            if (_cancellationTokenSource.IsCancellationRequested)
+                            {
+                                mirror.Dispose();
+                                _cancellationTokenSource.Token.ThrowIfCancellationRequested();
+                            }
 
-                        try
-                        {
-                            mirror.MirrorRepositories(configuration);
+                            var configuration = configurations[c];
+                            var isNewlyCloned = !mirror.IsCloned(configuration);
+
+                            if (isNewlyCloned)
+                            {
+                                _apiService.Post("Report", new MirroringStatusReport
+                                {
+                                    ConfigurationId = configuration.Id,
+                                    Status = MirroringStatus.Cloning
+                                });
+                            }
+
+                            try
+                            {
+                                mirror.MirrorRepositories(configuration);
+                            }
+                            catch (MirroringException ex)
+                            {
+                                _eventLog.WriteEntry(String.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), EventLogEntryType.Error);
+
+                                _apiService.Post("Report", new MirroringStatusReport
+                                {
+                                    ConfigurationId = configuration.Id,
+                                    Status = MirroringStatus.Failed,
+                                    Message = ex.Message
+                                });
+                            }
+
+                            if (isNewlyCloned)
+                            {
+                                _apiService.Post("Report", new MirroringStatusReport
+                                {
+                                    ConfigurationId = configuration.Id,
+                                    Status = MirroringStatus.Syncing
+                                });
+                            }
                         }
-                        catch (MirroringException ex)
-                        {
-                            _eventLog.WriteEntry(String.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), EventLogEntryType.Error);
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.IsFatal() || ex is MirroringException || ex is OperationCanceledException) throw;
+                        _eventLog.WriteEntry("Unhandled exception while running mirrorings: " + ex.Message, EventLogEntryType.Error);
                     }
 
                     await Task.Delay(30000, _cancellationTokenSource.Token); // Wait a bit between loops

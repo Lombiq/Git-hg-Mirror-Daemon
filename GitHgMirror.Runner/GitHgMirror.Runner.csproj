@@ -45,6 +45,7 @@
     <Compile Include="ApiService.cs" />
     <Compile Include="CommandRunner.cs" />
     <Compile Include="CommandException.cs" />
+    <Compile Include="ExceptionExtensions.cs" />
     <Compile Include="Mirror.cs" />
     <Compile Include="MirroringException.cs" />
     <Compile Include="MirrorRunner.cs" />

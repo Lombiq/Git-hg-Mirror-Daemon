@@ -22,6 +22,25 @@ namespace GitHgMirror.Runner
 
         public T Get<T>(string path)
         {
+            T value = default(T);
+            PrepareWebClientCall(path, (url, wc) =>
+                {
+                    value = JsonConvert.DeserializeObject<T>(wc.DownloadString(url));
+                });
+            return value;
+        }
+
+        public void Post(string path, object value)
+        {
+            PrepareWebClientCall(path, (url, wc) =>
+                {
+                    wc.UploadData(url, "POST", Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(value)));
+                });
+        }
+
+
+        private void PrepareWebClientCall(string path, Action<string, WebClient> execute)
+        {
             using (var wc = new WebClient())
             {
                 // Setting UTF-8 is needed for accented characters to work properly.
@@ -29,7 +48,7 @@ namespace GitHgMirror.Runner
                 var apiUrl = _settings.ApiEndpointUrl.ToString();
                 var url = apiUrl + (!apiUrl.EndsWith("/") ? "/" : "") + path.Trim('/');
                 url += (url.Contains('?') ? "&" : "?") + "password=" + _settings.ApiPassword;
-                return JsonConvert.DeserializeObject<T>(wc.DownloadString(url));
+                execute(url, wc);
             }
         }
     }
