@@ -42,6 +42,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ApiService.cs" />
     <Compile Include="CommandRunner.cs" />
     <Compile Include="CommandException.cs" />
     <Compile Include="Mirror.cs" />

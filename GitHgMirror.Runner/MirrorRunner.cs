@@ -16,6 +16,7 @@ namespace GitHgMirror.Runner
     {
         private readonly Settings _settings;
         private readonly EventLog _eventLog;
+        private readonly ApiService _apiService;
 
         private readonly List<Task> _mirrorTasks = new List<Task>();
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
@@ -26,6 +27,7 @@ namespace GitHgMirror.Runner
         {
             _settings = settings;
             _eventLog = eventLog;
+            _apiService = new ApiService(settings);
 
             _tasksRefreshTimer = new System.Timers.Timer(settings.SecondsBetweenConfigurationCountChecks * 1000);
             _tasksRefreshTimer.Elapsed += AdjustTasksToPageCount;
@@ -111,14 +113,7 @@ namespace GitHgMirror.Runner
 
         private int FetchConfigurationPageCount()
         {
-            using (var wc = new WebClient())
-            {
-                // Setting UTF-8 is needed for accented characters to work properly.
-                wc.Headers.Add(HttpRequestHeader.ContentType, "application/json; charset=utf-8");
-                var apiUrl = _settings.ApiEndpointUrl.ToString();
-                var count = int.Parse(wc.DownloadString(apiUrl + (!apiUrl.EndsWith("/") ? "/" : "") + "Count?password=" + _settings.ApiPassword));
-                return (int)Math.Ceiling((double)count / (double)_settings.BatchSize);
-            }
+            return (int)Math.Ceiling((double)_apiService.Get<int>("Count") / (double)_settings.BatchSize);
         }
 
         /// <summary>
@@ -126,15 +121,8 @@ namespace GitHgMirror.Runner
         /// </summary>
         private List<MirroringConfiguration> FetchConfigurations(int page)
         {
-            using (var wc = new WebClient())
-            {
-                // Setting UTF-8 is needed for accented characters to work properly.
-                wc.Headers.Add(HttpRequestHeader.ContentType, "application/json; charset=utf-8");
-                var apiUrl = _settings.ApiEndpointUrl.ToString();
-                var skip = page * _settings.BatchSize;
-                var json = wc.DownloadString(apiUrl + "?password=" + _settings.ApiPassword + "&skip=" + skip + "&take=" + _settings.BatchSize);
-                return JsonConvert.DeserializeObject<IEnumerable<MirroringConfiguration>>(json).ToList();
-            }
+            var skip = page * _settings.BatchSize;
+            return _apiService.Get<List<MirroringConfiguration>>("?skip=" + skip + "&take=" + _settings.BatchSize);
         }
     }
 }
