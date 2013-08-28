@@ -31,6 +31,8 @@ namespace GitHgMirror.Tester
                     RepositoriesDirectoryPath = @"D:\GitHgMirror\Repositories"
                 };
 
+                //new UntouchedRepositoriesCleaner(settings, eventLog).Clean();
+
                 var runner = new MirrorRunner(settings, eventLog);
 
                 // On exit with Ctrl+C

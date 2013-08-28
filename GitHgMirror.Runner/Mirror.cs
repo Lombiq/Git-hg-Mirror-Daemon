@@ -30,15 +30,31 @@ namespace GitHgMirror.Runner
         {
             try
             {
-                var cloneDirectoryPath = Path.Combine(_settings.RepositoriesDirectoryPath, ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri));
+                var repositoryDirectoryName = ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri);
+                var cloneDirectoryParentPath = Path.Combine(_settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
+                if (!Directory.Exists(cloneDirectoryParentPath))
+                {
+                    Directory.CreateDirectory(cloneDirectoryParentPath);
+                }
+                var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
                 var quotedHgCloneUrl = configuration.HgCloneUri.ToString().EncloseInQuotes();
                 var quotedGitCloneUrl = configuration.GitCloneUri.ToString().EncloseInQuotes();
 
-                if (!Directory.Exists(cloneDirectoryPath))
+                try
                 {
-                    Directory.CreateDirectory(cloneDirectoryPath);
-                    RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
+                    if (!Directory.Exists(cloneDirectoryPath))
+                    {
+                        Directory.CreateDirectory(cloneDirectoryPath);
+                        RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
+                    }
                 }
+                catch (CommandException ex)
+                {
+                    Directory.Delete(cloneDirectoryPath);
+                    throw new MirroringException(String.Format("An exception occured while cloning the repositories {0} and {1} in direction {2}. Cloning will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
+                }
+
+                Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
 
                 RunCommandAndLogOutput("cd \"" + cloneDirectoryPath + "\"");
                 RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty)); // Changing directory to other drive if necessary
@@ -63,7 +79,7 @@ namespace GitHgMirror.Runner
             }
             catch (CommandException ex)
             {
-                throw new MirroringException(String.Format("An exception occured while mirroring the repositories {0} and {1} in direction {2}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
+                throw new MirroringException(String.Format("An exception occured while mirroring the repositories {0} and {1} in direction {2},", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
             }
         }
 

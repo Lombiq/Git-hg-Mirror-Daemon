@@ -14,7 +14,9 @@ namespace GitHgMirror.Daemon
 {
     public partial class GitHgMirrorService : ServiceBase
     {
+        private Settings _settings;
         private MirrorRunner _runner;
+        private UntouchedRepositoriesCleaner _cleaner;
         private ManualResetEvent _waitHandle = new ManualResetEvent(false);
 
 
@@ -28,9 +30,24 @@ namespace GitHgMirror.Daemon
         {
             serviceEventLog.WriteEntry("GitHgMirrorDaemon started.");
 
-            var timer = new System.Timers.Timer(10000);
-            timer.Elapsed += timer_Elapsed;
-            timer.Enabled = true;
+            _settings = new Settings
+            {
+                ApiEndpointUrl = new Uri("http://githgmirror.com/api/GitHgMirror.Common/Mirrorings"),
+                ApiPassword = "Fsdfp342LE8%!",
+                RepositoriesDirectoryPath = @"C:\GitHgMirror\Repositories"
+            };
+
+            var startTimer = new System.Timers.Timer(10000);
+            startTimer.Elapsed += timer_Elapsed;
+            startTimer.Enabled = true;
+
+            _cleaner = new UntouchedRepositoriesCleaner(_settings, serviceEventLog);
+            var cleanerTimer = new System.Timers.Timer(3600000 * 2); // Two hours
+            cleanerTimer.Elapsed += (sender, e) =>
+                {
+                    _cleaner.Clean();
+                };
+            cleanerTimer.Enabled = true;
         }
 
         protected override void OnStop()
@@ -49,14 +66,7 @@ namespace GitHgMirror.Daemon
 
             serviceEventLog.WriteEntry("Starting mirroring.");
 
-            var settings = new Settings
-            {
-                ApiEndpointUrl = new Uri("http://githgmirror.com/api/GitHgMirror.Common/Mirrorings"),
-                ApiPassword = "Fsdfp342LE8%!",
-                RepositoriesDirectoryPath = @"C:\GitHgMirror\Repositories"
-            };
-
-            _runner = new MirrorRunner(settings, serviceEventLog);
+            _runner = new MirrorRunner(_settings, serviceEventLog);
 
             _runner.Start();
 
