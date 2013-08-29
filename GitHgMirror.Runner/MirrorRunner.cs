@@ -76,8 +76,6 @@ namespace GitHgMirror.Runner
             {
                 var pageNum = (int)pageObject;
 
-                var mirror = new Mirror(_settings, _eventLog);
-
                 // Refreshing will run until cancelled
                 while (!_cancellationTokenSource.IsCancellationRequested)
                 {
@@ -85,50 +83,48 @@ namespace GitHgMirror.Runner
                     {
                         var configurations = FetchConfigurations(pageNum);
 
-                        for (int c = 0; c < configurations.Count; c++)
+                        using (var mirror = new Mirror(_settings, _eventLog))
                         {
-                            if (_cancellationTokenSource.IsCancellationRequested)
+                            for (int c = 0; c < configurations.Count; c++)
                             {
-                                mirror.Dispose();
-                                _cancellationTokenSource.Token.ThrowIfCancellationRequested();
-                            }
-
-                            var configuration = configurations[c];
-                            var isNewlyCloned = !mirror.IsCloned(configuration);
-
-                            if (isNewlyCloned)
-                            {
-                                _apiService.Post("Report", new MirroringStatusReport
+                                if (_cancellationTokenSource.IsCancellationRequested)
                                 {
-                                    ConfigurationId = configuration.Id,
-                                    Status = MirroringStatus.Cloning
-                                });
-                            }
+                                    _cancellationTokenSource.Token.ThrowIfCancellationRequested();
+                                }
 
-                            try
-                            {
-                                mirror.MirrorRepositories(configuration);
-                            }
-                            catch (MirroringException ex)
-                            {
-                                _eventLog.WriteEntry(String.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), EventLogEntryType.Error);
+                                var configuration = configurations[c];
 
-                                _apiService.Post("Report", new MirroringStatusReport
+                                if (!mirror.IsCloned(configuration))
                                 {
-                                    ConfigurationId = configuration.Id,
-                                    Status = MirroringStatus.Failed,
-                                    Message = ex.Message
-                                });
-                            }
+                                    _apiService.Post("Report", new MirroringStatusReport
+                                    {
+                                        ConfigurationId = configuration.Id,
+                                        Status = MirroringStatus.Cloning
+                                    });
+                                }
 
-                            if (isNewlyCloned)
-                            {
-                                _apiService.Post("Report", new MirroringStatusReport
+                                try
                                 {
-                                    ConfigurationId = configuration.Id,
-                                    Status = MirroringStatus.Syncing
-                                });
-                            }
+                                    mirror.MirrorRepositories(configuration);
+
+                                    _apiService.Post("Report", new MirroringStatusReport
+                                    {
+                                        ConfigurationId = configuration.Id,
+                                        Status = MirroringStatus.Syncing
+                                    });
+                                }
+                                catch (MirroringException ex)
+                                {
+                                    _eventLog.WriteEntry(String.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), EventLogEntryType.Error);
+
+                                    _apiService.Post("Report", new MirroringStatusReport
+                                    {
+                                        ConfigurationId = configuration.Id,
+                                        Status = MirroringStatus.Failed,
+                                        Message = ex.Message
+                                    });
+                                }
+                            } 
                         }
                     }
                     catch (Exception ex)
@@ -140,7 +136,6 @@ namespace GitHgMirror.Runner
                     await Task.Delay(30000, _cancellationTokenSource.Token); // Wait a bit between loops
                 }
 
-                mirror.Dispose();
                 _cancellationTokenSource.Token.ThrowIfCancellationRequested();
             }, page, _cancellationTokenSource.Token));
         }

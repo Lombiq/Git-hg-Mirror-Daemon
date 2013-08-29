@@ -52,8 +52,8 @@ namespace GitHgMirror.Runner
         {
             if (_process == null || _process.HasExited) return;
 
+            _process.Kill();
             _process.Dispose();
-            //_hgProcess.Kill(); // Not sure this is a good thing although this should only happen if there is no operation running anyway.
         }
 
 
