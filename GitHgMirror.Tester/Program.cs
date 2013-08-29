@@ -29,7 +29,7 @@ namespace GitHgMirror.Tester
                     ApiEndpointUrl = new Uri("http://githgmirror.com.127-0-0-1.org.uk/api/GitHgMirror.Common/Mirrorings"),
                     ApiPassword = "Fsdfp342LE8%!",
                     RepositoriesDirectoryPath = @"C:\GitHgMirror\Repositories",
-                    BatchSize = 1
+                    BatchSize = 20
                 };
 
                 new UntouchedRepositoriesCleaner(settings, eventLog).Clean();
