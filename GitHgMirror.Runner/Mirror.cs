@@ -40,21 +40,41 @@ namespace GitHgMirror.Runner
                 var quotedHgCloneUrl = configuration.HgCloneUri.ToString().EncloseInQuotes();
                 var quotedGitCloneUrl = configuration.GitCloneUri.ToString().EncloseInQuotes();
 
+
                 try
                 {
+                    // This is a workaround for this bug: https://bitbucket.org/durin42/hg-git/issue/49/pull-results-in-keyerror
+                    // Cloning from git works but pulling a modified git repo fails, so we have to re-clone everytime...
+                    if (configuration.Direction == MirroringDirection.GitToHg)
+                    {
+                        if (Directory.Exists(cloneDirectoryPath))
+                        {
+                            Directory.Delete(cloneDirectoryPath, true); 
+                        }
+
+                        RunCommandAndLogOutput("hg clone --noupdate " + quotedGitCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
+                        RunCommandAndLogOutput("cd \"" + cloneDirectoryPath + "\"");
+                        RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty)); // Changing directory to other drive if necessary
+                        RunCommandAndLogOutput("hg push " + quotedHgCloneUrl);
+
+                        return;
+                    }
+
                     if (!Directory.Exists(cloneDirectoryPath))
                     {
                         Directory.CreateDirectory(cloneDirectoryPath);
                         RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
                     }
+                    else
+                    {
+                        Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
+                    }
                 }
                 catch (CommandException ex)
                 {
-                    Directory.Delete(cloneDirectoryPath);
                     throw new MirroringException(String.Format("An exception occured while cloning the repositories {0} and {1} in direction {2}. Cloning will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
                 }
 
-                Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
 
                 RunCommandAndLogOutput("cd \"" + cloneDirectoryPath + "\"");
                 RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty)); // Changing directory to other drive if necessary
