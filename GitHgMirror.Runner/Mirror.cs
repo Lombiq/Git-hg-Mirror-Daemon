@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GitHgMirror.CommonTypes;
@@ -45,17 +46,19 @@ namespace GitHgMirror.Runner
                 {
                     // This is a workaround for this bug: https://bitbucket.org/durin42/hg-git/issue/49/pull-results-in-keyerror
                     // Cloning from git works but pulling a modified git repo fails, so we have to re-clone everytime...
+                    // This if block should be removed once the issue is resolved in hg-git (other parts of this class will work as they are).
                     if (configuration.Direction == MirroringDirection.GitToHg)
                     {
                         if (Directory.Exists(cloneDirectoryPath))
                         {
-                            Directory.Delete(cloneDirectoryPath, true); 
+                            Directory.Delete(cloneDirectoryPath, true);
                         }
 
                         RunCommandAndLogOutput("hg clone --noupdate " + quotedGitCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
                         RunCommandAndLogOutput("cd \"" + cloneDirectoryPath + "\"");
                         RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty)); // Changing directory to other drive if necessary
-                        RunCommandAndLogOutput("hg push " + quotedHgCloneUrl);
+
+                        PushWithBookmarks(quotedHgCloneUrl);
 
                         return;
                     }
@@ -83,7 +86,7 @@ namespace GitHgMirror.Runner
                 {
                     case MirroringDirection.GitToHg:
                         RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
-                        RunCommandAndLogOutput("hg push " + quotedHgCloneUrl);
+                        PushWithBookmarks(quotedHgCloneUrl);
                         break;
                     case MirroringDirection.HgToGit:
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
@@ -117,9 +120,23 @@ namespace GitHgMirror.Runner
         }
 
 
-        private void RunCommandAndLogOutput(string command)
+        private string RunCommandAndLogOutput(string command)
         {
-            _eventLog.WriteEntry(_commandRunner.RunCommand(command));
+            var output = _commandRunner.RunCommand(command);
+            _eventLog.WriteEntry(output);
+            return output;
+        }
+
+        private void PushWithBookmarks(string quotedHgCloneUrl)
+        {
+            // There will be at least one bookmark, master
+            var bookmarksOutput = RunCommandAndLogOutput("hg bookmarks");
+            var bookmarks = bookmarksOutput
+                .Split(Environment.NewLine.ToArray())
+                .Skip(1) // The first line is the command itself
+                .Where(line => line != string.Empty)
+                .Select(line => "-B " + Regex.Match(line, @"\s([a-z0-9/.-]+)\s", RegexOptions.IgnoreCase).Groups[1].Value);
+            RunCommandAndLogOutput("hg push -f " + string.Join(" ", bookmarks) + " " + quotedHgCloneUrl);
         }
 
 

@@ -15,7 +15,6 @@ namespace GitHgMirror.Runner
                 || ex is AppDomainUnloadedException
                 || ex is BadImageFormatException
                 || ex is CannotUnloadAppDomainException
-                || ex is ExecutionEngineException
                 || ex is InvalidProgramException
                 || ex is System.Threading.ThreadAbortException) return true;
 
