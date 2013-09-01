@@ -26,16 +26,19 @@ namespace GitHgMirror.Runner
             _eventLog.WriteEntry("Starting cleaning untouched repositories");
 
             var count = 0;
-            foreach (var letterDirectory in Directory.EnumerateDirectories(_settings.RepositoriesDirectoryPath))
+            if (Directory.Exists(_settings.RepositoriesDirectoryPath))
             {
-                foreach (var repositoryDirectory in Directory.EnumerateDirectories(letterDirectory))
+                foreach (var letterDirectory in Directory.EnumerateDirectories(_settings.RepositoriesDirectoryPath))
                 {
-                    if (Directory.GetLastAccessTimeUtc(repositoryDirectory) < DateTime.UtcNow.Subtract(new TimeSpan(24, 0, 0)))
+                    foreach (var repositoryDirectory in Directory.EnumerateDirectories(letterDirectory))
                     {
-                        Directory.Delete(repositoryDirectory, true);
-                        count++;
+                        if (Directory.GetLastAccessTimeUtc(repositoryDirectory) < DateTime.UtcNow.Subtract(new TimeSpan(24, 0, 0)))
+                        {
+                            Directory.Delete(repositoryDirectory, true);
+                            count++;
+                        }
                     }
-                }
+                } 
             }
 
             _eventLog.WriteEntry("Finished cleaning untouched repositories, " + count + " folders removed");
