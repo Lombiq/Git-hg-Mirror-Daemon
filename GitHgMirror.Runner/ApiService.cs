@@ -48,7 +48,14 @@ namespace GitHgMirror.Runner
                 var apiUrl = _settings.ApiEndpointUrl.ToString();
                 var url = apiUrl + (!apiUrl.EndsWith("/") ? "/" : "") + path.Trim('/');
                 url += (url.Contains('?') ? "&" : "?") + "password=" + _settings.ApiPassword;
-                execute(url, wc);
+                try
+                {
+                    execute(url, wc);
+                }
+                catch (WebException ex)
+                {
+                    throw new WebException("The web operation for the url " + url + " failed with the following erorr: " + ex.Message, ex);
+                }
             }
         }
     }
