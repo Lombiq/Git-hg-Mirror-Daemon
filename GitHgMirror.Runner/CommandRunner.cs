@@ -34,7 +34,7 @@ namespace GitHgMirror.Runner
             if (!String.IsNullOrEmpty(_error))
             {
                 // Waiting for error lines to gather
-                for (int i = 0; i < 5; i++)
+                for (int i = 0; i < 10; i++)
                 {
                     _waitHandle.WaitOne(1000);
                     _waitHandle.Reset();
@@ -52,8 +52,8 @@ namespace GitHgMirror.Runner
         {
             if (_process == null || _process.HasExited) return;
 
+            _process.Kill();
             _process.Dispose();
-            //_hgProcess.Kill(); // Not sure this is a good thing although this should only happen if there is no operation running anyway.
         }
 
 

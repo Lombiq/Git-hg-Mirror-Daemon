@@ -6,15 +6,9 @@ using System.Threading.Tasks;
 
 namespace GitHgMirror.CommonTypes
 {
-    public enum MirroringDirection
-    {
-        GitToHg,
-        HgToGit,
-        TwoWay
-    }
-
     public class MirroringConfiguration
     {
+        public int Id { get; set; }
         public Uri HgCloneUri { get; set; }
         public Uri GitCloneUri { get; set; }
         public MirroringDirection Direction { get; set; }
