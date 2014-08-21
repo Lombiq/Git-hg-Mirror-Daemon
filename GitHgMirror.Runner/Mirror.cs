@@ -90,7 +90,13 @@ namespace GitHgMirror.Runner
                         break;
                     case MirroringDirection.HgToGit:
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                        RunCommandAndLogOutput("hg push " + quotedGitCloneUrl);
+                        var gitUriBuilder = new UriBuilder(configuration.GitCloneUri);
+                        var userName = gitUriBuilder.UserName;
+                        var password = gitUriBuilder.Password;
+                        gitUriBuilder.UserName = null;
+                        gitUriBuilder.Password = null;
+                        var gitUri = gitUriBuilder.Uri;
+                        RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " push " + gitUri.ToString().EncloseInQuotes());
                         break;
                     case MirroringDirection.TwoWay:
                         RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
