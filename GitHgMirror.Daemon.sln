@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30723.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirror.CommonTypes", "GitHgMirror.CommonTypes\GitHgMirror.CommonTypes.csproj", "{EC2E86CF-0ACB-442D-A23E-7D1E88061B81}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirror.Daemon", "GitHgMirror.Daemon\GitHgMirror.Daemon.csproj", "{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}"
@@ -8,6 +10,11 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirror.Runner", "GitHgMirror.Runner\GitHgMirror.Runner.csproj", "{81BAD149-A525-4CE1-9671-70F5314DAFE2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirror.Tester", "GitHgMirror.Tester\GitHgMirror.Tester.csproj", "{DF997DD8-35CF-4979-86C7-1E20EDF8E650}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7CC898F3-3DA8-4EBD-A4D0-8F510D93A520}"
+	ProjectSection(SolutionItems) = preProject
+		Readme.md = Readme.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
