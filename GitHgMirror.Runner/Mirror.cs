@@ -135,14 +135,22 @@ namespace GitHgMirror.Runner
 
         private void PushWithBookmarks(string quotedHgCloneUrl)
         {
-            // There will be at least one bookmark, master
             var bookmarksOutput = RunCommandAndLogOutput("hg bookmarks");
-            var bookmarks = bookmarksOutput
-                .Split(Environment.NewLine.ToArray())
-                .Skip(1) // The first line is the command itself
-                .Where(line => line != string.Empty)
-                .Select(line => "-B " + Regex.Match(line, @"\s([a-z0-9/.-]+)\s", RegexOptions.IgnoreCase).Groups[1].Value);
-            RunCommandAndLogOutput("hg push -f " + string.Join(" ", bookmarks) + " " + quotedHgCloneUrl);
+
+            // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there are no bookmarks.
+            if (bookmarksOutput.Contains("no bookmarks set"))
+            {
+                RunCommandAndLogOutput("hg push -f " + quotedHgCloneUrl);
+            }
+            else
+            {
+                var bookmarks = bookmarksOutput
+                    .Split(Environment.NewLine.ToArray())
+                    .Skip(1) // The first line is the command itself
+                    .Where(line => line != string.Empty)
+                    .Select(line => "-B " + Regex.Match(line, @"\s([a-z0-9/.-]+)\s", RegexOptions.IgnoreCase).Groups[1].Value);
+                RunCommandAndLogOutput("hg push -f " + string.Join(" ", bookmarks) + " " + quotedHgCloneUrl);
+            }
         }
 
 
