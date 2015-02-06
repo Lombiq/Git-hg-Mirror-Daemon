@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -14,7 +15,12 @@ namespace GitHgMirror.Tester
 
         static void Main(string[] args)
         {
-            using (var eventLog = new System.Diagnostics.EventLog("Git-hg Mirror Daemon", ".", "GitHgMirror.Tester"))
+            if (!EventLog.Exists("Git-hg Mirror Daemon"))
+            {
+                EventLog.CreateEventSource(new EventSourceCreationData("GitHgMirror.Tester", "Git-hg Mirror Daemon")); 
+            }
+
+            using (var eventLog = new EventLog("Git-hg Mirror Daemon", ".", "GitHgMirror.Tester"))
             {
                 eventLog.EnableRaisingEvents = true;
 
