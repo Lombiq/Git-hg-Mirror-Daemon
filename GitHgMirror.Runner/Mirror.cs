@@ -96,13 +96,13 @@ namespace GitHgMirror.Runner
                         gitUriBuilder.UserName = null;
                         gitUriBuilder.Password = null;
                         var gitUri = gitUriBuilder.Uri;
-                        RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " push " + gitUri.ToString().EncloseInQuotes());
+                        RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " --force push " + gitUri.ToString().EncloseInQuotes());
                         break;
                     case MirroringDirection.TwoWay:
                         RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                        RunCommandAndLogOutput("hg push " + quotedGitCloneUrl + " --new-branch");
-                        RunCommandAndLogOutput("hg push " + quotedHgCloneUrl + " --new-branch");
+                        RunCommandAndLogOutput("hg push " + quotedGitCloneUrl + " --new-branch --force");
+                        RunCommandAndLogOutput("hg push " + quotedHgCloneUrl + " --new-branch --force");
                         break;
                 }
             }
