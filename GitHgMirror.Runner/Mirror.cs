@@ -96,7 +96,7 @@ namespace GitHgMirror.Runner
                         gitUriBuilder.UserName = null;
                         gitUriBuilder.Password = null;
                         var gitUri = gitUriBuilder.Uri;
-                        RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " --force push " + gitUri.ToString().EncloseInQuotes());
+                        RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " push " + gitUri.ToString().EncloseInQuotes() + " --force");
                         break;
                     case MirroringDirection.TwoWay:
                         RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
