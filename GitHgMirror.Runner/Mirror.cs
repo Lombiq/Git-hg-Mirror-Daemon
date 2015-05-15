@@ -90,19 +90,13 @@ namespace GitHgMirror.Runner
                         break;
                     case MirroringDirection.HgToGit:
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                        var gitUriBuilder = new UriBuilder(configuration.GitCloneUri);
-                        var userName = gitUriBuilder.UserName;
-                        var password = gitUriBuilder.Password;
-                        gitUriBuilder.UserName = null;
-                        gitUriBuilder.Password = null;
-                        var gitUri = gitUriBuilder.Uri;
-                        RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " push " + gitUri.ToString().EncloseInQuotes() + " --force");
+                        PushToGit(configuration.GitCloneUri);
                         break;
                     case MirroringDirection.TwoWay:
                         RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
                         RunCommandAndLogOutput("hg push " + quotedGitCloneUrl + " --new-branch --force");
-                        RunCommandAndLogOutput("hg push " + quotedHgCloneUrl + " --new-branch --force");
+                        PushToGit(configuration.GitCloneUri);
                         break;
                 }
             }
@@ -125,6 +119,17 @@ namespace GitHgMirror.Runner
             _commandRunner.Dispose();
         }
 
+
+        private void PushToGit(Uri gitCloneUri)
+        {
+            var gitUriBuilder = new UriBuilder(gitCloneUri);
+            var userName = gitUriBuilder.UserName;
+            var password = gitUriBuilder.Password;
+            gitUriBuilder.UserName = null;
+            gitUriBuilder.Password = null;
+            var gitUri = gitUriBuilder.Uri;
+            RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " push " + gitUri.ToString().EncloseInQuotes() + " --force");
+        }
 
         private string RunCommandAndLogOutput(string command)
         {
