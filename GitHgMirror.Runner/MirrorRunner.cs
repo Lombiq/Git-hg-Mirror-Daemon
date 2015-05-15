@@ -133,7 +133,7 @@ namespace GitHgMirror.Runner
                         _eventLog.WriteEntry("Unhandled exception while running mirrorings: " + ex.Message, EventLogEntryType.Error);
                     }
 
-                    await Task.Delay(30000, _cancellationTokenSource.Token); // Wait a bit between loops
+                    await Task.Delay(1200000, _cancellationTokenSource.Token); // Wait a bit between loops
                 }
 
                 _cancellationTokenSource.Token.ThrowIfCancellationRequested();
