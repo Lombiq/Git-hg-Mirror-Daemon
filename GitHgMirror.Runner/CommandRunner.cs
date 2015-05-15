@@ -31,7 +31,7 @@ namespace GitHgMirror.Runner
 
             var output = ReadOutputUntilBlankLine();
 
-            if (!String.IsNullOrEmpty(_error))
+            if (!string.IsNullOrEmpty(_error))
             {
                 // Waiting for error lines to gather
                 for (int i = 0; i < 10; i++)
@@ -42,7 +42,7 @@ namespace GitHgMirror.Runner
 
                 var error = _error;
                 _error = string.Empty;
-                throw new CommandException(String.Format("Executing command \"{0}\" failed with the output \"{1}\" and error \"{2}\".", command, output, error), output, error);
+                throw new CommandException(string.Format("Executing command \"{0}\" failed with the output \"{1}\" and error \"{2}\".", command, output, error), output, error);
             }
 
             return output;
@@ -93,7 +93,7 @@ namespace GitHgMirror.Runner
                 lines.Add(_process.StandardOutput.ReadLine());
             }
 
-            return String.Join(Environment.NewLine, lines);
+            return string.Join(Environment.NewLine, lines);
         }
 
         private string ReadOutputUntilBlankLine()

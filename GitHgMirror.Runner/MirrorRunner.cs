@@ -115,7 +115,7 @@ namespace GitHgMirror.Runner
                                 }
                                 catch (MirroringException ex)
                                 {
-                                    _eventLog.WriteEntry(String.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), EventLogEntryType.Error);
+                                    _eventLog.WriteEntry(string.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), EventLogEntryType.Error);
 
                                     _apiService.Post("Report", new MirroringStatusReport
                                     {
