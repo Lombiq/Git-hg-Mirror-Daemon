@@ -95,7 +95,7 @@ namespace GitHgMirror.Runner
                     case MirroringDirection.TwoWay:
                         RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                        RunCommandAndLogOutput("hg push " + quotedGitCloneUrl + " --new-branch --force");
+                        RunCommandAndLogOutput("hg push " + quotedHgCloneUrl + " --new-branch --force");
                         PushToGit(configuration.GitCloneUri);
                         break;
                 }
