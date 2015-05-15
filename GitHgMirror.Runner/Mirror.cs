@@ -131,7 +131,7 @@ namespace GitHgMirror.Runner
             // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there are no bookmarks.
             if (bookmarksOutput.Contains("no bookmarks set"))
             {
-                RunCommandAndLogOutput("hg push -f " + quotedHgCloneUrl);
+                RunCommandAndLogOutput("hg push --new-branch --force " + quotedHgCloneUrl);
             }
             else
             {
@@ -140,7 +140,7 @@ namespace GitHgMirror.Runner
                     .Skip(1) // The first line is the command itself
                     .Where(line => line != string.Empty)
                     .Select(line => "-B " + Regex.Match(line, @"\s([a-z0-9/.-]+)\s", RegexOptions.IgnoreCase).Groups[1].Value);
-                RunCommandAndLogOutput("hg push -f " + string.Join(" ", bookmarks) + " " + quotedHgCloneUrl);
+                RunCommandAndLogOutput("hg push --new-branch --force " + string.Join(" ", bookmarks) + " " + quotedHgCloneUrl);
             }
         }
 
