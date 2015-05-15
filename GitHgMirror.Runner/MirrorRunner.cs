@@ -83,9 +83,9 @@ namespace GitHgMirror.Runner
                     {
                         var configurations = FetchConfigurations(pageNum);
 
-                        using (var mirror = new Mirror(_settings, _eventLog))
+                        for (int c = 0; c < configurations.Count; c++)
                         {
-                            for (int c = 0; c < configurations.Count; c++)
+                            using (var mirror = new Mirror(_settings, _eventLog))
                             {
                                 if (_cancellationTokenSource.IsCancellationRequested)
                                 {
@@ -124,7 +124,7 @@ namespace GitHgMirror.Runner
                                         Message = ex.Message
                                     });
                                 }
-                            } 
+                            }
                         }
                     }
                     catch (Exception ex)

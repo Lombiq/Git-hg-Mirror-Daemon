@@ -29,15 +29,16 @@ namespace GitHgMirror.Runner
 
         public void MirrorRepositories(MirroringConfiguration configuration)
         {
+            var repositoryDirectoryName = ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri);
+            var cloneDirectoryParentPath = Path.Combine(_settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
+            var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
+
             try
             {
-                var repositoryDirectoryName = ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri);
-                var cloneDirectoryParentPath = Path.Combine(_settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
                 if (!Directory.Exists(cloneDirectoryParentPath))
                 {
                     Directory.CreateDirectory(cloneDirectoryParentPath);
                 }
-                var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
                 var quotedHgCloneUrl = configuration.HgCloneUri.ToString().EncloseInQuotes();
                 var quotedGitCloneUrl = configuration.GitCloneUri.ToString().EncloseInQuotes();
 
@@ -84,7 +85,10 @@ namespace GitHgMirror.Runner
             }
             catch (CommandException ex)
             {
-                throw new MirroringException(String.Format("An exception occured while mirroring the repositories {0} and {1} in direction {2},", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
+                _commandRunner.Dispose(); // Should dispose so the folder is not locked.
+                Directory.Delete(cloneDirectoryPath);
+
+                throw new MirroringException(String.Format("An exception occured while mirroring the repositories {0} and {1} in direction {2}. Cloning will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
             }
         }
 

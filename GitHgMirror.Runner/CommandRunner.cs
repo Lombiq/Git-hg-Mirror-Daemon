@@ -54,6 +54,7 @@ namespace GitHgMirror.Runner
 
             _process.Kill();
             _process.Dispose();
+            _process = null;
         }
 
 
