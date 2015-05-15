@@ -83,9 +83,9 @@ namespace GitHgMirror.Runner
                     {
                         var configurations = FetchConfigurations(pageNum);
 
-                        using (var mirror = new Mirror(_settings, _eventLog))
+                        for (int c = 0; c < configurations.Count; c++)
                         {
-                            for (int c = 0; c < configurations.Count; c++)
+                            using (var mirror = new Mirror(_settings, _eventLog))
                             {
                                 if (_cancellationTokenSource.IsCancellationRequested)
                                 {
@@ -115,7 +115,7 @@ namespace GitHgMirror.Runner
                                 }
                                 catch (MirroringException ex)
                                 {
-                                    _eventLog.WriteEntry(String.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), EventLogEntryType.Error);
+                                    _eventLog.WriteEntry(string.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), EventLogEntryType.Error);
 
                                     _apiService.Post("Report", new MirroringStatusReport
                                     {
@@ -124,7 +124,7 @@ namespace GitHgMirror.Runner
                                         Message = ex.Message
                                     });
                                 }
-                            } 
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -133,7 +133,7 @@ namespace GitHgMirror.Runner
                         _eventLog.WriteEntry("Unhandled exception while running mirrorings: " + ex.Message, EventLogEntryType.Error);
                     }
 
-                    await Task.Delay(30000, _cancellationTokenSource.Token); // Wait a bit between loops
+                    await Task.Delay(120000, _cancellationTokenSource.Token); // Wait a bit between loops
                 }
 
                 _cancellationTokenSource.Token.ThrowIfCancellationRequested();

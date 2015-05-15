@@ -29,53 +29,28 @@ namespace GitHgMirror.Runner
 
         public void MirrorRepositories(MirroringConfiguration configuration)
         {
+            var repositoryDirectoryName = ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri);
+            var cloneDirectoryParentPath = Path.Combine(_settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
+            var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
+
             try
             {
-                var repositoryDirectoryName = ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri);
-                var cloneDirectoryParentPath = Path.Combine(_settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
                 if (!Directory.Exists(cloneDirectoryParentPath))
                 {
                     Directory.CreateDirectory(cloneDirectoryParentPath);
                 }
-                var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
                 var quotedHgCloneUrl = configuration.HgCloneUri.ToString().EncloseInQuotes();
                 var quotedGitCloneUrl = configuration.GitCloneUri.ToString().EncloseInQuotes();
 
 
-                try
+                if (!Directory.Exists(cloneDirectoryPath))
                 {
-                    // This is a workaround for this bug: https://bitbucket.org/durin42/hg-git/issue/49/pull-results-in-keyerror
-                    // Cloning from git works but pulling a modified git repo fails, so we have to re-clone everytime...
-                    // This if block should be removed once the issue is resolved in hg-git (other parts of this class will work as they are).
-                    if (configuration.Direction == MirroringDirection.GitToHg)
-                    {
-                        if (Directory.Exists(cloneDirectoryPath))
-                        {
-                            Directory.Delete(cloneDirectoryPath, true);
-                        }
-
-                        RunCommandAndLogOutput("hg clone --noupdate " + quotedGitCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
-                        RunCommandAndLogOutput("cd \"" + cloneDirectoryPath + "\"");
-                        RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty)); // Changing directory to other drive if necessary
-
-                        PushWithBookmarks(quotedHgCloneUrl);
-
-                        return;
-                    }
-
-                    if (!Directory.Exists(cloneDirectoryPath))
-                    {
-                        Directory.CreateDirectory(cloneDirectoryPath);
-                        RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
-                    }
-                    else
-                    {
-                        Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
-                    }
+                    Directory.CreateDirectory(cloneDirectoryPath);
+                    RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
                 }
-                catch (CommandException ex)
+                else
                 {
-                    throw new MirroringException(String.Format("An exception occured while cloning the repositories {0} and {1} in direction {2}. Cloning will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
+                    Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
                 }
 
 
@@ -90,25 +65,30 @@ namespace GitHgMirror.Runner
                         break;
                     case MirroringDirection.HgToGit:
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                        var gitUriBuilder = new UriBuilder(configuration.GitCloneUri);
-                        var userName = gitUriBuilder.UserName;
-                        var password = gitUriBuilder.Password;
-                        gitUriBuilder.UserName = null;
-                        gitUriBuilder.Password = null;
-                        var gitUri = gitUriBuilder.Uri;
-                        RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " push " + gitUri.ToString().EncloseInQuotes() + " --force");
+                        PushToGit(configuration.GitCloneUri);
                         break;
                     case MirroringDirection.TwoWay:
                         RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                        RunCommandAndLogOutput("hg push " + quotedGitCloneUrl + " --new-branch --force");
-                        RunCommandAndLogOutput("hg push " + quotedHgCloneUrl + " --new-branch --force");
+                        PushWithBookmarks(quotedHgCloneUrl);
+                        // The second clause is just a temporal workaround until the modified API is deployed to GitHgMirror.
+                        if (configuration.GitUrlIsHgUrl || !quotedGitCloneUrl.EndsWith(".git"))
+                        {
+                            RunCommandAndLogOutput("hg push " + quotedGitCloneUrl + " --new-branch --force");
+                        }
+                        else
+                        {
+                            PushToGit(configuration.GitCloneUri);
+                        }
                         break;
                 }
             }
             catch (CommandException ex)
             {
-                throw new MirroringException(String.Format("An exception occured while mirroring the repositories {0} and {1} in direction {2},", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
+                _commandRunner.Dispose(); // Should dispose so the folder is not locked.
+                Directory.Delete(cloneDirectoryPath, true);
+
+                throw new MirroringException(string.Format("An exception occured while mirroring the repositories {0} and {1} in direction {2}. Cloning will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
             }
         }
 
@@ -126,6 +106,17 @@ namespace GitHgMirror.Runner
         }
 
 
+        private void PushToGit(Uri gitCloneUri)
+        {
+            var gitUriBuilder = new UriBuilder(gitCloneUri);
+            var userName = gitUriBuilder.UserName;
+            var password = gitUriBuilder.Password;
+            gitUriBuilder.UserName = null;
+            gitUriBuilder.Password = null;
+            var gitUri = gitUriBuilder.Uri;
+            RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " push " + gitUri.ToString().EncloseInQuotes() + " --force");
+        }
+
         private string RunCommandAndLogOutput(string command)
         {
             var output = _commandRunner.RunCommand(command);
@@ -140,7 +131,7 @@ namespace GitHgMirror.Runner
             // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there are no bookmarks.
             if (bookmarksOutput.Contains("no bookmarks set"))
             {
-                RunCommandAndLogOutput("hg push -f " + quotedHgCloneUrl);
+                RunCommandAndLogOutput("hg push --new-branch --force " + quotedHgCloneUrl);
             }
             else
             {
@@ -149,7 +140,7 @@ namespace GitHgMirror.Runner
                     .Skip(1) // The first line is the command itself
                     .Where(line => line != string.Empty)
                     .Select(line => "-B " + Regex.Match(line, @"\s([a-z0-9/.-]+)\s", RegexOptions.IgnoreCase).Groups[1].Value);
-                RunCommandAndLogOutput("hg push -f " + string.Join(" ", bookmarks) + " " + quotedHgCloneUrl);
+                RunCommandAndLogOutput("hg push --new-branch --force " + string.Join(" ", bookmarks) + " " + quotedHgCloneUrl);
             }
         }
 
