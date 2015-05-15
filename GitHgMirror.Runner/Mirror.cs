@@ -86,7 +86,7 @@ namespace GitHgMirror.Runner
             catch (CommandException ex)
             {
                 _commandRunner.Dispose(); // Should dispose so the folder is not locked.
-                Directory.Delete(cloneDirectoryPath);
+                Directory.Delete(cloneDirectoryPath, true);
 
                 throw new MirroringException(string.Format("An exception occured while mirroring the repositories {0} and {1} in direction {2}. Cloning will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
             }
