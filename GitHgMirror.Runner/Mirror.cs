@@ -65,7 +65,15 @@ namespace GitHgMirror.Runner
                         break;
                     case MirroringDirection.HgToGit:
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                        PushToGit(configuration.GitCloneUri);
+                        // The second clause is just a temporal workaround until the modified API is deployed to GitHgMirror.
+                        if (configuration.GitUrlIsHgUrl || !quotedGitCloneUrl.EndsWith(".git"))
+                        {
+                            PushWithBookmarks(quotedGitCloneUrl);
+                        }
+                        else
+                        {
+                            PushToGit(configuration.GitCloneUri);
+                        }
                         break;
                     case MirroringDirection.TwoWay:
                         RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
@@ -74,7 +82,7 @@ namespace GitHgMirror.Runner
                         // The second clause is just a temporal workaround until the modified API is deployed to GitHgMirror.
                         if (configuration.GitUrlIsHgUrl || !quotedGitCloneUrl.EndsWith(".git"))
                         {
-                            RunCommandAndLogOutput("hg push " + quotedGitCloneUrl + " --new-branch --force");
+                            PushWithBookmarks(quotedGitCloneUrl);
                         }
                         else
                         {
