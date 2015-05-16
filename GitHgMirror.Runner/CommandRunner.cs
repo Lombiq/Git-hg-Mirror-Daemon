@@ -31,6 +31,7 @@ namespace GitHgMirror.Runner
 
             var output = ReadOutputUntilBlankLine();
 
+            // Sometimes if the hg command fails it won't be included in this error output but rather it will appear in later outputs for some reason.
             if (!string.IsNullOrEmpty(_error))
             {
                 // Waiting for error lines to gather
