@@ -29,7 +29,7 @@ namespace GitHgMirror.Runner
 
         public void MirrorRepositories(MirroringConfiguration configuration)
         {
-            var repositoryDirectoryName = ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri);
+            var repositoryDirectoryName = GetCloneDirectoryName(configuration);
             var cloneDirectoryParentPath = Path.Combine(_settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
             var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
 
@@ -102,7 +102,7 @@ namespace GitHgMirror.Runner
 
         public bool IsCloned(MirroringConfiguration configuration)
         {
-            var repositoryDirectoryName = ToDirectoryName(configuration.HgCloneUri) + " - " + ToDirectoryName(configuration.GitCloneUri);
+            var repositoryDirectoryName = GetCloneDirectoryName(configuration);
             var cloneDirectoryParentPath = Path.Combine(_settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
             var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
             return Directory.Exists(cloneDirectoryPath);
@@ -153,9 +153,9 @@ namespace GitHgMirror.Runner
         }
 
 
-        private static string ToDirectoryName(Uri cloneUri)
+        private static string GetCloneDirectoryName(MirroringConfiguration configuration)
         {
-            return cloneUri.Host.Replace("_", "__") + "_" + cloneUri.PathAndQuery.Replace("_", "__").Replace('/', '_');
+            return (configuration.HgCloneUri + " - " + configuration.GitCloneUri).GetHashCode().ToString();
         }
     }
 }
