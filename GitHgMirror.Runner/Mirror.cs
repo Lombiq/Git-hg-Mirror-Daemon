@@ -65,8 +65,7 @@ namespace GitHgMirror.Runner
                         break;
                     case MirroringDirection.HgToGit:
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                        // The second clause is just a temporal workaround until the modified API is deployed to GitHgMirror.
-                        if (configuration.GitUrlIsHgUrl || !quotedGitCloneUrl.EndsWith(".git"))
+                        if (configuration.GitUrlIsHgUrl)
                         {
                             PushWithBookmarks(quotedGitCloneUrl);
                         }
@@ -79,8 +78,7 @@ namespace GitHgMirror.Runner
                         RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
                         PushWithBookmarks(quotedHgCloneUrl);
-                        // The second clause is just a temporal workaround until the modified API is deployed to GitHgMirror.
-                        if (configuration.GitUrlIsHgUrl || !quotedGitCloneUrl.EndsWith(".git"))
+                        if (configuration.GitUrlIsHgUrl)
                         {
                             PushWithBookmarks(quotedGitCloneUrl);
                         }
