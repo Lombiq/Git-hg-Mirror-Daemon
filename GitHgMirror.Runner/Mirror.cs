@@ -41,20 +41,23 @@ namespace GitHgMirror.Runner
                 }
                 var quotedHgCloneUrl = configuration.HgCloneUri.ToString().EncloseInQuotes();
                 var quotedGitCloneUrl = configuration.GitCloneUri.ToString().EncloseInQuotes();
+                var quotedCloneDirectoryPath = cloneDirectoryPath.EncloseInQuotes();
 
 
                 if (!IsCloned(configuration))
                 {
                     Directory.CreateDirectory(cloneDirectoryPath);
-                    RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
+                    RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
+                    RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
+                    RunCommandAndLogOutput("hg gexport");
                 }
                 else
                 {
                     Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
+                    RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
                 }
 
 
-                RunCommandAndLogOutput("cd \"" + cloneDirectoryPath + "\"");
                 RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty)); // Changing directory to other drive if necessary
 
                 switch (configuration.Direction)
