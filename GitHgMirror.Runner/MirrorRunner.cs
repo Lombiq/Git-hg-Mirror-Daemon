@@ -116,7 +116,6 @@ namespace GitHgMirror.Runner
                                 catch (MirroringException ex)
                                 {
                                     _eventLog.WriteEntry(string.Format("An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + Environment.NewLine + "Exception: {3}", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), EventLogEntryType.Error);
-
                                     _apiService.Post("Report", new MirroringStatusReport
                                     {
                                         ConfigurationId = configuration.Id,
@@ -130,7 +129,7 @@ namespace GitHgMirror.Runner
                     catch (Exception ex)
                     {
                         if (ex.IsFatal() || ex is MirroringException || ex is OperationCanceledException) throw;
-                        _eventLog.WriteEntry("Unhandled exception while running mirrorings: " + ex.Message, EventLogEntryType.Error);
+                        _eventLog.WriteEntry("Unhandled exception while running mirrorings: " + ex, EventLogEntryType.Error);
                     }
 
                     await Task.Delay(600000, _cancellationTokenSource.Token); // Wait a bit between loops
