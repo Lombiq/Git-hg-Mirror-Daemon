@@ -43,7 +43,7 @@ namespace GitHgMirror.Runner
                 var quotedGitCloneUrl = configuration.GitCloneUri.ToString().EncloseInQuotes();
 
 
-                if (!Directory.Exists(cloneDirectoryPath))
+                if (!IsCloned(configuration))
                 {
                     Directory.CreateDirectory(cloneDirectoryPath);
                     RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + cloneDirectoryPath.EncloseInQuotes() + "");
@@ -60,7 +60,7 @@ namespace GitHgMirror.Runner
                 switch (configuration.Direction)
                 {
                     case MirroringDirection.GitToHg:
-                        RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                        RunGitCommand(configuration.GitCloneUri, "pull");
                         PushWithBookmarks(quotedHgCloneUrl);
                         break;
                     case MirroringDirection.HgToGit:
@@ -95,8 +95,8 @@ namespace GitHgMirror.Runner
 
                 _commandRunner.Dispose(); // Should dispose so the folder is not locked.
 
-                var mirroringException = new MirroringException(string.Format("An error occured while running Mercurial commands when mirroring the repositories {0} and {1} in direction {2}. Cloning will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
-                
+                var mirroringException = new MirroringException(string.Format("An error occured while running Mercurial commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
+
                 try
                 {
                     if (Directory.Exists(cloneDirectoryPath)) Directory.Delete(cloneDirectoryPath, true);
@@ -124,7 +124,7 @@ namespace GitHgMirror.Runner
         }
 
 
-        private void PushToGit(Uri gitCloneUri)
+        private void RunGitCommand(Uri gitCloneUri, string commandName)
         {
             var gitUriBuilder = new UriBuilder(gitCloneUri);
             var userName = gitUriBuilder.UserName;
@@ -132,7 +132,20 @@ namespace GitHgMirror.Runner
             gitUriBuilder.UserName = null;
             gitUriBuilder.Password = null;
             var gitUri = gitUriBuilder.Uri;
-            RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " push " + gitUri.ToString().EncloseInQuotes() + " --force");
+            var quotedGitCloneUrl = gitUri.ToString().EncloseInQuotes();
+            if (!string.IsNullOrEmpty(userName))
+            {
+                RunCommandAndLogOutput("hg --config auth.rc.prefix=" + ("https://" + gitUri.Host).EncloseInQuotes() + " --config auth.rc.username=" + userName.EncloseInQuotes() + " --config auth.rc.password=" + password.EncloseInQuotes() + " " + commandName + " " + quotedGitCloneUrl);
+            }
+            else
+            {
+                RunCommandAndLogOutput("hg " + commandName + " " + quotedGitCloneUrl);
+            }
+        }
+
+        private void PushToGit(Uri gitCloneUri)
+        {
+            RunGitCommand(gitCloneUri, "push --force");
         }
 
         private string RunCommandAndLogOutput(string command)
