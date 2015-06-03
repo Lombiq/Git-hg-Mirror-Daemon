@@ -89,12 +89,24 @@ namespace GitHgMirror.Runner
                         break;
                 }
             }
-            catch (CommandException ex)
+            catch (Exception ex)
             {
-                _commandRunner.Dispose(); // Should dispose so the folder is not locked.
-                Directory.Delete(cloneDirectoryPath, true);
+                if (!(ex is CommandException) && !(ex is IOException)) throw;
 
-                throw new MirroringException(string.Format("An exception occured while mirroring the repositories {0} and {1} in direction {2}. Cloning will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
+                _commandRunner.Dispose(); // Should dispose so the folder is not locked.
+
+                var mirroringException = new MirroringException(string.Format("An error occured while running Mercurial commands when mirroring the repositories {0} and {1} in direction {2}. Cloning will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
+                
+                try
+                {
+                    if (Directory.Exists(cloneDirectoryPath)) Directory.Delete(cloneDirectoryPath, true);
+                }
+                catch (IOException ioException)
+                {
+                    throw new MirroringException("An error occured while running Mercurial mirroring commands and subsequently during clean-up after the error.", new AggregateException("Multiple errors occured during mirroring.", mirroringException, ioException));
+                }
+
+                throw mirroringException;
             }
         }
 
