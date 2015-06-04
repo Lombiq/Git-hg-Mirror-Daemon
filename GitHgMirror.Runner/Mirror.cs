@@ -46,6 +46,7 @@ namespace GitHgMirror.Runner
 
                 if (!IsCloned(configuration))
                 {
+                    DeleteDirectoryIfExists(cloneDirectoryPath);
                     Directory.CreateDirectory(cloneDirectoryPath);
                     RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
                     RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
@@ -102,7 +103,7 @@ namespace GitHgMirror.Runner
 
                 try
                 {
-                    if (Directory.Exists(cloneDirectoryPath)) Directory.Delete(cloneDirectoryPath, true);
+                    DeleteDirectoryIfExists(cloneDirectoryPath);
                 }
                 catch (IOException ioException)
                 {
@@ -118,7 +119,8 @@ namespace GitHgMirror.Runner
             var repositoryDirectoryName = GetCloneDirectoryName(configuration);
             var cloneDirectoryParentPath = Path.Combine(_settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
             var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
-            return Directory.Exists(cloneDirectoryPath);
+            // Also checking if the directory is empty. If yes, it was a failed attempt and really the repo is not cloned.
+            return Directory.Exists(cloneDirectoryPath) && Directory.EnumerateFileSystemEntries(cloneDirectoryPath).Any();
         }
 
         public void Dispose()
@@ -182,6 +184,11 @@ namespace GitHgMirror.Runner
         private static string GetCloneDirectoryName(MirroringConfiguration configuration)
         {
             return (configuration.HgCloneUri + " - " + configuration.GitCloneUri).GetHashCode().ToString();
+        }
+
+        private static void DeleteDirectoryIfExists(string path)
+        {
+            if (Directory.Exists(path)) Directory.Delete(path, true);
         }
     }
 }
