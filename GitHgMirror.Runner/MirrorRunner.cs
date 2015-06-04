@@ -60,7 +60,7 @@ namespace GitHgMirror.Runner
         {
             var pageCount = FetchConfigurationPageCount();
 
-            // We only care if the page count increased; if it decresed there are tasks just periodically checking whether their page has
+            // We only care if the page count increased; if it decreased there are tasks just periodically checking whether their page has
             // any items.
             if (pageCount <= _mirrorTasks.Count) return;
 
@@ -76,7 +76,7 @@ namespace GitHgMirror.Runner
             {
                 var pageNum = (int)pageObject;
 
-                // Refreshing will run until cancelled
+                // Refreshing will run until cancelled.
                 while (!_cancellationTokenSource.IsCancellationRequested)
                 {
                     try
@@ -132,7 +132,7 @@ namespace GitHgMirror.Runner
                         _eventLog.WriteEntry("Unhandled exception while running mirrorings: " + ex, EventLogEntryType.Error);
                     }
 
-                    await Task.Delay(600000, _cancellationTokenSource.Token); // Wait a bit between loops
+                    await Task.Delay(600000, _cancellationTokenSource.Token); // Wait a bit between loops.
                 }
 
                 _cancellationTokenSource.Token.ThrowIfCancellationRequested();
@@ -145,7 +145,7 @@ namespace GitHgMirror.Runner
         }
 
         /// <summary>
-        /// Page is zero-indexed
+        /// Page is zero-indexed.
         /// </summary>
         private List<MirroringConfiguration> FetchConfigurations(int page)
         {
