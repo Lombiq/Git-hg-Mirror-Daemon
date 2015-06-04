@@ -148,7 +148,7 @@ namespace GitHgMirror.Runner
 
         private void PushToGit(Uri gitCloneUri)
         {
-            RunGitCommand(gitCloneUri, "push --force");
+            RunGitCommand(gitCloneUri, "push --force --chunked");
         }
 
         private string RunCommandAndLogOutput(string command)
