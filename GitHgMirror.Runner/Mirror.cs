@@ -79,9 +79,18 @@ namespace GitHgMirror.Runner
                         }
                         break;
                     case MirroringDirection.TwoWay:
-                        RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                        if (configuration.GitUrlIsHgUrl)
+                        {
+                            RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                        }
+                        else
+                        {
+                            RunGitCommand(configuration.GitCloneUri, "pull");
+                        }
+
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
                         PushWithBookmarks(quotedHgCloneUrl);
+
                         if (configuration.GitUrlIsHgUrl)
                         {
                             PushWithBookmarks(quotedGitCloneUrl);
@@ -90,6 +99,7 @@ namespace GitHgMirror.Runner
                         {
                             PushToGit(configuration.GitCloneUri);
                         }
+
                         break;
                 }
             }
