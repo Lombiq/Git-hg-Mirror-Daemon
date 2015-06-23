@@ -184,8 +184,9 @@ namespace GitHgMirror.Runner
                 var bookmarks = bookmarksOutput
                     .Split(Environment.NewLine.ToArray())
                     .Skip(1) // The first line is the command itself
-                    .Where(line => line != string.Empty)
-                    .Select(line => "-B " + Regex.Match(line, @"\s([a-z0-9/.-]+)\s", RegexOptions.IgnoreCase).Groups[1].Value);
+                    //.Select(line => line.Trim())
+                    .Where(line => !string.IsNullOrEmpty(line))
+                    .Select(line => "-B " + Regex.Match(line, @"\s([a-zA-Z0-9/.\-_]+)\s", RegexOptions.IgnoreCase).Groups[1].Value);
                 RunCommandAndLogOutput("hg push --new-branch --force " + string.Join(" ", bookmarks) + " " + quotedHgCloneUrl);
             }
         }
