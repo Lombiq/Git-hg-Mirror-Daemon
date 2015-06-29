@@ -2,7 +2,7 @@
 
 
 
-## Setting up Mercurial
+## Setting up Mercurial and Git
 
 This is needed on the server as well as locally if you want to test mirroring.
 
@@ -22,7 +22,7 @@ This is needed on the server as well as locally if you want to test mirroring.
 5. The service is set to automatic start, i.e. it will start with Windows. The first time however it should be manually started from Services.
 
 
-## Usage notes
+## Troubleshooting
 
 The service writes log messages to the Windows event log. You can view the entries in the Windows Event Viewer under "Applications and Services Logs" in the log "Git-hg Mirror Daemon".
 
@@ -34,7 +34,12 @@ If you get "mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate
 
 **Fingerprints should be all uppercase!**
 
-If you want to test the Daemon locally just run `GitHgMirror.Tester`. You can configure some settings in `GitHgMirror.Tester.Program`. If you want to test the mirroring of a specific config you can add the following to the constructor of `MirrorRunner` after the initial setup:
+
+## Local testing
+
+If you want to test the Daemon locally just run `GitHgMirror.Tester`; make sure to do the setup as described above first.
+
+You can configure some settings in `GitHgMirror.Tester.Program`. If you want to test the mirroring of a specific config you can add the following to the constructor of `MirrorRunner` after the initial setup:
 
     using (var mirror = new Mirror(_settings, _eventLog))
     {
@@ -46,3 +51,5 @@ If you want to test the Daemon locally just run `GitHgMirror.Tester`. You can co
         };
         mirror.MirrorRepositories(configuration);
     }
+
+Of course make sure not to commit such tests (to the dev branch).
