@@ -205,6 +205,8 @@ namespace GitHgMirror.Runner
             gitUriBuilder.Password = null;
             var gitUri = gitUriBuilder.Uri;
             var quotedGitCloneUrl = gitUri.ToString().EncloseInQuotes();
+            command = command.Replace("{url}", quotedGitCloneUrl);
+
             if (!string.IsNullOrEmpty(userName))
             {
                 RunCommandAndLogOutput(
@@ -214,12 +216,12 @@ namespace GitHgMirror.Runner
                     userName.EncloseInQuotes() + 
                     " --config auth.rc.password=" + 
                     password.EncloseInQuotes() + 
-                    " " + 
-                    command.Replace("{url}", quotedGitCloneUrl));
+                    " " +
+                    command);
             }
             else
             {
-                RunCommandAndLogOutput("hg " + command + " " + quotedGitCloneUrl);
+                RunCommandAndLogOutput("hg " + command);
             }
         }
 
