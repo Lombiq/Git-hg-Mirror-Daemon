@@ -35,6 +35,10 @@ namespace GitHgMirror.Runner
 
             try
             {
+                // Changing directory to other drive if necessary.
+                RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty));
+
+
                 if (!Directory.Exists(cloneDirectoryParentPath))
                 {
                     Directory.CreateDirectory(cloneDirectoryParentPath);
@@ -56,10 +60,6 @@ namespace GitHgMirror.Runner
                     DeleteDirectoryIfExists(cloneDirectoryPath);
                     Directory.CreateDirectory(cloneDirectoryPath);
                 }
-
-
-                // Changing directory to other drive if necessary.
-                RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty));
 
 
                 switch (configuration.Direction)
