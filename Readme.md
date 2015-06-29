@@ -15,11 +15,10 @@ This is needed on the server as well as locally if you want to test mirroring.
 
 ## Installation on the server
 
-1. 
-2. Set up Mercurial and Git as described above.
-3. Copy the service exe and its dependencies (basically the whole Release bin folder) onto the server in a desired location (e.g. C:\GitHgMirror\GitHgMirrorDaemon).
-4. Run the exe as administrator. This will install the service (running it again uninstalls it). Verify if the installation was successful by checking Services.
-5. Set up the service to run as the local user from under Properties/Log On. This makes it possible for the service to use the same settings what you see in TortoiseHg.
+1. Set up Mercurial and Git as described above.
+2. Copy the service exe and its dependencies (basically the whole Release bin folder) onto the server in a desired location (e.g. C:\GitHgMirror\GitHgMirrorDaemon).
+3. Run the exe as administrator. This will install the service (running it again uninstalls it). Verify if the installation was successful by checking Services.
+4. Set up the service to run as the local user from under Properties/Log On. This makes it possible for the service to use the same settings what you see in TortoiseHg.
 5. The service is set to automatic start, i.e. it will start with Windows. The first time however it should be manually started from Services.
 
 
