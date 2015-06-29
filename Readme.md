@@ -33,3 +33,16 @@ If you get "mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate
     github.com = A0:C4:A7:46:00:ED:A7:2D:C0:BE:CB:9A:8C:B6:07:CA:58:EE:74:5E
 
 **Fingerprints should be all uppercase!**
+
+If you want to test the Daemon locally just run `GitHgMirror.Tester`. You can configure some settings in `GitHgMirror.Tester.Program`. If you want to test the mirroring of a specific config you can add the following to the constructor of `MirrorRunner` after the initial setup:
+
+    using (var mirror = new Mirror(_settings, _eventLog))
+    {
+        var configuration = new MirroringConfiguration
+        {
+            Direction = MirroringDirection.GitToHg,
+            GitCloneUri = new Uri("git+https://github.com/path-to-git-repo.git"),
+            HgCloneUri = new Uri("https://LombiqBot:password@bitbucket.org/path-to-hg-repo")
+        };
+        mirror.MirrorRepositories(configuration);
+    }
