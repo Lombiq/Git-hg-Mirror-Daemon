@@ -292,7 +292,23 @@ namespace GitHgMirror.Runner
                       .Where(line => !string.IsNullOrEmpty(line))
                       .Select(line => "-B " + line);
 
-                RunCommandAndLogOutput("hg push --new-branch --force " + string.Join(" ", bookmarks) + " " + quotedHgCloneUrl);
+                // Pushing a lot of bookmarks at once would result in a "RuntimeError: maximum recursion depth exceeded" error.
+                var batchSize = 30;
+                var bookmarksBatch = bookmarks.Take(batchSize);
+                var skip = 0;
+                var bookmarkCount = bookmarks.Count();
+                while (skip < bookmarkCount)
+                {
+                    RunCommandAndLogOutput("hg push --new-branch --force " + string.Join(" ", bookmarksBatch) + " " + quotedHgCloneUrl);
+                    skip += batchSize;
+                    bookmarksBatch = bookmarks.Skip(skip).Take(batchSize);
+                    if (bookmarksBatch.Any())
+                    {
+                        // Bitbucket throttles such requests so we need to slow down. Otherwise we'd get this error:
+                        // "remote: Push throttled (max allowable rate: 30 per 60 seconds)."
+                        Thread.Sleep(61000);
+                    }
+                }
             }
         }
 
