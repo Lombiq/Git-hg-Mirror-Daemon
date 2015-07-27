@@ -115,7 +115,7 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath); 
+                                CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
                             }
                             cdCloneDirectory();
                         }
@@ -210,12 +210,12 @@ namespace GitHgMirror.Runner
             if (!string.IsNullOrEmpty(userName))
             {
                 RunCommandAndLogOutput(
-                    "hg --config auth.rc.prefix=" + 
-                    ("https://" + gitUri.Host).EncloseInQuotes() + 
-                    " --config auth.rc.username=" + 
-                    userName.EncloseInQuotes() + 
-                    " --config auth.rc.password=" + 
-                    password.EncloseInQuotes() + 
+                    "hg --config auth.rc.prefix=" +
+                    ("https://" + gitUri.Host).EncloseInQuotes() +
+                    " --config auth.rc.username=" +
+                    userName.EncloseInQuotes() +
+                    " --config auth.rc.password=" +
+                    password.EncloseInQuotes() +
                     " " +
                     command);
             }
@@ -238,7 +238,7 @@ namespace GitHgMirror.Runner
             {
                 // Git communicates some messages via the error stream, so checking them here.
 
-                    // If there is nothing to push git will return this message in the error stream.
+                // If there is nothing to push git will return this message in the error stream.
                 if (!ex.Error.Contains("Everything up-to-date") &&
                     // When pushing to an empty repo.
                     !ex.Error.Contains("\r\nTo " + gitUrl + "\r\n * [new branch]      master -> master"))
@@ -285,11 +285,13 @@ namespace GitHgMirror.Runner
             else
             {
                 var bookmarks = bookmarksOutput
-                    .Split(Environment.NewLine.ToArray())
-                    .Skip(1) // The first line is the command itself
-                    //.Select(line => line.Trim())
-                    .Where(line => !string.IsNullOrEmpty(line))
-                    .Select(line => "-B " + Regex.Match(line, @"\s([a-zA-Z0-9/.\-_]+)\s", RegexOptions.IgnoreCase).Groups[1].Value);
+                      .Split(Environment.NewLine.ToArray())
+                      .Skip(1) // The first line is the command itself
+                      .Where(line => !string.IsNullOrEmpty(line))
+                      .Select(line => Regex.Match(line, @"\s([a-zA-Z0-9/.\-_]+)\s", RegexOptions.IgnoreCase).Groups[1].Value)
+                      .Where(line => !string.IsNullOrEmpty(line))
+                      .Select(line => "-B " + line);
+
                 RunCommandAndLogOutput("hg push --new-branch --force " + string.Join(" ", bookmarks) + " " + quotedHgCloneUrl);
             }
         }
