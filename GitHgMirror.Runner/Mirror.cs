@@ -189,42 +189,6 @@ namespace GitHgMirror.Runner
         }
 
 
-        /// <summary>
-        /// Runs the specified command for a git repo.
-        /// </summary>
-        /// <param name="gitCloneUri">The git clone URI.</param>
-        /// <param name="command">
-        /// The command, including an optional placeholder for the git URL in form of {url}, e.g.: "clone --noupdate {url}".
-        /// </param>
-        private void RunGitCommand(Uri gitCloneUri, string command)
-        {
-            var gitUriBuilder = new UriBuilder(gitCloneUri);
-            var userName = gitUriBuilder.UserName;
-            var password = gitUriBuilder.Password;
-            gitUriBuilder.UserName = null;
-            gitUriBuilder.Password = null;
-            var gitUri = gitUriBuilder.Uri;
-            var quotedGitCloneUrl = gitUri.ToString().EncloseInQuotes();
-            command = command.Replace("{url}", quotedGitCloneUrl);
-
-            if (!string.IsNullOrEmpty(userName))
-            {
-                RunCommandAndLogOutput(
-                    "hg --config auth.rc.prefix=" +
-                    ("https://" + gitUri.Host).EncloseInQuotes() +
-                    " --config auth.rc.username=" +
-                    userName.EncloseInQuotes() +
-                    " --config auth.rc.password=" +
-                    password.EncloseInQuotes() +
-                    " " +
-                    command);
-            }
-            else
-            {
-                RunCommandAndLogOutput("hg " + command);
-            }
-        }
-
         private void PushToGit(Uri gitCloneUri)
         {
             var gitUrl = gitCloneUri.ToString().Replace("git+https", "https");
@@ -261,6 +225,42 @@ namespace GitHgMirror.Runner
             RunGitCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath);
         }
 
+        /// <summary>
+        /// Runs the specified command for a git repo.
+        /// </summary>
+        /// <param name="gitCloneUri">The git clone URI.</param>
+        /// <param name="command">
+        /// The command, including an optional placeholder for the git URL in form of {url}, e.g.: "clone --noupdate {url}".
+        /// </param>
+        private void RunGitCommand(Uri gitCloneUri, string command)
+        {
+            var gitUriBuilder = new UriBuilder(gitCloneUri);
+            var userName = gitUriBuilder.UserName;
+            var password = gitUriBuilder.Password;
+            gitUriBuilder.UserName = null;
+            gitUriBuilder.Password = null;
+            var gitUri = gitUriBuilder.Uri;
+            var quotedGitCloneUrl = gitUri.ToString().EncloseInQuotes();
+            command = command.Replace("{url}", quotedGitCloneUrl);
+
+            if (!string.IsNullOrEmpty(userName))
+            {
+                RunCommandAndLogOutput(
+                    "hg --config auth.rc.prefix=" +
+                    ("https://" + gitUri.Host).EncloseInQuotes() +
+                    " --config auth.rc.username=" +
+                    userName.EncloseInQuotes() +
+                    " --config auth.rc.password=" +
+                    password.EncloseInQuotes() +
+                    " " +
+                    command);
+            }
+            else
+            {
+                RunCommandAndLogOutput("hg " + command);
+            }
+        }
+
         private void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath)
         {
             RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
@@ -288,13 +288,6 @@ namespace GitHgMirror.Runner
 
                 RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark);
             }
-        }
-
-        private string RunCommandAndLogOutput(string command)
-        {
-            var output = _commandRunner.RunCommand(command);
-            _eventLog.WriteEntry(output);
-            return output;
         }
 
         private void PushWithBookmarks(string quotedHgCloneUrl)
@@ -334,6 +327,13 @@ namespace GitHgMirror.Runner
                     }
                 }
             }
+        }
+
+        private string RunCommandAndLogOutput(string command)
+        {
+            var output = _commandRunner.RunCommand(command);
+            _eventLog.WriteEntry(output);
+            return output;
         }
 
 
