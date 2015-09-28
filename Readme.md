@@ -8,9 +8,9 @@ This is needed on the server as well as locally if you want to test mirroring.
 
 1. Install the latest [TortoiseHg](http://tortoisehg.bitbucket.org/).
 2. Enable the hggit extension (if it wasn't already; it comes with TortoiseHg). 
-2. Make sure that the mercurial_keyring extension is **not** enabled and there are no prefixes configured in the `[auth]` section of mercurial.ini (as these will override the authentication configs used during git interactions).
-3. Restart TortoiseHg.
-4. Install [Git](https://git-scm.com/) (if you have GitExtensions already installed, you can skip this step). During installation select the option "Use Git from the Windows Command Prompt"; everything else can be the default.
+3. Make sure that the mercurial_keyring extension is **not** enabled and there are no prefixes configured in the `[auth]` section of mercurial.ini (as these will override the authentication configs used during git interactions).
+4. Restart TortoiseHg.
+5. Install [Git](https://git-scm.com/) (if you have GitExtensions already installed, you can skip this step). During installation select the option "Use Git from the Windows Command Prompt"; everything else can be the default.
 
 
 ## Installation on the server
