@@ -82,6 +82,7 @@ namespace GitHgMirror.Runner
                         if (isCloned)
                         {
                             RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+                            CreateBookmarksForBranches();
                             RunCommandAndLogOutput("hg gexport");
                         }
                         else
@@ -90,9 +91,8 @@ namespace GitHgMirror.Runner
                             cdCloneDirectory();
                             if (!configuration.GitUrlIsHgUrl)
                             {
-                                // Adding master bookmark, otherwise it wouldn't be possible to push to a git repo, since
-                                // hg bookmarks correspond to git branches.
-                                RunCommandAndLogOutput("hg bookmark -r default master");
+                                CreateBookmarksForBranches();
+
                                 RunCommandAndLogOutput("hg gexport");
                             }
                         }
@@ -189,6 +189,42 @@ namespace GitHgMirror.Runner
         }
 
 
+        private void PushToGit(Uri gitCloneUri)
+        {
+            var gitUrl = gitCloneUri.ToString().Replace("git+https", "https");
+            RunCommandAndLogOutput(@"cd .hg\git");
+            // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
+            try
+            {
+                RunCommandAndLogOutput("git push " + gitUrl.EncloseInQuotes() + " --mirror");
+            }
+            catch (CommandException ex)
+            {
+                // Git communicates some messages via the error stream, so checking them here.
+
+                    // If there is nothing to push git will return this message in the error stream.
+                if (!ex.Error.Contains("Everything up-to-date") &&
+                    // When pushing to an empty repo.
+                    !ex.Error.Contains("* [new branch]"))
+                {
+                    throw;
+                }
+            }
+        }
+
+        private void PullFromGit(Uri gitCloneUri)
+        {
+            RunGitCommand(gitCloneUri, "pull {url}");
+        }
+
+        private void CloneGit(Uri gitCloneUri, string quotedCloneDirectoryPath)
+        {
+            // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it
+            // in will fail with a "the connection was forcibly closed by remote host"-like error. This is why
+            // we start with cloning the git repo.
+            RunGitCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath);
+        }
+
         /// <summary>
         /// Runs the specified command for a git repo.
         /// </summary>
@@ -225,52 +261,33 @@ namespace GitHgMirror.Runner
             }
         }
 
-        private void PushToGit(Uri gitCloneUri)
-        {
-            var gitUrl = gitCloneUri.ToString().Replace("git+https", "https");
-            RunCommandAndLogOutput(@"cd .hg\git");
-            // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
-            try
-            {
-                RunCommandAndLogOutput("git push " + gitUrl.EncloseInQuotes() + " --mirror");
-            }
-            catch (CommandException ex)
-            {
-                // Git communicates some messages via the error stream, so checking them here.
-
-                // If there is nothing to push git will return this message in the error stream.
-                if (!ex.Error.Contains("Everything up-to-date") &&
-                    // When pushing to an empty repo.
-                    !ex.Error.Contains("\r\nTo " + gitUrl + "\r\n * [new branch]      master -> master"))
-                {
-                    throw;
-                }
-            }
-        }
-
-        private void PullFromGit(Uri gitCloneUri)
-        {
-            RunGitCommand(gitCloneUri, "pull {url}");
-        }
-
-        private void CloneGit(Uri gitCloneUri, string quotedCloneDirectoryPath)
-        {
-            // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it
-            // in will fail with a "the connection was forcibly closed by remote host"-like error. This is why
-            // we start with cloning the git repo.
-            RunGitCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath);
-        }
-
         private void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath)
         {
             RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
         }
 
-        private string RunCommandAndLogOutput(string command)
+        private void CreateBookmarksForBranches()
         {
-            var output = _commandRunner.RunCommand(command);
-            _eventLog.WriteEntry(output);
-            return output;
+            // Adding bookmarks for all branches so they appear as proper git branches.
+            var branchesOutput = RunCommandAndLogOutput("hg branches --closed");
+
+            var branches = branchesOutput
+                  .Split(Environment.NewLine.ToArray())
+                  .Skip(1) // The first line is the command itself
+                  .Where(line => !string.IsNullOrEmpty(line))
+                  .Select(line => Regex.Match(line, @"(.+?)\s+\d+:[a-z0-9]+").Groups[1].Value);
+
+            foreach (var branch in branches)
+            {
+                // Need to strip spaces from branch names, see:
+                // https://bitbucket.org/durin42/hg-git/issues/163/gexport-fails-on-bookmarks-with-spaces-in
+                var bookmark = branch.Replace(' ', '-');
+                if (branch == "default") bookmark = "master";
+                else if (branch == "dev") bookmark = "develop"; // This is a special name substitution not to use the hg/ prefix.
+                else bookmark = "hg/" + bookmark;
+
+                RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark);
+            }
         }
 
         private void PushWithBookmarks(string quotedHgCloneUrl)
@@ -310,6 +327,13 @@ namespace GitHgMirror.Runner
                     }
                 }
             }
+        }
+
+        private string RunCommandAndLogOutput(string command)
+        {
+            var output = _commandRunner.RunCommand(command);
+            _eventLog.WriteEntry(output);
+            return output;
         }
 
 
