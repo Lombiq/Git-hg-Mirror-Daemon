@@ -132,6 +132,7 @@ namespace GitHgMirror.Runner
                         }
 
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+                        CreateBookmarksForBranches();
 
                         if (!configuration.GitUrlIsHgUrl)
                         {
