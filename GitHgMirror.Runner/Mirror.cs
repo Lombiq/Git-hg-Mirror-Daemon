@@ -287,7 +287,8 @@ namespace GitHgMirror.Runner
                 else if (branch == "dev") bookmark = "develop"; // This is a special name substitution not to use the hg/ prefix.
                 else bookmark = "hg/" + bookmark;
 
-                RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark);
+                // Need --force so it moves the bookmark if it already exists.
+                RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force");
             }
         }
 
