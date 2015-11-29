@@ -82,19 +82,18 @@ namespace GitHgMirror.Runner
                         if (isCloned)
                         {
                             RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                            CreateBookmarksForBranches();
-                            RunCommandAndLogOutput("hg gexport");
                         }
                         else
                         {
                             CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
                             cdCloneDirectory();
-                            if (!configuration.GitUrlIsHgUrl)
-                            {
-                                CreateBookmarksForBranches();
 
-                                RunCommandAndLogOutput("hg gexport");
-                            }
+                        }
+
+                        if (!configuration.GitUrlIsHgUrl)
+                        {
+                            CreateBookmarksForBranches();
+                            RunCommandAndLogOutput("hg gexport");
                         }
 
                         if (configuration.GitUrlIsHgUrl)
@@ -132,10 +131,10 @@ namespace GitHgMirror.Runner
                         }
 
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                        CreateBookmarksForBranches();
 
                         if (!configuration.GitUrlIsHgUrl)
                         {
+                            CreateBookmarksForBranches(); 
                             RunCommandAndLogOutput("hg gexport");
                             RunCommandAndLogOutput("hg gimport");
                         }
