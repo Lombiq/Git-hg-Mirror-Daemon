@@ -6,11 +6,16 @@ using System.Threading.Tasks;
 
 namespace GitHgMirror.Runner
 {
-    static class StringExtensions
+    internal static class StringExtensions
     {
         public static string EncloseInQuotes(this string text)
         {
             return "\"" + text + "\"";
+        }
+
+        public static string WithHgGitConfig(this string command)
+        {
+            return command + " --config git.branch_bookmark_suffix=-git";
         }
     }
 }

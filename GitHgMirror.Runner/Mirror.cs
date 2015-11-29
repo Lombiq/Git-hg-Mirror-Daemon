@@ -75,7 +75,7 @@ namespace GitHgMirror.Runner
                             {
                                 PullFromGit(configuration.GitCloneUri);
                                 cdCloneDirectory();
-                                RunCommandAndLogOutput("hg gimport");
+                                RunGitImport();
                             }
                         }
                         else
@@ -116,7 +116,7 @@ namespace GitHgMirror.Runner
                         else
                         {
                             CreateBookmarksForBranches();
-                            RunCommandAndLogOutput("hg gexport");
+                            RunGitExport();
                             PushToGit(configuration.GitCloneUri);
                         }
 
@@ -139,8 +139,8 @@ namespace GitHgMirror.Runner
                                 RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
 
                                 CreateBookmarksForBranches();
-                                RunCommandAndLogOutput("hg gexport");
-                                RunCommandAndLogOutput("hg gimport");
+                                RunGitExport();
+                                RunGitImport();
                             }
                         }
                         else
@@ -163,9 +163,9 @@ namespace GitHgMirror.Runner
                                 cdCloneDirectory();
                                 DeleteAllBookmarks(quotedHgCloneUrl);
                                 CreateBookmarksForBranches();
-                                RunCommandAndLogOutput("hg gexport");
+                                RunGitExport();
                                 PullFromGit(configuration.GitCloneUri);
-                                RunCommandAndLogOutput("hg gimport");
+                                RunGitImport();
                             }
                         }
 
@@ -290,12 +290,22 @@ namespace GitHgMirror.Runner
                     " --config auth.rc.password=" +
                     password.EncloseInQuotes() +
                     " " +
-                    command);
+                    command.WithHgGitConfig());
             }
             else
             {
                 RunCommandAndLogOutput("hg " + command);
             }
+        }
+
+        private void RunGitImport()
+        {
+            RunCommandAndLogOutput("hg gimport".WithHgGitConfig());
+        }
+
+        private void RunGitExport()
+        {
+            RunCommandAndLogOutput("hg gexport".WithHgGitConfig());
         }
 
         private void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath)
@@ -318,10 +328,7 @@ namespace GitHgMirror.Runner
             {
                 // Need to strip spaces from branch names, see:
                 // https://bitbucket.org/durin42/hg-git/issues/163/gexport-fails-on-bookmarks-with-spaces-in
-                var bookmark = branch.Replace(' ', '-');
-                if (branch == "default") bookmark = "master";
-                else if (branch == "dev") bookmark = "develop"; // This is a special name substitution not to use the hg/ prefix.
-                else bookmark = "hg/" + bookmark;
+                var bookmark = branch.Replace(' ', '-') + "-git";
 
                 // Need --force so it moves the bookmark if it already exists.
                 RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force");
