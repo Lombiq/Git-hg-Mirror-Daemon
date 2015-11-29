@@ -88,9 +88,9 @@ namespace GitHgMirror.Runner
                             {
                                 CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
                             }
-
-                            cdCloneDirectory();
                         }
+
+                        cdCloneDirectory();
 
                         PushWithBookmarks(quotedHgCloneUrl);
 
@@ -103,8 +103,9 @@ namespace GitHgMirror.Runner
                         else
                         {
                             CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
-                            cdCloneDirectory();
                         }
+
+                        cdCloneDirectory();
 
                         if (configuration.GitUrlIsHgUrl)
                         {
@@ -129,8 +130,6 @@ namespace GitHgMirror.Runner
                             {
                                 PullFromGit(configuration.GitCloneUri);
                             }
-
-                            cdCloneDirectory();
                         }
                         else
                         {
@@ -143,6 +142,8 @@ namespace GitHgMirror.Runner
                                 CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
                             }
                         }
+
+                        cdCloneDirectory();
 
                         RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
 
