@@ -125,10 +125,20 @@ namespace GitHgMirror.Runner
                             if (configuration.GitUrlIsHgUrl)
                             {
                                 RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+
+                                cdCloneDirectory();
                             }
                             else
                             {
                                 PullFromGit(configuration.GitCloneUri);
+
+                                cdCloneDirectory();
+
+                                RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+
+                                CreateBookmarksForBranches();
+                                RunCommandAndLogOutput("hg gexport");
+                                RunCommandAndLogOutput("hg gimport");
                             }
                         }
                         else
@@ -136,23 +146,26 @@ namespace GitHgMirror.Runner
                             if (configuration.GitUrlIsHgUrl)
                             {
                                 CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath);
+
+                                cdCloneDirectory();
+
+                                RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
                             }
                             else
                             {
-                                CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
+                                // We need to start with cloning the hg repo. Otherwise cloning the git repo, then
+                                // pulling from the hg repo would yield a "repository unrelated" error, even if the git
+                                // repo was created from the hg. For an explanation see: 
+                                // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
+                                CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
+                                cdCloneDirectory();
+                                CreateBookmarksForBranches();
+                                RunCommandAndLogOutput("hg gexport");
+                                PullFromGit(configuration.GitCloneUri);
+                                RunCommandAndLogOutput("hg gimport");
                             }
                         }
 
-                        cdCloneDirectory();
-
-                        RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-
-                        if (!configuration.GitUrlIsHgUrl)
-                        {
-                            CreateBookmarksForBranches(); 
-                            RunCommandAndLogOutput("hg gexport");
-                            RunCommandAndLogOutput("hg gimport");
-                        }
 
                         PushWithBookmarks(quotedHgCloneUrl);
 
