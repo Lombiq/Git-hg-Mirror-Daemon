@@ -67,13 +67,27 @@ namespace GitHgMirror.Runner
                     case MirroringDirection.GitToHg:
                         if (isCloned)
                         {
-                            PullFromGit(configuration.GitCloneUri);
-                            cdCloneDirectory();
-                            RunCommandAndLogOutput("hg gimport");
+                            if (!configuration.GitUrlIsHgUrl)
+                            {
+                                PullFromGit(configuration.GitCloneUri);
+                                cdCloneDirectory();
+                                RunCommandAndLogOutput("hg gimport");
+                            }
+                            else
+                            {
+                                RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                            }
                         }
                         else
                         {
-                            CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
+                            if (!configuration.GitUrlIsHgUrl)
+                            {
+                                CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
+                            }
+                            else
+                            {
+                                CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath);
+                            }
                             cdCloneDirectory();
                         }
                         PushWithBookmarks(quotedHgCloneUrl);
@@ -87,7 +101,6 @@ namespace GitHgMirror.Runner
                         {
                             CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
                             cdCloneDirectory();
-
                         }
 
                         if (!configuration.GitUrlIsHgUrl)
