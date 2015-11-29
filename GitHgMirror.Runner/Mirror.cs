@@ -103,8 +103,10 @@ namespace GitHgMirror.Runner
                         else
                         {
                             CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
+
                             cdCloneDirectory();
                             DeleteAllBookmarks(quotedHgCloneUrl);
+
                         }
 
                         cdCloneDirectory();
@@ -161,7 +163,9 @@ namespace GitHgMirror.Runner
                                 // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
                                 CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
                                 cdCloneDirectory();
+
                                 DeleteAllBookmarks(quotedHgCloneUrl);
+
                                 CreateBookmarksForBranches();
                                 RunGitExport();
                                 PullFromGit(configuration.GitCloneUri);
