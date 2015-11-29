@@ -108,7 +108,6 @@ namespace GitHgMirror.Runner
                             CreateBookmarksForBranches();
                             RunCommandAndLogOutput("hg gexport");
                             PushToGit(configuration.GitCloneUri);
-
                         }
                         else
                         {
@@ -214,10 +213,12 @@ namespace GitHgMirror.Runner
 
                     // If there is nothing to push git will return this message in the error stream.
                 if (!ex.Error.Contains("Everything up-to-date") &&
-                    // When pushing to an empty repo.
+                    // A new branch was added.
                     !ex.Error.Contains("* [new branch]") &&
-                    // When branches were deleted in git.
-                    !ex.Error.Contains("[deleted]"))
+                    // Branches were deleted in git.
+                    !ex.Error.Contains("[deleted]") &&
+                    // A new tag was added.
+                    !ex.Error.Contains("* [new tag]"))
                 {
                     throw;
                 }
