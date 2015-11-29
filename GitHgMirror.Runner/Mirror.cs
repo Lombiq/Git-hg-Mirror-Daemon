@@ -67,30 +67,33 @@ namespace GitHgMirror.Runner
                     case MirroringDirection.GitToHg:
                         if (isCloned)
                         {
-                            if (!configuration.GitUrlIsHgUrl)
+                            if (configuration.GitUrlIsHgUrl)
+                            {
+                                RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                            }
+                            else
                             {
                                 PullFromGit(configuration.GitCloneUri);
                                 cdCloneDirectory();
                                 RunCommandAndLogOutput("hg gimport");
                             }
-                            else
-                            {
-                                RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
-                            }
                         }
                         else
                         {
-                            if (!configuration.GitUrlIsHgUrl)
-                            {
-                                CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
-                            }
-                            else
+                            if (configuration.GitUrlIsHgUrl)
                             {
                                 CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath);
                             }
+                            else
+                            {
+                                CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
+                            }
+
                             cdCloneDirectory();
                         }
+
                         PushWithBookmarks(quotedHgCloneUrl);
+
                         break;
                     case MirroringDirection.HgToGit:
                         if (isCloned)
@@ -103,31 +106,20 @@ namespace GitHgMirror.Runner
                             cdCloneDirectory();
                         }
 
-                        if (!configuration.GitUrlIsHgUrl)
+                        if (configuration.GitUrlIsHgUrl)
+                        {
+                            PushWithBookmarks(quotedGitCloneUrl);
+                        }
+                        else
                         {
                             CreateBookmarksForBranches();
                             RunCommandAndLogOutput("hg gexport");
                             PushToGit(configuration.GitCloneUri);
                         }
-                        else
-                        {
-                            PushWithBookmarks(quotedGitCloneUrl);
-                        }
+
                         break;
                     case MirroringDirection.TwoWay:
-                        if (!isCloned)
-                        {
-                            if (configuration.GitUrlIsHgUrl)
-                            {
-                                CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath);
-                            }
-                            else
-                            {
-                                CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
-                            }
-                            cdCloneDirectory();
-                        }
-                        else
+                        if (isCloned)
                         {
                             if (configuration.GitUrlIsHgUrl)
                             {
@@ -136,6 +128,19 @@ namespace GitHgMirror.Runner
                             else
                             {
                                 PullFromGit(configuration.GitCloneUri);
+                            }
+
+                            cdCloneDirectory();
+                        }
+                        else
+                        {
+                            if (configuration.GitUrlIsHgUrl)
+                            {
+                                CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath);
+                            }
+                            else
+                            {
+                                CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
                             }
                         }
 
@@ -229,7 +234,7 @@ namespace GitHgMirror.Runner
 
         private void PullFromGit(Uri gitCloneUri)
         {
-            RunGitCommand(gitCloneUri, "pull {url}");
+            RunGitRepoCommand(gitCloneUri, "pull {url}");
         }
 
         private void CloneGit(Uri gitCloneUri, string quotedCloneDirectoryPath)
@@ -237,17 +242,17 @@ namespace GitHgMirror.Runner
             // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it
             // in will fail with a "the connection was forcibly closed by remote host"-like error. This is why
             // we start with cloning the git repo.
-            RunGitCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath);
+            RunGitRepoCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath);
         }
 
         /// <summary>
-        /// Runs the specified command for a git repo.
+        /// Runs the specified command for a git repo in hg.
         /// </summary>
         /// <param name="gitCloneUri">The git clone URI.</param>
         /// <param name="command">
         /// The command, including an optional placeholder for the git URL in form of {url}, e.g.: "clone --noupdate {url}".
         /// </param>
-        private void RunGitCommand(Uri gitCloneUri, string command)
+        private void RunGitRepoCommand(Uri gitCloneUri, string command)
         {
             var gitUriBuilder = new UriBuilder(gitCloneUri);
             var userName = gitUriBuilder.UserName;
