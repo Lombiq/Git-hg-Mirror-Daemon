@@ -328,7 +328,9 @@ namespace GitHgMirror.Runner
             {
                 // Need to strip spaces from branch names, see:
                 // https://bitbucket.org/durin42/hg-git/issues/163/gexport-fails-on-bookmarks-with-spaces-in
-                var bookmark = branch.Replace(' ', '-') + "-git";
+                var bookmark = branch.Replace(' ', '-');
+                if (branch == "default") bookmark = "master-git";
+                else bookmark = bookmark + "-git";
 
                 // Need --force so it moves the bookmark if it already exists.
                 RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force");
