@@ -103,6 +103,8 @@ namespace GitHgMirror.Runner
                         else
                         {
                             CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
+                            cdCloneDirectory();
+                            DeleteAllBookmarks(quotedHgCloneUrl);
                         }
 
                         cdCloneDirectory();
@@ -159,6 +161,7 @@ namespace GitHgMirror.Runner
                                 // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
                                 CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
                                 cdCloneDirectory();
+                                DeleteAllBookmarks(quotedHgCloneUrl);
                                 CreateBookmarksForBranches();
                                 RunCommandAndLogOutput("hg gexport");
                                 PullFromGit(configuration.GitCloneUri);
@@ -322,6 +325,27 @@ namespace GitHgMirror.Runner
 
                 // Need --force so it moves the bookmark if it already exists.
                 RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force");
+            }
+        }
+
+        private void DeleteAllBookmarks(string quotedHgCloneUrl)
+        {
+            var bookmarksOutput = RunCommandAndLogOutput("hg bookmarks");
+
+            if (!bookmarksOutput.Contains("no bookmarks set"))
+            {
+                var bookmarks = bookmarksOutput
+                      .Split(Environment.NewLine.ToArray())
+                      .Skip(1) // The first line is the command itself
+                      .Where(line => !string.IsNullOrEmpty(line))
+                      .Select(line => Regex.Match(line, @"\s([a-zA-Z0-9/.\-_]+)\s", RegexOptions.IgnoreCase).Groups[1].Value)
+                      .Where(line => !string.IsNullOrEmpty(line));
+
+                foreach (var bookmark in bookmarks)
+                {
+                    RunCommandAndLogOutput("hg bookmark --delete " + bookmark);
+                    RunCommandAndLogOutput("hg push --bookmark " + bookmark + " " + quotedHgCloneUrl);
+                }
             }
         }
 
