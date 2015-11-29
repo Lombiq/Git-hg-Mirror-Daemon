@@ -107,15 +107,12 @@ namespace GitHgMirror.Runner
                         {
                             CreateBookmarksForBranches();
                             RunCommandAndLogOutput("hg gexport");
-                        }
+                            PushToGit(configuration.GitCloneUri);
 
-                        if (configuration.GitUrlIsHgUrl)
-                        {
-                            PushWithBookmarks(quotedGitCloneUrl);
                         }
                         else
                         {
-                            PushToGit(configuration.GitCloneUri);
+                            PushWithBookmarks(quotedGitCloneUrl);
                         }
                         break;
                     case MirroringDirection.TwoWay:
