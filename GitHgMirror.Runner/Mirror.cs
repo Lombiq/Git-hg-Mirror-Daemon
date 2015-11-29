@@ -220,7 +220,7 @@ namespace GitHgMirror.Runner
                     // A new tag was added.
                     !ex.Error.Contains("* [new tag]") &&
                     // The branch head was moved.
-                    !ex.Error.Contains(" -> "))
+                    !(ex.Error.Contains("..") && ex.Error.Contains(" -> ")))
                 {
                     throw;
                 }
