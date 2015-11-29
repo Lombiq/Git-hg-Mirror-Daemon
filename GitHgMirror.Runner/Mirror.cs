@@ -218,7 +218,9 @@ namespace GitHgMirror.Runner
                     // Branches were deleted in git.
                     !ex.Error.Contains("[deleted]") &&
                     // A new tag was added.
-                    !ex.Error.Contains("* [new tag]"))
+                    !ex.Error.Contains("* [new tag]") &&
+                    // The branch head was moved.
+                    !ex.Error.Contains(" -> "))
                 {
                     throw;
                 }
