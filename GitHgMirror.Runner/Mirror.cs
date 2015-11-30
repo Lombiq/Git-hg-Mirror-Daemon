@@ -167,9 +167,15 @@ namespace GitHgMirror.Runner
                                 DeleteAllBookmarks(quotedHgCloneUrl);
 
                                 CreateBookmarksForBranches();
-                                RunGitExport();
                                 PullFromGit(configuration.GitCloneUri);
+                                RunGitExport();
                                 RunGitImport();
+
+                                // This wipes branches created in git.
+                                //CreateBookmarksForBranches();
+                                //RunGitExport();
+                                //PullFromGit(configuration.GitCloneUri);
+                                //RunGitImport();
                             }
                         }
 
