@@ -12,10 +12,5 @@ namespace GitHgMirror.Runner
         {
             return "\"" + text + "\"";
         }
-
-        public static string WithHgGitConfig(this string command)
-        {
-            return command + " --config git.branch_bookmark_suffix=-git";
-        }
     }
 }

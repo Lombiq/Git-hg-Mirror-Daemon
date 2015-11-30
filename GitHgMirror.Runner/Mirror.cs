@@ -14,6 +14,9 @@ namespace GitHgMirror.Runner
 {
     class Mirror : IDisposable
     {
+        private const string GitBookmarkSuffix = "-git";
+        private const string HgGitConfig = " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix;
+
         private readonly Settings _settings;
         private readonly EventLog _eventLog;
 
@@ -298,9 +301,10 @@ namespace GitHgMirror.Runner
                     " --config auth.rc.username=" +
                     userName.EncloseInQuotes() +
                     " --config auth.rc.password=" +
-                    password.EncloseInQuotes() +
+                    password.EncloseInQuotes()
+                    + HgGitConfig +
                     " " +
-                    command.WithHgGitConfig());
+                    command);
             }
             else
             {
@@ -310,12 +314,12 @@ namespace GitHgMirror.Runner
 
         private void RunGitImport()
         {
-            RunCommandAndLogOutput("hg gimport".WithHgGitConfig());
+            RunCommandAndLogOutput("hg gimport" + HgGitConfig);
         }
 
         private void RunGitExport()
         {
-            RunCommandAndLogOutput("hg gexport".WithHgGitConfig());
+            RunCommandAndLogOutput("hg gexport" + HgGitConfig);
         }
 
         private void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath)
@@ -339,11 +343,28 @@ namespace GitHgMirror.Runner
                 // Need to strip spaces from branch names, see:
                 // https://bitbucket.org/durin42/hg-git/issues/163/gexport-fails-on-bookmarks-with-spaces-in
                 var bookmark = branch.Replace(' ', '-');
-                if (branch == "default") bookmark = "master-git";
-                else bookmark = bookmark + "-git";
+                if (branch == "default") bookmark = "master" + GitBookmarkSuffix;
+                else bookmark = bookmark + GitBookmarkSuffix;
 
-                // Need --force so it moves the bookmark if it already exists.
-                RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force");
+                // Don't move the bookmark if on the changeset there is already a git bookmark, because this means that
+                // there was a branch created in git. E.g. we shouldn't move the master bookmark to the default head
+                // since with a new git branch there will be two default heads (since git branches are converted to
+                // bookmarks on default) and we'd wrongly move the master head.
+                var changesetLogOutput = RunCommandAndLogOutput("hg log -r " + branch.EncloseInQuotes());
+                // For hg log this is needed, otherwise the next command would return an empty line.
+                RunCommandAndLogOutput(Environment.NewLine);
+
+                var existingBookmarks = changesetLogOutput
+                      .Split(Environment.NewLine.ToArray())
+                      .Skip(1) // The first line is the command itself
+                      .Where(line => !string.IsNullOrEmpty(line) && line.StartsWith("bookmark:"))
+                      .Select(line => Regex.Match(line, @"bookmark:\s+(.+)(\s|$)").Groups[1].Value);
+
+                if (!existingBookmarks.Any(existingBookmark => existingBookmark.EndsWith(GitBookmarkSuffix)))
+                {
+                    // Need --force so it moves the bookmark if it already exists.
+                    RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force"); 
+                }
             }
         }
 
