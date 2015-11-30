@@ -167,10 +167,12 @@ namespace GitHgMirror.Runner
                                 CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
                                 cdCloneDirectory();
 
-                                DeleteAllBookmarks(quotedHgCloneUrl);
+                                //DeleteAllBookmarks(quotedHgCloneUrl);
 
                                 CreateBookmarksForBranches();
+                                RunGitExport();
                                 PullFromGit(configuration.GitCloneUri);
+                                cdCloneDirectory();
                                 RunGitExport();
                                 RunGitImport();
 
@@ -178,6 +180,10 @@ namespace GitHgMirror.Runner
                                 //CreateBookmarksForBranches();
                                 //RunGitExport();
                                 //PullFromGit(configuration.GitCloneUri);
+                                //cdCloneDirectory();
+                                //DeleteAllBookmarks(quotedHgCloneUrl, false);
+                                //CreateBookmarksForBranches();
+                                //RunGitExport();
                                 //RunGitImport();
                             }
                         }
@@ -235,36 +241,30 @@ namespace GitHgMirror.Runner
 
         private void PushToGit(Uri gitCloneUri)
         {
-            var gitUrl = gitCloneUri.ToString().Replace("git+https", "https");
             RunCommandAndLogOutput(@"cd .hg\git");
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
             try
             {
-                RunCommandAndLogOutput("git push " + gitUrl.EncloseInQuotes() + " --mirror");
+                RunCommandAndLogOutput("git push " + gitCloneUri.ToGitUrl().EncloseInQuotes() + " --mirror --follow-tags");
             }
             catch (CommandException ex)
             {
-                // Git communicates some messages via the error stream, so checking them here.
-
-                    // If there is nothing to push git will return this message in the error stream.
-                if (!ex.Error.Contains("Everything up-to-date") &&
-                    // A new branch was added.
-                    !ex.Error.Contains("* [new branch]") &&
-                    // Branches were deleted in git.
-                    !ex.Error.Contains("[deleted]") &&
-                    // A new tag was added.
-                    !ex.Error.Contains("* [new tag]") &&
-                    // The branch head was moved.
-                    !(ex.Error.Contains("..") && ex.Error.Contains(" -> ")))
-                {
-                    throw;
-                }
+                if (IsGitExceptionRealError(ex)) throw;
             }
         }
 
         private void PullFromGit(Uri gitCloneUri)
         {
-            RunGitRepoCommand(gitCloneUri, "pull {url}");
+            RunCommandAndLogOutput(@"cd .hg\git");
+            // Git repos should be pulled with git as hg-git pull won't pull in new tags.
+            try
+            {
+                RunCommandAndLogOutput("git fetch --prune --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes());
+            }
+            catch (CommandException ex)
+            {
+                if (IsGitExceptionRealError(ex)) throw;
+            }
         }
 
         private void CloneGit(Uri gitCloneUri, string quotedCloneDirectoryPath)
@@ -368,7 +368,7 @@ namespace GitHgMirror.Runner
             }
         }
 
-        private void DeleteAllBookmarks(string quotedHgCloneUrl)
+        private void DeleteAllBookmarks(string quotedHgCloneUrl, bool push = true)
         {
             var bookmarksOutput = RunCommandAndLogOutput("hg bookmarks");
 
@@ -384,7 +384,7 @@ namespace GitHgMirror.Runner
                 foreach (var bookmark in bookmarks)
                 {
                     RunCommandAndLogOutput("hg bookmark --delete " + bookmark);
-                    RunCommandAndLogOutput("hg push --bookmark " + bookmark + " " + quotedHgCloneUrl);
+                    if (push) RunCommandAndLogOutput("hg push --bookmark " + bookmark + " " + quotedHgCloneUrl);
                 }
             }
         }
@@ -444,6 +444,26 @@ namespace GitHgMirror.Runner
         private static void DeleteDirectoryIfExists(string path)
         {
             if (Directory.Exists(path)) Directory.Delete(path, true);
+        }
+
+        /// <summary>
+        /// Git communicates some messages via the error stream, so checking them here.
+        /// </summary>
+        private static bool IsGitExceptionRealError(CommandException ex)
+        {
+            return
+                // If there is nothing to push git will return this message in the error stream.
+                !ex.Error.Contains("Everything up-to-date") &&
+                // A new branch was added.
+                !ex.Error.Contains("* [new branch]") &&
+                // Branches were deleted in git.
+                !ex.Error.Contains("[deleted]") &&
+                // A new tag was added.
+                !ex.Error.Contains("* [new tag]") &&
+                // The branch head was moved (shown during push).
+                !(ex.Error.Contains("..") && ex.Error.Contains(" -> ")) &&
+                // The branch head was moved (shown during fetch).
+                !(ex.Error.Contains("* branch") && ex.Error.Contains(" -> "));
         }
     }
 }
