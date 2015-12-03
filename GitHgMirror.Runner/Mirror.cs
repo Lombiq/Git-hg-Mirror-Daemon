@@ -89,6 +89,11 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
+                                CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath + "-hg");
+                                RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath + "-hg");
+                                DeleteAllBookmarks(quotedHgCloneUrl);
+                                cdCloneDirectory();
+
                                 CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
                             }
                         }
