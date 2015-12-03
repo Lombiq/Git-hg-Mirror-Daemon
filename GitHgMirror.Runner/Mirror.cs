@@ -76,7 +76,7 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                PullFromGit(configuration.GitCloneUri);
+                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
                                 cdCloneDirectory();
                                 RunGitImport();
                             }
@@ -109,7 +109,6 @@ namespace GitHgMirror.Runner
 
                             cdCloneDirectory();
                             DeleteAllBookmarks(quotedHgCloneUrl);
-
                         }
 
                         cdCloneDirectory();
@@ -137,7 +136,7 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                PullFromGit(configuration.GitCloneUri);
+                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
 
                                 cdCloneDirectory();
 
@@ -167,24 +166,24 @@ namespace GitHgMirror.Runner
                                 CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
                                 cdCloneDirectory();
 
-                                //DeleteAllBookmarks(quotedHgCloneUrl);
+                                DeleteAllBookmarks(quotedHgCloneUrl);
 
-                                CreateBookmarksForBranches();
-                                RunGitExport();
-                                PullFromGit(configuration.GitCloneUri);
-                                cdCloneDirectory();
-                                RunGitExport();
-                                RunGitImport();
-
-                                // This wipes branches created in git.
                                 //CreateBookmarksForBranches();
                                 //RunGitExport();
-                                //PullFromGit(configuration.GitCloneUri);
+                                //PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
                                 //cdCloneDirectory();
-                                //DeleteAllBookmarks(quotedHgCloneUrl, false);
-                                //CreateBookmarksForBranches();
                                 //RunGitExport();
                                 //RunGitImport();
+
+                                // This wipes branches created in git.
+                                CreateBookmarksForBranches();
+                                RunGitExport();
+                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                cdCloneDirectory();
+                                DeleteAllBookmarks(quotedHgCloneUrl, false);
+                                CreateBookmarksForBranches();
+                                RunGitExport();
+                                RunGitImport();
                             }
                         }
 
@@ -253,17 +252,34 @@ namespace GitHgMirror.Runner
             }
         }
 
-        private void PullFromGit(Uri gitCloneUri)
+        private void PullFromGit(Uri gitCloneUri, string cloneDirectoryPath)
         {
-            RunCommandAndLogOutput(@"cd .hg\git");
-            // Git repos should be pulled with git as hg-git pull won't pull in new tags.
-            try
+            var gitDirectoryPath = Path.Combine(cloneDirectoryPath, ".hg", "git");
+            // The git directory won't exist if the hg repo is empty (gexport won't do anything).
+            if (!Directory.Exists(gitDirectoryPath))
             {
-                RunCommandAndLogOutput("git fetch --prune --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes());
+                try
+                {
+                    RunCommandAndLogOutput("git clone --mirror " + gitCloneUri.ToGitUrl().EncloseInQuotes() + " " + gitDirectoryPath.EncloseInQuotes());
+                }
+                catch (CommandException ex)
+                {
+                    if (!ex.Error.Contains("Cloning into bare repository ") && IsGitExceptionRealError(ex)) throw;
+                }
             }
-            catch (CommandException ex)
+            else
             {
-                if (IsGitExceptionRealError(ex)) throw;
+                RunCommandAndLogOutput(@"cd .hg\git");
+
+                // Git repos should be pulled with git as hg-git pull won't pull in new tags.
+                try
+                {
+                    RunCommandAndLogOutput("git fetch --prune --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes());
+                }
+                catch (CommandException ex)
+                {
+                    if (IsGitExceptionRealError(ex)) throw;
+                }
             }
         }
 
