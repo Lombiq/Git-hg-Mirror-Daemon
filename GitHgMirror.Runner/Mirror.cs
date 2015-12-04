@@ -99,6 +99,10 @@ namespace GitHgMirror.Runner
                                 cdCloneDirectory();
 
                                 CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
+
+                                cdCloneDirectory();
+                                DeleteAllBookmarks(quotedHgCloneUrl, false);
+                                CreateBookmarksForBranches();
                             }
                         }
 
