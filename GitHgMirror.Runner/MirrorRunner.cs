@@ -7,6 +7,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Schedulers;
 using GitHgMirror.CommonTypes;
 using Newtonsoft.Json;
 
@@ -18,6 +19,7 @@ namespace GitHgMirror.Runner
         private readonly EventLog _eventLog;
         private readonly ApiService _apiService;
 
+        private readonly QueuedTaskScheduler _taskScheduler;
         private readonly List<Task> _mirrorTasks = new List<Task>();
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private readonly System.Timers.Timer _tasksRefreshTimer;
@@ -29,6 +31,7 @@ namespace GitHgMirror.Runner
             _eventLog = eventLog;
             _apiService = new ApiService(settings);
 
+            _taskScheduler = new QueuedTaskScheduler(TaskScheduler.Default, settings.MaxDegreeOfParallelism);
             _tasksRefreshTimer = new System.Timers.Timer(settings.SecondsBetweenConfigurationCountChecks * 1000);
             _tasksRefreshTimer.Elapsed += AdjustTasksToPageCount;
         }
@@ -136,7 +139,7 @@ namespace GitHgMirror.Runner
                 }
 
                 _cancellationTokenSource.Token.ThrowIfCancellationRequested();
-            }, page, _cancellationTokenSource.Token));
+            }, page, _cancellationTokenSource.Token, TaskCreationOptions.LongRunning, _taskScheduler));
         }
 
         private int FetchConfigurationPageCount()
