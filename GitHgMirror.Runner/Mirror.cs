@@ -32,6 +32,10 @@ namespace GitHgMirror.Runner
 
         public void MirrorRepositories(MirroringConfiguration configuration)
         {
+            var descriptor = GetMirroringDescriptor(configuration);
+
+            Debug.WriteLine("Starting mirroring: " + descriptor);
+
             var repositoryDirectoryName = GetCloneDirectoryName(configuration);
             var cloneDirectoryParentPath = Path.Combine(_settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
             var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
@@ -206,6 +210,8 @@ namespace GitHgMirror.Runner
 
                         break;
                 }
+
+                Debug.WriteLine("Finished mirroring: " + descriptor);
             }
             catch (Exception ex)
             {
@@ -459,7 +465,19 @@ namespace GitHgMirror.Runner
 
         private static string GetCloneDirectoryName(MirroringConfiguration configuration)
         {
-            return (configuration.HgCloneUri + " - " + configuration.GitCloneUri).GetHashCode().ToString();
+            return GetMirroringDescriptor(configuration).GetHashCode().ToString();
+        }
+
+        private static string GetMirroringDescriptor(MirroringConfiguration configuration)
+        {
+            var directionIndicator = "->";
+            if (configuration.Direction == MirroringDirection.GitToHg) directionIndicator = "<-";
+            else if (configuration.Direction == MirroringDirection.TwoWay) directionIndicator = "<->";
+
+            return 
+                configuration.HgCloneUri +
+                " " + directionIndicator + " " + 
+                configuration.GitCloneUri;
         }
 
         private static void DeleteDirectoryIfExists(string path)
