@@ -93,8 +93,8 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath + "-hg");
-                                RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath + "-hg");
+                                CloneHg(quotedHgCloneUrl, (cloneDirectoryPath + "-hg").EncloseInQuotes());
+                                RunCommandAndLogOutput("cd " + (cloneDirectoryPath + "-hg").EncloseInQuotes());
                                 DeleteAllBookmarks(quotedHgCloneUrl);
                                 cdCloneDirectory();
 
