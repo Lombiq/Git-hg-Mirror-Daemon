@@ -26,15 +26,20 @@ namespace GitHgMirror.Runner
         {
             StartProcessIfNotRunning();
 
+            _error = string.Empty;
 
             _process.StandardInput.WriteLine(command);
 
             var output = ReadOutputUntilBlankLine();
 
-            // Sometimes if the hg command fails it won't be included in this error output but rather it will appear in later outputs for some reason.
+            // Waiting for error lines to appear. Sometimes if a command fails it won't be included in this error output 
+            // but rather it will appear in later outputs for some reason. That's why we wait a bit here.
+            _waitHandle.WaitOne(1000);
+            _waitHandle.Reset();
+
             if (!string.IsNullOrEmpty(_error))
             {
-                // Waiting for error lines to gather
+                // Waiting for more error lines to appear.
                 for (int i = 0; i < 10; i++)
                 {
                     _waitHandle.WaitOne(1000);

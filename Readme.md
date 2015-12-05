@@ -37,9 +37,9 @@ If you get `mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate
 **Fingerprints should be all uppercase!**
 
 ### "EOF occurred in violation of protocol" errors
-If you get `EOF occurred in violation of protocol (_ssl.c:581)` or similar errors when a remote operation is done on a Bitbucket repository then this is more or less expected: Bitbucket seems to randomly cause such errors.
+If you get `EOF occurred in violation of protocol (_ssl.c:581)` or similar errors when a remote operation is done on a repository then you have an outdated version of Mercurial: you need at least Mercurial 3.6.1 (bundled with TortoiseHg 3.6.1).
 
-There is re-try logic in place specifically for such errors so while these make syncing slower they won't cause syncing to fail (within certain bounds: if there are too many retries needed then yes).
+There is re-try logic in place specifically for such errors so while these make syncing slower they shouldn't cause syncing to fail (within certain bounds: if there are too many retries needed then yes). Nevertheless if you can, update Mercurial.
 
 ### Finding out which repo a hg.exe works on
 There will be a hg.exe (Mercurial command line) instance started for each mirroring operation. If you want to find out which repo a hg.exe instance works on (because e.g. it hogs the CPU for hours) then you can find out with [Process Explorer](https://technet.microsoft.com/en-us/sysinternals/bb896653.aspx): open the properties of the process in question and there under the Image tab you'll see the command line parameters it was started with. This will tell you which repo it processes.
