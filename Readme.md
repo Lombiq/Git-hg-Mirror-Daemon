@@ -28,7 +28,7 @@ This is needed on the server as well as locally if you want to test mirroring.
 The service writes log messages to the Windows event log. You can view the entries in the Windows Event Viewer under "Applications and Services Logs" in the log "Git-hg Mirror Daemon".
 
 ### SSL fingerprint errors
-If you get "mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:581)"." or similar errors then it means that Mercurial couldn't verify the SSL certificates of remote servers. To work around this set fingerprints like following in Mercurial.ini for all hosts:
+If you get "mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:581)", "EOF occurred in violation of protocol (_ssl.c:581)" or similar errors then it means that Mercurial couldn't verify the SSL certificates of remote servers. To work around this set fingerprints like following in Mercurial.ini for all affected hosts:
 
     [hostfingerprints]
     bitbucket.org = 46:DE:34:E7:9B:18:CD:7F:AE:FD:8B:E3:BC:F4:1A:5E:38:D7:AC:24
@@ -57,4 +57,4 @@ You can configure some settings in `GitHgMirror.Tester.Program`. If you want to 
         mirror.MirrorRepositories(configuration);
     }
 
-Of course make sure not to commit such tests (to the dev branch).
+Of course make sure not to commit such tests (at least not to the dev branch).
