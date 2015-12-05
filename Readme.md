@@ -28,13 +28,18 @@ This is needed on the server as well as locally if you want to test mirroring.
 The service writes log messages to the Windows event log. You can view the entries in the Windows Event Viewer under "Applications and Services Logs" in the log "Git-hg Mirror Daemon".
 
 ### SSL fingerprint errors
-If you get "mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:581)", "EOF occurred in violation of protocol (_ssl.c:581)" or similar errors then it means that Mercurial couldn't verify the SSL certificates of remote servers. To work around this set fingerprints like following in Mercurial.ini for all affected hosts:
+If you get `mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:581)` or similar errors then it means that Mercurial couldn't verify the SSL certificates of remote servers. To work around this set fingerprints like following in Mercurial.ini for all affected hosts:
 
     [hostfingerprints]
     bitbucket.org = 46:DE:34:E7:9B:18:CD:7F:AE:FD:8B:E3:BC:F4:1A:5E:38:D7:AC:24
     github.com = A0:C4:A7:46:00:ED:A7:2D:C0:BE:CB:9A:8C:B6:07:CA:58:EE:74:5E
 
 **Fingerprints should be all uppercase!**
+
+### "EOF occurred in violation of protocol" errors
+If you get `EOF occurred in violation of protocol (_ssl.c:581)` or similar errors when a remote operation is done on a Bitbucket repository then this is more or less expected: Bitbucket seems to randomly cause such errors.
+
+There is re-try logic in place specifically for such errors so while these make syncing slower they won't cause syncing to fail (within certain bounds: if there are too many retries needed then yes).
 
 ### Finding out which repo a hg.exe works on
 There will be a hg.exe (Mercurial command line) instance started for each mirroring operation. If you want to find out which repo a hg.exe instance works on (because e.g. it hogs the CPU for hours) then you can find out with [Process Explorer](https://technet.microsoft.com/en-us/sysinternals/bb896653.aspx): open the properties of the process in question and there under the Image tab you'll see the command line parameters it was started with. This will tell you which repo it processes.

@@ -349,12 +349,12 @@ namespace GitHgMirror.Runner
 
         private void RunGitImport()
         {
-            RuneHgCommandAndLogOutput("hg gimport" + HgGitConfig);
+            RunHgCommandAndLogOutput("hg gimport" + HgGitConfig);
         }
 
         private void RunGitExport()
         {
-            RuneHgCommandAndLogOutput("hg gexport" + HgGitConfig);
+            RunHgCommandAndLogOutput("hg gexport" + HgGitConfig);
         }
 
         private void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath)
@@ -365,7 +365,7 @@ namespace GitHgMirror.Runner
         private void CreateBookmarksForBranches()
         {
             // Adding bookmarks for all branches so they appear as proper git branches.
-            var branchesOutput = RuneHgCommandAndLogOutput("hg branches --closed");
+            var branchesOutput = RunHgCommandAndLogOutput("hg branches --closed");
 
             var branches = branchesOutput
                   .Split(Environment.NewLine.ToArray())
@@ -385,7 +385,7 @@ namespace GitHgMirror.Runner
                 // there was a branch created in git. E.g. we shouldn't move the master bookmark to the default head
                 // since with a new git branch there will be two default heads (since git branches are converted to
                 // bookmarks on default) and we'd wrongly move the master head.
-                var changesetLogOutput = RuneHgCommandAndLogOutput("hg log -r " + branch.EncloseInQuotes());
+                var changesetLogOutput = RunHgCommandAndLogOutput("hg log -r " + branch.EncloseInQuotes());
                 // For hg log this is needed, otherwise the next command would return an empty line.
                 RunCommandAndLogOutput(Environment.NewLine);
 
@@ -398,14 +398,14 @@ namespace GitHgMirror.Runner
                 if (!existingBookmarks.Any(existingBookmark => existingBookmark.EndsWith(GitBookmarkSuffix)))
                 {
                     // Need --force so it moves the bookmark if it already exists.
-                    RuneHgCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force"); 
+                    RunHgCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force"); 
                 }
             }
         }
 
         private void DeleteAllBookmarks(string quotedHgCloneUrl, bool push = true)
         {
-            var bookmarksOutput = RuneHgCommandAndLogOutput("hg bookmarks");
+            var bookmarksOutput = RunHgCommandAndLogOutput("hg bookmarks");
 
             if (!bookmarksOutput.Contains("no bookmarks set"))
             {
@@ -418,15 +418,15 @@ namespace GitHgMirror.Runner
 
                 foreach (var bookmark in bookmarks)
                 {
-                    RuneHgCommandAndLogOutput("hg bookmark --delete " + bookmark);
-                    if (push) RuneHgCommandAndLogOutput("hg push --bookmark " + bookmark + " " + quotedHgCloneUrl);
+                    RunHgCommandAndLogOutput("hg bookmark --delete " + bookmark);
+                    if (push) RunRemoteHgCommandAndLogOutput("hg push --bookmark " + bookmark + " " + quotedHgCloneUrl);
                 }
             }
         }
 
         private void PushWithBookmarks(string quotedHgCloneUrl)
         {
-            var bookmarksOutput = RuneHgCommandAndLogOutput("hg bookmarks");
+            var bookmarksOutput = RunHgCommandAndLogOutput("hg bookmarks");
 
             // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there are no bookmarks.
             if (bookmarksOutput.Contains("no bookmarks set"))
@@ -463,7 +463,7 @@ namespace GitHgMirror.Runner
             }
         }
 
-        private string RunRemoteHgCommandAndLogOutput(string hgCommand)
+        private string RunRemoteHgCommandAndLogOutput(string hgCommand, int retryCount = 0)
         {
             var output = "";
             try
@@ -477,11 +477,23 @@ namespace GitHgMirror.Runner
                     hgCommand = hgCommand + " --debug";
                 }
 
-                output = RuneHgCommandAndLogOutput(hgCommand);
+                output = RunHgCommandAndLogOutput(hgCommand);
                 return output;
             }
             catch (CommandException ex)
             {
+                // Bitbucket Mercurial is instable in a way that randomly we'll get such errors when interacting with
+                // otherwise properly running repos. So we re-try the operation a few times, maybe it'll work...
+                if (ex.Error.Contains("EOF occurred in violation of protocol") && hgCommand.Contains("bitbucket.org/"))
+                {
+                    if (retryCount >= 5)
+                    {
+                        throw new MirroringException("Couldn't run the following Mercurial command successfully even after " + retryCount + " tries due to an \"EOF occurred in violation of protocol\" error: " + hgCommand, ex);
+                    }
+
+                    return RunRemoteHgCommandAndLogOutput(hgCommand, ++retryCount);
+                }
+
                 // Catching warning-level "bitbucket.org certificate with fingerprint .. not verified (check hostfingerprints 
                 // or web.cacerts config setting)" kind of errors that happen when mirroring happens accessing an insecure
                 // host.
@@ -494,7 +506,7 @@ namespace GitHgMirror.Runner
             }
         }
 
-        private string RuneHgCommandAndLogOutput(string hgCommand)
+        private string RunHgCommandAndLogOutput(string hgCommand)
         {
             if (_settings.MercurialSettings.UseDebug)
             {
