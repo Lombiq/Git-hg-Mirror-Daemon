@@ -478,6 +478,7 @@ namespace GitHgMirror.Runner
                 }
 
                 output = RunHgCommandAndLogOutput(hgCommand);
+
                 return output;
             }
             catch (CommandException ex)
@@ -490,6 +491,9 @@ namespace GitHgMirror.Runner
                     {
                         throw new MirroringException("Couldn't run the following Mercurial command successfully even after " + retryCount + " tries due to an \"EOF occurred in violation of protocol\" error: " + hgCommand, ex);
                     }
+
+                    // Let's wait a bit before re-trying so our prayers can heal Bitbucket in the meantime.
+                    Thread.Sleep(10000);
 
                     return RunRemoteHgCommandAndLogOutput(hgCommand, ++retryCount);
                 }
@@ -524,6 +528,8 @@ namespace GitHgMirror.Runner
         private string RunCommandAndLogOutput(string command)
         {
             var output = _commandRunner.RunCommand(command);
+
+            Debug.WriteLine(output);
 
             // A string written to the event log cannot exceed supposedly 32766, actually fewer characters (Yes! There
             // will be a Win32Exception thrown otherwise.) so going with the magic number of 31878 here, see: 
