@@ -93,9 +93,12 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                CloneHg(quotedHgCloneUrl, (cloneDirectoryPath + "-hg").EncloseInQuotes());
-                                RunCommandAndLogOutput("cd " + (cloneDirectoryPath + "-hg").EncloseInQuotes());
-                                DeleteAllBookmarks(quotedHgCloneUrl);
+                                if (!Directory.Exists(cloneDirectoryPath + "-hg"))
+                                {
+                                    CloneHg(quotedHgCloneUrl, (cloneDirectoryPath + "-hg").EncloseInQuotes());
+                                    RunCommandAndLogOutput("cd " + (cloneDirectoryPath + "-hg").EncloseInQuotes());
+                                    DeleteAllBookmarks(quotedHgCloneUrl); 
+                                }
                                 cdCloneDirectory();
 
                                 CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
@@ -227,7 +230,7 @@ namespace GitHgMirror.Runner
 
                 try
                 {
-                    var ok = false;
+                    var ok = true;
                     if (ok)
                     {
                         DeleteDirectoryIfExists(cloneDirectoryPath); 
@@ -483,16 +486,16 @@ namespace GitHgMirror.Runner
             }
             catch (CommandException ex)
             {
-                // Bitbucket Mercurial is instable in a way that randomly we'll get such errors when interacting with
-                // otherwise properly running repos. So we re-try the operation a few times, maybe it'll work...
-                if (ex.Error.Contains("EOF occurred in violation of protocol") && hgCommand.Contains("bitbucket.org/"))
+                // We'll randomly get such errors when interacting with Mercurial as well as with Git, otherwise properly
+                // running repos. So we re-try the operation a few times, maybe it'll work...
+                if (ex.Error.Contains("EOF occurred in violation of protocol"))
                 {
                     if (retryCount >= 5)
                     {
                         throw new MirroringException("Couldn't run the following Mercurial command successfully even after " + retryCount + " tries due to an \"EOF occurred in violation of protocol\" error: " + hgCommand, ex);
                     }
 
-                    // Let's wait a bit before re-trying so our prayers can heal Bitbucket in the meantime.
+                    // Let's wait a bit before re-trying so our prayers can heal the connection in the meantime.
                     Thread.Sleep(10000);
 
                     return RunRemoteHgCommandAndLogOutput(hgCommand, ++retryCount);
