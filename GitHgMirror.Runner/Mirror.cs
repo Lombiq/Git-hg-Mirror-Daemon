@@ -76,7 +76,7 @@ namespace GitHgMirror.Runner
                         {
                             if (configuration.GitUrlIsHgUrl)
                             {
-                                RunRemoteHgCommandAndLogOutput("hg pull --insecure " + quotedGitCloneUrl);
+                                RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
                             }
                             else
                             {
@@ -114,7 +114,7 @@ namespace GitHgMirror.Runner
                     case MirroringDirection.HgToGit:
                         if (isCloned)
                         {
-                            RunRemoteHgCommandAndLogOutput("hg pull --insecure " + quotedHgCloneUrl);
+                            RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
                         }
                         else
                         {
@@ -143,7 +143,7 @@ namespace GitHgMirror.Runner
                         {
                             if (configuration.GitUrlIsHgUrl)
                             {
-                                RunRemoteHgCommandAndLogOutput("hg pull --insecure " + quotedGitCloneUrl);
+                                RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
 
                                 cdCloneDirectory();
                             }
@@ -153,7 +153,7 @@ namespace GitHgMirror.Runner
 
                                 cdCloneDirectory();
 
-                                RunRemoteHgCommandAndLogOutput("hg pull --insecure " + quotedHgCloneUrl);
+                                RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
 
                                 CreateBookmarksForBranches();
                                 RunGitExport();
@@ -168,7 +168,7 @@ namespace GitHgMirror.Runner
 
                                 cdCloneDirectory();
 
-                                RunRemoteHgCommandAndLogOutput("hg pull --insecure " + quotedHgCloneUrl);
+                                RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
                             }
                             else
                             {
@@ -326,8 +326,8 @@ namespace GitHgMirror.Runner
 
             if (!string.IsNullOrEmpty(userName))
             {
-                RunRemoteHgCommandAndLogOutput(
-                    "hg --insecure --config auth.rc.prefix=" +
+                RunCommandAndLogOutput(
+                    "hg --config auth.rc.prefix=" +
                     ("https://" + gitUri.Host).EncloseInQuotes() +
                     " --config auth.rc.username=" +
                     userName.EncloseInQuotes() +
@@ -339,7 +339,7 @@ namespace GitHgMirror.Runner
             }
             else
             {
-                RunRemoteHgCommandAndLogOutput("hg " + command);
+                RunCommandAndLogOutput("hg " + command);
             }
         }
 
@@ -355,7 +355,7 @@ namespace GitHgMirror.Runner
 
         private void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath)
         {
-            RunRemoteHgCommandAndLogOutput("hg clone --insecure --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
+            RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
         }
 
         private void CreateBookmarksForBranches()
@@ -415,7 +415,7 @@ namespace GitHgMirror.Runner
                 foreach (var bookmark in bookmarks)
                 {
                     RunCommandAndLogOutput("hg bookmark --delete " + bookmark);
-                    if (push) RunCommandAndLogOutput("hg push --insecure --bookmark " + bookmark + " " + quotedHgCloneUrl);
+                    if (push) RunCommandAndLogOutput("hg push --bookmark " + bookmark + " " + quotedHgCloneUrl);
                 }
             }
         }
@@ -427,7 +427,7 @@ namespace GitHgMirror.Runner
             // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there are no bookmarks.
             if (bookmarksOutput.Contains("no bookmarks set"))
             {
-                RunRemoteHgCommandAndLogOutput("hg push --insecure --new-branch --force " + quotedHgCloneUrl);
+                RunCommandAndLogOutput("hg push --new-branch --force " + quotedHgCloneUrl);
             }
             else
             {
@@ -446,7 +446,7 @@ namespace GitHgMirror.Runner
                 var bookmarkCount = bookmarks.Count();
                 while (skip < bookmarkCount)
                 {
-                    RunRemoteHgCommandAndLogOutput("hg push --insecure --new-branch --force " + string.Join(" ", bookmarksBatch) + " " + quotedHgCloneUrl);
+                    RunCommandAndLogOutput("hg push --new-branch --force " + string.Join(" ", bookmarksBatch) + " " + quotedHgCloneUrl);
                     skip += batchSize;
                     bookmarksBatch = bookmarks.Skip(skip).Take(batchSize);
                     if (bookmarksBatch.Any())
@@ -456,28 +456,6 @@ namespace GitHgMirror.Runner
                         Thread.Sleep(61000);
                     }
                 }
-            }
-        }
-
-        private string RunRemoteHgCommandAndLogOutput(string hgCommand)
-        {
-            var output = "";
-            try
-            {
-                output = RunCommandAndLogOutput(hgCommand);
-                return output;
-            }
-            catch (CommandException ex)
-            {
-                // Catching warning-level "bitbucket.org certificate with fingerprint .. not verified (check hostfingerprints 
-                // or web.cacerts config setting)" kind of errors that happen when mirroring happens accessing an insecure
-                // host.
-                if (!ex.Error.Contains("not verified (check hostfingerprints or web.cacerts config setting)"))
-                {
-                    throw;
-                }
-
-                return output;
             }
         }
 
