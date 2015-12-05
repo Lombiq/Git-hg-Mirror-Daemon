@@ -76,7 +76,7 @@ namespace GitHgMirror.Runner
                         {
                             if (configuration.GitUrlIsHgUrl)
                             {
-                                RunRemoteHgCommandAndLogOutput("hg pull --insecure " + quotedGitCloneUrl);
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
                             }
                             else
                             {
@@ -114,7 +114,7 @@ namespace GitHgMirror.Runner
                     case MirroringDirection.HgToGit:
                         if (isCloned)
                         {
-                            RunRemoteHgCommandAndLogOutput("hg pull --insecure " + quotedHgCloneUrl);
+                            RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
                         }
                         else
                         {
@@ -143,7 +143,7 @@ namespace GitHgMirror.Runner
                         {
                             if (configuration.GitUrlIsHgUrl)
                             {
-                                RunRemoteHgCommandAndLogOutput("hg pull --insecure " + quotedGitCloneUrl);
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
 
                                 cdCloneDirectory();
                             }
@@ -153,7 +153,7 @@ namespace GitHgMirror.Runner
 
                                 cdCloneDirectory();
 
-                                RunRemoteHgCommandAndLogOutput("hg pull --insecure " + quotedHgCloneUrl);
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
 
                                 CreateBookmarksForBranches();
                                 RunGitExport();
@@ -168,7 +168,7 @@ namespace GitHgMirror.Runner
 
                                 cdCloneDirectory();
 
-                                RunRemoteHgCommandAndLogOutput("hg pull --insecure " + quotedHgCloneUrl);
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
                             }
                             else
                             {
@@ -227,7 +227,11 @@ namespace GitHgMirror.Runner
 
                 try
                 {
-                    DeleteDirectoryIfExists(cloneDirectoryPath);
+                    var ok = false;
+                    if (ok)
+                    {
+                        DeleteDirectoryIfExists(cloneDirectoryPath); 
+                    }
                 }
                 catch (IOException ioException)
                 {
@@ -327,7 +331,7 @@ namespace GitHgMirror.Runner
             if (!string.IsNullOrEmpty(userName))
             {
                 RunRemoteHgCommandAndLogOutput(
-                    "hg --insecure --config auth.rc.prefix=" +
+                    "hg --config auth.rc.prefix=" +
                     ("https://" + gitUri.Host).EncloseInQuotes() +
                     " --config auth.rc.username=" +
                     userName.EncloseInQuotes() +
@@ -345,23 +349,23 @@ namespace GitHgMirror.Runner
 
         private void RunGitImport()
         {
-            RunCommandAndLogOutput("hg gimport" + HgGitConfig);
+            RuneHgCommandAndLogOutput("hg gimport" + HgGitConfig);
         }
 
         private void RunGitExport()
         {
-            RunCommandAndLogOutput("hg gexport" + HgGitConfig);
+            RuneHgCommandAndLogOutput("hg gexport" + HgGitConfig);
         }
 
         private void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath)
         {
-            RunRemoteHgCommandAndLogOutput("hg clone --insecure --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
+            RunRemoteHgCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
         }
 
         private void CreateBookmarksForBranches()
         {
             // Adding bookmarks for all branches so they appear as proper git branches.
-            var branchesOutput = RunCommandAndLogOutput("hg branches --closed");
+            var branchesOutput = RuneHgCommandAndLogOutput("hg branches --closed");
 
             var branches = branchesOutput
                   .Split(Environment.NewLine.ToArray())
@@ -381,7 +385,7 @@ namespace GitHgMirror.Runner
                 // there was a branch created in git. E.g. we shouldn't move the master bookmark to the default head
                 // since with a new git branch there will be two default heads (since git branches are converted to
                 // bookmarks on default) and we'd wrongly move the master head.
-                var changesetLogOutput = RunCommandAndLogOutput("hg log -r " + branch.EncloseInQuotes());
+                var changesetLogOutput = RuneHgCommandAndLogOutput("hg log -r " + branch.EncloseInQuotes());
                 // For hg log this is needed, otherwise the next command would return an empty line.
                 RunCommandAndLogOutput(Environment.NewLine);
 
@@ -394,14 +398,14 @@ namespace GitHgMirror.Runner
                 if (!existingBookmarks.Any(existingBookmark => existingBookmark.EndsWith(GitBookmarkSuffix)))
                 {
                     // Need --force so it moves the bookmark if it already exists.
-                    RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force"); 
+                    RuneHgCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force"); 
                 }
             }
         }
 
         private void DeleteAllBookmarks(string quotedHgCloneUrl, bool push = true)
         {
-            var bookmarksOutput = RunCommandAndLogOutput("hg bookmarks");
+            var bookmarksOutput = RuneHgCommandAndLogOutput("hg bookmarks");
 
             if (!bookmarksOutput.Contains("no bookmarks set"))
             {
@@ -414,20 +418,20 @@ namespace GitHgMirror.Runner
 
                 foreach (var bookmark in bookmarks)
                 {
-                    RunCommandAndLogOutput("hg bookmark --delete " + bookmark);
-                    if (push) RunCommandAndLogOutput("hg push --insecure --bookmark " + bookmark + " " + quotedHgCloneUrl);
+                    RuneHgCommandAndLogOutput("hg bookmark --delete " + bookmark);
+                    if (push) RuneHgCommandAndLogOutput("hg push --bookmark " + bookmark + " " + quotedHgCloneUrl);
                 }
             }
         }
 
         private void PushWithBookmarks(string quotedHgCloneUrl)
         {
-            var bookmarksOutput = RunCommandAndLogOutput("hg bookmarks");
+            var bookmarksOutput = RuneHgCommandAndLogOutput("hg bookmarks");
 
             // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there are no bookmarks.
             if (bookmarksOutput.Contains("no bookmarks set"))
             {
-                RunRemoteHgCommandAndLogOutput("hg push --insecure --new-branch --force " + quotedHgCloneUrl);
+                RunRemoteHgCommandAndLogOutput("hg push --new-branch --force " + quotedHgCloneUrl);
             }
             else
             {
@@ -446,7 +450,7 @@ namespace GitHgMirror.Runner
                 var bookmarkCount = bookmarks.Count();
                 while (skip < bookmarkCount)
                 {
-                    RunRemoteHgCommandAndLogOutput("hg push --insecure --new-branch --force " + string.Join(" ", bookmarksBatch) + " " + quotedHgCloneUrl);
+                    RunRemoteHgCommandAndLogOutput("hg push --new-branch --force " + string.Join(" ", bookmarksBatch) + " " + quotedHgCloneUrl);
                     skip += batchSize;
                     bookmarksBatch = bookmarks.Skip(skip).Take(batchSize);
                     if (bookmarksBatch.Any())
@@ -464,7 +468,16 @@ namespace GitHgMirror.Runner
             var output = "";
             try
             {
-                output = RunCommandAndLogOutput(hgCommand);
+                if (_settings.MercurialSettings.UseInsecure)
+                {
+                    hgCommand = hgCommand + " --insecure";
+                }
+                if (_settings.MercurialSettings.UseDebugForRemoteCommands && !_settings.MercurialSettings.UseDebug)
+                {
+                    hgCommand = hgCommand + " --debug";
+                }
+
+                output = RuneHgCommandAndLogOutput(hgCommand);
                 return output;
             }
             catch (CommandException ex)
@@ -481,10 +494,39 @@ namespace GitHgMirror.Runner
             }
         }
 
+        private string RuneHgCommandAndLogOutput(string hgCommand)
+        {
+            if (_settings.MercurialSettings.UseDebug)
+            {
+                hgCommand = hgCommand + " --debug";
+            }
+
+            if (_settings.MercurialSettings.UseTraceback)
+            {
+                hgCommand = hgCommand + " --traceback";
+            }
+
+            return RunCommandAndLogOutput(hgCommand);
+        }
+
         private string RunCommandAndLogOutput(string command)
         {
             var output = _commandRunner.RunCommand(command);
-            _eventLog.WriteEntry(output);
+
+            // A string written to the event log cannot exceed supposedly 32766, actually fewer characters (Yes! There
+            // will be a Win32Exception thrown otherwise.) so going with the magic number of 31878 here, see: 
+            // https://social.msdn.microsoft.com/Forums/en-US/b7d8e3c6-3607-4a5c-aca2-f828000d25be/not-able-to-write-log-messages-in-event-log-on-windows-2008-server?forum=netfx64bit
+            if (output.Length > 31878)
+            {
+                var truncatedMessage = 
+                    "... " + 
+                    Environment.NewLine +
+                    "The output exceeds 31878 characters, thus can't be written to the event log and was truncated.";
+
+                _eventLog.WriteEntry(output.Substring(0, 31878 - truncatedMessage.Length) + truncatedMessage);
+            }
+            else _eventLog.WriteEntry(output);
+
             return output;
         }
 

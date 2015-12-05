@@ -29,12 +29,44 @@ namespace GitHgMirror.Runner
 
         public int SecondsBetweenConfigurationCountChecks { get; set; }
 
+        public MercurialSettings MercurialSettings { get; set; }
+
 
         public Settings()
         {
             MaxDegreeOfParallelism = 10;
             BatchSize = 50;
             SecondsBetweenConfigurationCountChecks = 60;
+
+            MercurialSettings = new MercurialSettings();
         }
+    }
+
+
+    public class MercurialSettings
+    {
+        /// <summary>
+        /// If set to <c>true</c> all remote Mercurial operations will use the --insecure switch which will make Mercurial
+        /// bypass server certificate checks.
+        /// </summary>
+        public bool UseInsecure { get; set; }
+
+        /// <summary>
+        /// If set to <c>true</c> all Mercurial operations will use the --debug switch to show debug information. Useful
+        /// if you need to find out details on why certain commands fail.
+        /// </summary>
+        public bool UseDebug { get; set; }
+
+        /// <summary>
+        /// If set to <c>true</c> all remote Mercurial operations will use the --debug switch to show debug information.
+        /// Useful if you need to find out details on why certain remote commands fail.
+        /// </summary>
+        public bool UseDebugForRemoteCommands { get; set; }
+
+        /// <summary>
+        /// If set to <c>true</c> all Mercurial operations will use the --traceback switch to show the traceback of
+        /// exceptions. Useful if you need to find out details on exceptions.
+        /// </summary>
+        public bool UseTraceback { get; set; }
     }
 }

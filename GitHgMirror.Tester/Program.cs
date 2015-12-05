@@ -38,6 +38,8 @@ namespace GitHgMirror.Tester
                     MaxDegreeOfParallelism = 20,
                     BatchSize = 1
                 };
+                settings.MercurialSettings.UseDebugForRemoteCommands = true;
+                settings.MercurialSettings.UseTraceback = true;
 
                 new UntouchedRepositoriesCleaner(settings, eventLog).Clean();
 
