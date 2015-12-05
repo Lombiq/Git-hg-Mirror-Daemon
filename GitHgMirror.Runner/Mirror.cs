@@ -230,8 +230,10 @@ namespace GitHgMirror.Runner
 
                 try
                 {
-                    var ok = true;
-                    if (ok)
+                    // Re-cloning a repo is costly. During local debugging you can flip this variable from the
+                    // Immediate Window to prevent it if necessary.
+                    var continueWithDelete = true;
+                    if (continueWithDelete)
                     {
                         DeleteDirectoryIfExists(cloneDirectoryPath); 
                     }
