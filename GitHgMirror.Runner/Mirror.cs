@@ -446,7 +446,7 @@ namespace GitHgMirror.Runner
                 {
                     if (retryCount >= 5)
                     {
-                        throw new MirroringException("Couldn't run the following Mercurial command successfully even after " + retryCount + " tries due to an \"EOF occurred in violation of protocol\" error: " + hgCommand, ex);
+                        throw new IOException("Couldn't run the following Mercurial command successfully even after " + retryCount + " tries due to an \"EOF occurred in violation of protocol\" error: " + hgCommand, ex);
                     }
 
                     // Let's wait a bit before re-trying so our prayers can heal the connection in the meantime.
