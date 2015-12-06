@@ -93,19 +93,7 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                if (!Directory.Exists(cloneDirectoryPath + "-hg"))
-                                {
-                                    CloneHg(quotedHgCloneUrl, (cloneDirectoryPath + "-hg").EncloseInQuotes());
-                                    RunCommandAndLogOutput("cd " + (cloneDirectoryPath + "-hg").EncloseInQuotes());
-                                    DeleteAllBookmarks(quotedHgCloneUrl); 
-                                }
-                                cdCloneDirectory();
-
                                 CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
-
-                                cdCloneDirectory();
-                                DeleteAllBookmarks(quotedHgCloneUrl, false);
-                                CreateBookmarksForBranches();
                             }
                         }
 
@@ -122,9 +110,6 @@ namespace GitHgMirror.Runner
                         else
                         {
                             CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
-
-                            cdCloneDirectory();
-                            DeleteAllBookmarks(quotedHgCloneUrl);
                         }
 
                         cdCloneDirectory();
@@ -182,22 +167,10 @@ namespace GitHgMirror.Runner
                                 CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
                                 cdCloneDirectory();
 
-                                DeleteAllBookmarks(quotedHgCloneUrl);
-
-                                //CreateBookmarksForBranches();
-                                //RunGitExport();
-                                //PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
-                                //cdCloneDirectory();
-                                //RunGitExport();
-                                //RunGitImport();
-
-                                // This wipes branches created in git.
                                 CreateBookmarksForBranches();
                                 RunGitExport();
                                 PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
                                 cdCloneDirectory();
-                                DeleteAllBookmarks(quotedHgCloneUrl, false);
-                                CreateBookmarksForBranches();
                                 RunGitExport();
                                 RunGitImport();
                             }
@@ -404,27 +377,6 @@ namespace GitHgMirror.Runner
                 {
                     // Need --force so it moves the bookmark if it already exists.
                     RunHgCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force"); 
-                }
-            }
-        }
-
-        private void DeleteAllBookmarks(string quotedHgCloneUrl, bool push = true)
-        {
-            var bookmarksOutput = RunHgCommandAndLogOutput("hg bookmarks");
-
-            if (!bookmarksOutput.Contains("no bookmarks set"))
-            {
-                var bookmarks = bookmarksOutput
-                      .Split(Environment.NewLine.ToArray())
-                      .Skip(1) // The first line is the command itself
-                      .Where(line => !string.IsNullOrEmpty(line))
-                      .Select(line => Regex.Match(line, @"\s([a-zA-Z0-9/.\-_]+)\s", RegexOptions.IgnoreCase).Groups[1].Value)
-                      .Where(line => !string.IsNullOrEmpty(line));
-
-                foreach (var bookmark in bookmarks)
-                {
-                    RunHgCommandAndLogOutput("hg bookmark --delete " + bookmark);
-                    if (push) RunRemoteHgCommandAndLogOutput("hg push --bookmark " + bookmark + " " + quotedHgCloneUrl);
                 }
             }
         }
