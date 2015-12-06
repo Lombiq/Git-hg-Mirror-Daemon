@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GitHgMirror.Runner
+namespace System
 {
-    static class StringExtensions
+    internal static class StringExtensions
     {
         public static string EncloseInQuotes(this string text)
         {

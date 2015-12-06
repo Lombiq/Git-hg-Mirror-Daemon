@@ -14,6 +14,9 @@ namespace GitHgMirror.Runner
 {
     class Mirror : IDisposable
     {
+        private const string GitBookmarkSuffix = "-git";
+        private const string HgGitConfig = " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix;
+
         private readonly Settings _settings;
         private readonly EventLog _eventLog;
 
@@ -29,6 +32,10 @@ namespace GitHgMirror.Runner
 
         public void MirrorRepositories(MirroringConfiguration configuration)
         {
+            var descriptor = GetMirroringDescriptor(configuration);
+
+            Debug.WriteLine("Starting mirroring: " + descriptor);
+
             var repositoryDirectoryName = GetCloneDirectoryName(configuration);
             var cloneDirectoryParentPath = Path.Combine(_settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
             var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
@@ -67,47 +74,18 @@ namespace GitHgMirror.Runner
                     case MirroringDirection.GitToHg:
                         if (isCloned)
                         {
-                            PullFromGit(configuration.GitCloneUri);
-                            cdCloneDirectory();
-                            RunCommandAndLogOutput("hg gimport");
-                        }
-                        else
-                        {
-                            CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
-                            cdCloneDirectory();
-                        }
-                        PushWithBookmarks(quotedHgCloneUrl);
-                        break;
-                    case MirroringDirection.HgToGit:
-                        if (isCloned)
-                        {
-                            RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                            CreateBookmarksForBranches();
-                            RunCommandAndLogOutput("hg gexport");
-                        }
-                        else
-                        {
-                            CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
-                            cdCloneDirectory();
-                            if (!configuration.GitUrlIsHgUrl)
+                            if (configuration.GitUrlIsHgUrl)
                             {
-                                CreateBookmarksForBranches();
-
-                                RunCommandAndLogOutput("hg gexport");
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                            }
+                            else
+                            {
+                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                cdCloneDirectory();
+                                RunGitImport();
                             }
                         }
-
-                        if (configuration.GitUrlIsHgUrl)
-                        {
-                            PushWithBookmarks(quotedGitCloneUrl);
-                        }
                         else
-                        {
-                            PushToGit(configuration.GitCloneUri);
-                        }
-                        break;
-                    case MirroringDirection.TwoWay:
-                        if (!isCloned)
                         {
                             if (configuration.GitUrlIsHgUrl)
                             {
@@ -117,28 +95,87 @@ namespace GitHgMirror.Runner
                             {
                                 CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath);
                             }
-                            cdCloneDirectory();
+                        }
+
+                        cdCloneDirectory();
+
+                        PushWithBookmarks(quotedHgCloneUrl);
+
+                        break;
+                    case MirroringDirection.HgToGit:
+                        if (isCloned)
+                        {
+                            RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+                        }
+                        else
+                        {
+                            CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
+                        }
+
+                        cdCloneDirectory();
+
+                        if (configuration.GitUrlIsHgUrl)
+                        {
+                            PushWithBookmarks(quotedGitCloneUrl);
+                        }
+                        else
+                        {
+                            CreateBookmarksForBranches();
+                            RunGitExport();
+                            PushToGit(configuration.GitCloneUri);
+                        }
+
+                        break;
+                    case MirroringDirection.TwoWay:
+                        if (isCloned)
+                        {
+                            if (configuration.GitUrlIsHgUrl)
+                            {
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+
+                                cdCloneDirectory();
+                            }
+                            else
+                            {
+                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+
+                                cdCloneDirectory();
+
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+
+                                CreateBookmarksForBranches();
+                                RunGitExport();
+                                RunGitImport();
+                            }
                         }
                         else
                         {
                             if (configuration.GitUrlIsHgUrl)
                             {
-                                RunCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                                CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath);
+
+                                cdCloneDirectory();
+
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
                             }
                             else
                             {
-                                PullFromGit(configuration.GitCloneUri);
+                                // We need to start with cloning the hg repo. Otherwise cloning the git repo, then
+                                // pulling from the hg repo would yield a "repository unrelated" error, even if the git
+                                // repo was created from the hg. For an explanation see: 
+                                // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
+                                CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
+                                cdCloneDirectory();
+
+                                CreateBookmarksForBranches();
+                                RunGitExport();
+                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                cdCloneDirectory();
+                                RunGitExport();
+                                RunGitImport();
                             }
                         }
 
-                        RunCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                        CreateBookmarksForBranches();
-
-                        if (!configuration.GitUrlIsHgUrl)
-                        {
-                            RunCommandAndLogOutput("hg gexport");
-                            RunCommandAndLogOutput("hg gimport");
-                        }
 
                         PushWithBookmarks(quotedHgCloneUrl);
 
@@ -153,6 +190,8 @@ namespace GitHgMirror.Runner
 
                         break;
                 }
+
+                Debug.WriteLine("Finished mirroring: " + descriptor);
             }
             catch (Exception ex)
             {
@@ -164,7 +203,13 @@ namespace GitHgMirror.Runner
 
                 try
                 {
-                    DeleteDirectoryIfExists(cloneDirectoryPath);
+                    // Re-cloning a repo is costly. During local debugging you can flip this variable from the
+                    // Immediate Window to prevent it if necessary.
+                    var continueWithDelete = true;
+                    if (continueWithDelete)
+                    {
+                        DeleteDirectoryIfExists(cloneDirectoryPath); 
+                    }
                 }
                 catch (IOException ioException)
                 {
@@ -192,30 +237,47 @@ namespace GitHgMirror.Runner
 
         private void PushToGit(Uri gitCloneUri)
         {
-            var gitUrl = gitCloneUri.ToString().Replace("git+https", "https");
             RunCommandAndLogOutput(@"cd .hg\git");
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
             try
             {
-                RunCommandAndLogOutput("git push " + gitUrl.EncloseInQuotes() + " --mirror");
+                RunCommandAndLogOutput("git push " + gitCloneUri.ToGitUrl().EncloseInQuotes() + " --mirror --follow-tags");
             }
             catch (CommandException ex)
             {
-                // Git communicates some messages via the error stream, so checking them here.
-
-                    // If there is nothing to push git will return this message in the error stream.
-                if (!ex.Error.Contains("Everything up-to-date") &&
-                    // When pushing to an empty repo.
-                    !ex.Error.Contains("* [new branch]"))
-                {
-                    throw;
-                }
+                if (IsGitExceptionRealError(ex)) throw;
             }
         }
 
-        private void PullFromGit(Uri gitCloneUri)
+        private void PullFromGit(Uri gitCloneUri, string cloneDirectoryPath)
         {
-            RunGitCommand(gitCloneUri, "pull {url}");
+            var gitDirectoryPath = Path.Combine(cloneDirectoryPath, ".hg", "git");
+            // The git directory won't exist if the hg repo is empty (gexport won't do anything).
+            if (!Directory.Exists(gitDirectoryPath))
+            {
+                try
+                {
+                    RunCommandAndLogOutput("git clone --mirror " + gitCloneUri.ToGitUrl().EncloseInQuotes() + " " + gitDirectoryPath.EncloseInQuotes());
+                }
+                catch (CommandException ex)
+                {
+                    if (!ex.Error.Contains("Cloning into bare repository ") && IsGitExceptionRealError(ex)) throw;
+                }
+            }
+            else
+            {
+                RunCommandAndLogOutput(@"cd .hg\git");
+
+                // Git repos should be pulled with git as hg-git pull won't pull in new tags.
+                try
+                {
+                    RunCommandAndLogOutput("git fetch --prune --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes());
+                }
+                catch (CommandException ex)
+                {
+                    if (IsGitExceptionRealError(ex)) throw;
+                }
+            }
         }
 
         private void CloneGit(Uri gitCloneUri, string quotedCloneDirectoryPath)
@@ -223,17 +285,17 @@ namespace GitHgMirror.Runner
             // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it
             // in will fail with a "the connection was forcibly closed by remote host"-like error. This is why
             // we start with cloning the git repo.
-            RunGitCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath);
+            RunGitRepoCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath);
         }
 
         /// <summary>
-        /// Runs the specified command for a git repo.
+        /// Runs the specified command for a git repo in hg.
         /// </summary>
         /// <param name="gitCloneUri">The git clone URI.</param>
         /// <param name="command">
         /// The command, including an optional placeholder for the git URL in form of {url}, e.g.: "clone --noupdate {url}".
         /// </param>
-        private void RunGitCommand(Uri gitCloneUri, string command)
+        private void RunGitRepoCommand(Uri gitCloneUri, string command)
         {
             var gitUriBuilder = new UriBuilder(gitCloneUri);
             var userName = gitUriBuilder.UserName;
@@ -246,31 +308,42 @@ namespace GitHgMirror.Runner
 
             if (!string.IsNullOrEmpty(userName))
             {
-                RunCommandAndLogOutput(
+                RunRemoteHgCommandAndLogOutput(
                     "hg --config auth.rc.prefix=" +
                     ("https://" + gitUri.Host).EncloseInQuotes() +
                     " --config auth.rc.username=" +
                     userName.EncloseInQuotes() +
                     " --config auth.rc.password=" +
-                    password.EncloseInQuotes() +
+                    password.EncloseInQuotes()
+                    + HgGitConfig +
                     " " +
                     command);
             }
             else
             {
-                RunCommandAndLogOutput("hg " + command);
+                RunRemoteHgCommandAndLogOutput("hg " + command);
             }
+        }
+
+        private void RunGitImport()
+        {
+            RunHgCommandAndLogOutput("hg gimport" + HgGitConfig);
+        }
+
+        private void RunGitExport()
+        {
+            RunHgCommandAndLogOutput("hg gexport" + HgGitConfig);
         }
 
         private void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath)
         {
-            RunCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
+            RunRemoteHgCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
         }
 
         private void CreateBookmarksForBranches()
         {
             // Adding bookmarks for all branches so they appear as proper git branches.
-            var branchesOutput = RunCommandAndLogOutput("hg branches --closed");
+            var branchesOutput = RunHgCommandAndLogOutput("hg branches --closed");
 
             var branches = branchesOutput
                   .Split(Environment.NewLine.ToArray())
@@ -283,23 +356,39 @@ namespace GitHgMirror.Runner
                 // Need to strip spaces from branch names, see:
                 // https://bitbucket.org/durin42/hg-git/issues/163/gexport-fails-on-bookmarks-with-spaces-in
                 var bookmark = branch.Replace(' ', '-');
-                if (branch == "default") bookmark = "master";
-                else if (branch == "dev") bookmark = "develop"; // This is a special name substitution not to use the hg/ prefix.
-                else bookmark = "hg/" + bookmark;
+                if (branch == "default") bookmark = "master" + GitBookmarkSuffix;
+                else bookmark = bookmark + GitBookmarkSuffix;
 
-                // Need --force so it moves the bookmark if it already exists.
-                RunCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force");
+                // Don't move the bookmark if on the changeset there is already a git bookmark, because this means that
+                // there was a branch created in git. E.g. we shouldn't move the master bookmark to the default head
+                // since with a new git branch there will be two default heads (since git branches are converted to
+                // bookmarks on default) and we'd wrongly move the master head.
+                var changesetLogOutput = RunHgCommandAndLogOutput("hg log -r " + branch.EncloseInQuotes());
+                // For hg log this is needed, otherwise the next command would return an empty line.
+                RunCommandAndLogOutput(Environment.NewLine);
+
+                var existingBookmarks = changesetLogOutput
+                      .Split(Environment.NewLine.ToArray())
+                      .Skip(1) // The first line is the command itself
+                      .Where(line => !string.IsNullOrEmpty(line) && line.StartsWith("bookmark:"))
+                      .Select(line => Regex.Match(line, @"bookmark:\s+(.+)(\s|$)").Groups[1].Value);
+
+                if (!existingBookmarks.Any(existingBookmark => existingBookmark.EndsWith(GitBookmarkSuffix)))
+                {
+                    // Need --force so it moves the bookmark if it already exists.
+                    RunHgCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force"); 
+                }
             }
         }
 
         private void PushWithBookmarks(string quotedHgCloneUrl)
         {
-            var bookmarksOutput = RunCommandAndLogOutput("hg bookmarks");
+            var bookmarksOutput = RunHgCommandAndLogOutput("hg bookmarks");
 
             // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there are no bookmarks.
             if (bookmarksOutput.Contains("no bookmarks set"))
             {
-                RunCommandAndLogOutput("hg push --new-branch --force " + quotedHgCloneUrl);
+                RunRemoteHgCommandAndLogOutput("hg push --new-branch --force " + quotedHgCloneUrl);
             }
             else
             {
@@ -318,7 +407,7 @@ namespace GitHgMirror.Runner
                 var bookmarkCount = bookmarks.Count();
                 while (skip < bookmarkCount)
                 {
-                    RunCommandAndLogOutput("hg push --new-branch --force " + string.Join(" ", bookmarksBatch) + " " + quotedHgCloneUrl);
+                    RunRemoteHgCommandAndLogOutput("hg push --new-branch --force " + string.Join(" ", bookmarksBatch) + " " + quotedHgCloneUrl);
                     skip += batchSize;
                     bookmarksBatch = bookmarks.Skip(skip).Take(batchSize);
                     if (bookmarksBatch.Any())
@@ -331,22 +420,132 @@ namespace GitHgMirror.Runner
             }
         }
 
+        private string RunRemoteHgCommandAndLogOutput(string hgCommand, int retryCount = 0)
+        {
+            var output = "";
+            try
+            {
+                if (_settings.MercurialSettings.UseInsecure)
+                {
+                    hgCommand = hgCommand + " --insecure";
+                }
+                if (_settings.MercurialSettings.UseDebugForRemoteCommands && !_settings.MercurialSettings.UseDebug)
+                {
+                    hgCommand = hgCommand + " --debug";
+                }
+
+                output = RunHgCommandAndLogOutput(hgCommand);
+
+                return output;
+            }
+            catch (CommandException ex)
+            {
+                // We'll randomly get such errors when interacting with Mercurial as well as with Git, otherwise properly
+                // running repos. So we re-try the operation a few times, maybe it'll work...
+                if (ex.Error.Contains("EOF occurred in violation of protocol"))
+                {
+                    if (retryCount >= 5)
+                    {
+                        throw new MirroringException("Couldn't run the following Mercurial command successfully even after " + retryCount + " tries due to an \"EOF occurred in violation of protocol\" error: " + hgCommand, ex);
+                    }
+
+                    // Let's wait a bit before re-trying so our prayers can heal the connection in the meantime.
+                    Thread.Sleep(10000);
+
+                    return RunRemoteHgCommandAndLogOutput(hgCommand, ++retryCount);
+                }
+
+                // Catching warning-level "bitbucket.org certificate with fingerprint .. not verified (check hostfingerprints 
+                // or web.cacerts config setting)" kind of errors that happen when mirroring happens accessing an insecure
+                // host.
+                if (!ex.Error.Contains("not verified (check hostfingerprints or web.cacerts config setting)"))
+                {
+                    throw;
+                }
+
+                return output;
+            }
+        }
+
+        private string RunHgCommandAndLogOutput(string hgCommand)
+        {
+            if (_settings.MercurialSettings.UseDebug)
+            {
+                hgCommand = hgCommand + " --debug";
+            }
+
+            if (_settings.MercurialSettings.UseTraceback)
+            {
+                hgCommand = hgCommand + " --traceback";
+            }
+
+            return RunCommandAndLogOutput(hgCommand);
+        }
+
         private string RunCommandAndLogOutput(string command)
         {
             var output = _commandRunner.RunCommand(command);
-            _eventLog.WriteEntry(output);
+
+            Debug.WriteLine(output);
+
+            // A string written to the event log cannot exceed supposedly 32766, actually fewer characters (Yes! There
+            // will be a Win32Exception thrown otherwise.) so going with the magic number of 31878 here, see: 
+            // https://social.msdn.microsoft.com/Forums/en-US/b7d8e3c6-3607-4a5c-aca2-f828000d25be/not-able-to-write-log-messages-in-event-log-on-windows-2008-server?forum=netfx64bit
+            if (output.Length > 31878)
+            {
+                var truncatedMessage = 
+                    "... " + 
+                    Environment.NewLine +
+                    "The output exceeds 31878 characters, thus can't be written to the event log and was truncated.";
+
+                _eventLog.WriteEntry(output.Substring(0, 31878 - truncatedMessage.Length) + truncatedMessage);
+            }
+            else _eventLog.WriteEntry(output);
+
             return output;
         }
 
 
         private static string GetCloneDirectoryName(MirroringConfiguration configuration)
         {
-            return (configuration.HgCloneUri + " - " + configuration.GitCloneUri).GetHashCode().ToString();
+            return GetMirroringDescriptor(configuration).GetHashCode().ToString();
+        }
+
+        private static string GetMirroringDescriptor(MirroringConfiguration configuration)
+        {
+            var directionIndicator = "->";
+            if (configuration.Direction == MirroringDirection.GitToHg) directionIndicator = "<-";
+            else if (configuration.Direction == MirroringDirection.TwoWay) directionIndicator = "<->";
+
+            return 
+                configuration.HgCloneUri +
+                " " + directionIndicator + " " + 
+                configuration.GitCloneUri;
         }
 
         private static void DeleteDirectoryIfExists(string path)
         {
             if (Directory.Exists(path)) Directory.Delete(path, true);
+        }
+
+        /// <summary>
+        /// Git communicates some messages via the error stream, so checking them here.
+        /// </summary>
+        private static bool IsGitExceptionRealError(CommandException ex)
+        {
+            return
+                // If there is nothing to push git will return this message in the error stream.
+                !ex.Error.Contains("Everything up-to-date") &&
+                // A new branch was added.
+                !ex.Error.Contains("* [new branch]") &&
+                // Branches were deleted in git.
+                !ex.Error.Contains("[deleted]") &&
+                // A new tag was added.
+                !ex.Error.Contains("* [new tag]") &&
+                // The branch head was moved (shown during push).
+                !(ex.Error.Contains("..") && ex.Error.Contains(" -> ")) &&
+                // The branch head was moved (shown during fetch).
+                !(ex.Error.Contains("* branch") && ex.Error.Contains(" -> "));
         }
     }
 }
