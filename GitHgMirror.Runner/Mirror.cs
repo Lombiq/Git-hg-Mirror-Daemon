@@ -137,14 +137,13 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
-
-                                cdCloneDirectory();
-
                                 RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-
+                                cdCloneDirectory();
                                 CreateBookmarksForBranches();
                                 RunGitExport();
+
+                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                cdCloneDirectory();
                                 RunGitImport();
                             }
                         }
@@ -166,12 +165,11 @@ namespace GitHgMirror.Runner
                                 // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
                                 CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
                                 cdCloneDirectory();
-
                                 CreateBookmarksForBranches();
                                 RunGitExport();
+
                                 PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
                                 cdCloneDirectory();
-                                RunGitExport();
                                 RunGitImport();
                             }
                         }
@@ -274,12 +272,29 @@ namespace GitHgMirror.Runner
                 // Git repos should be pulled with git as hg-git pull won't pull in new tags.
                 try
                 {
-                    RunCommandAndLogOutput("git fetch --prune --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes());
+                    RunCommandAndLogOutput("git fetch --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes());
                 }
                 catch (CommandException ex)
                 {
                     // We'll get the first exception if the git repo is yet empty.
                     if (!ex.Error.Contains("Couldn't find remote ref HEAD") && IsGitExceptionRealError(ex)) throw;
+                }
+
+                try
+                {
+                    // The smiley at the end will tell git to fetch all branches. However this would fail if new commits
+                    // were added to an existing branch, that's why we should first do the above pull.
+                    RunCommandAndLogOutput("git fetch --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes() + " *:*");
+                }
+                catch (CommandException ex)
+                {
+                    // "rejected" won't bother us here as those changes were fetched by the above fetch.
+                    if (!ex.Error.Contains("! [rejected]") &&
+                        !ex.Error.Contains("Couldn't find remote ref HEAD") &&
+                        IsGitExceptionRealError(ex))
+                    {
+                        throw;
+                    }
                 }
             }
         }
