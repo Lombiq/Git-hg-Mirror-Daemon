@@ -66,6 +66,9 @@ namespace GitHgMirror.Runner
                 {
                     DeleteDirectoryIfExists(cloneDirectoryPath);
                     Directory.CreateDirectory(cloneDirectoryPath);
+
+                    // Debug info file. Not placing it into the clone directory because that would bother Mercurial.
+                    File.WriteAllText(cloneDirectoryPath + "-info.txt", GetMirroringDescriptor(configuration));
                 }
 
 
