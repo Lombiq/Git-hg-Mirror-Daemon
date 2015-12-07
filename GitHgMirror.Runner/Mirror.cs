@@ -278,7 +278,8 @@ namespace GitHgMirror.Runner
                 }
                 catch (CommandException ex)
                 {
-                    if (IsGitExceptionRealError(ex)) throw;
+                    // We'll get the first exception if the git repo is yet empty.
+                    if (!ex.Error.Contains("Couldn't find remote ref HEAD") && IsGitExceptionRealError(ex)) throw;
                 }
             }
         }
