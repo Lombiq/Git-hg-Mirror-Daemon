@@ -122,7 +122,7 @@ namespace GitHgMirror.Runner
                         {
                             CreateBookmarksForBranches();
                             RunGitExport();
-                            PushToGit(configuration.GitCloneUri);
+                            PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
                         }
 
                         break;
@@ -185,7 +185,7 @@ namespace GitHgMirror.Runner
                         }
                         else
                         {
-                            PushToGit(configuration.GitCloneUri);
+                            PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
                         }
 
                         break;
@@ -208,7 +208,7 @@ namespace GitHgMirror.Runner
                     var continueWithDelete = true;
                     if (continueWithDelete)
                     {
-                        DeleteDirectoryIfExists(cloneDirectoryPath); 
+                        DeleteDirectoryIfExists(cloneDirectoryPath);
                     }
                 }
                 catch (IOException ioException)
@@ -235,8 +235,11 @@ namespace GitHgMirror.Runner
         }
 
 
-        private void PushToGit(Uri gitCloneUri)
+        private void PushToGit(Uri gitCloneUri, string cloneDirectoryPath)
         {
+            // The git directory won't exist if the hg repo is empty (gexport won't do anything).
+            if (!Directory.Exists(GetGitDirectoryPath(cloneDirectoryPath))) return;
+
             RunCommandAndLogOutput(@"cd .hg\git");
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
             try
@@ -251,7 +254,7 @@ namespace GitHgMirror.Runner
 
         private void PullFromGit(Uri gitCloneUri, string cloneDirectoryPath)
         {
-            var gitDirectoryPath = Path.Combine(cloneDirectoryPath, ".hg", "git");
+            var gitDirectoryPath = GetGitDirectoryPath(cloneDirectoryPath);
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
             if (!Directory.Exists(gitDirectoryPath))
             {
@@ -376,7 +379,7 @@ namespace GitHgMirror.Runner
                 if (!existingBookmarks.Any(existingBookmark => existingBookmark.EndsWith(GitBookmarkSuffix)))
                 {
                     // Need --force so it moves the bookmark if it already exists.
-                    RunHgCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force"); 
+                    RunHgCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force");
                 }
             }
         }
@@ -493,8 +496,8 @@ namespace GitHgMirror.Runner
             // https://social.msdn.microsoft.com/Forums/en-US/b7d8e3c6-3607-4a5c-aca2-f828000d25be/not-able-to-write-log-messages-in-event-log-on-windows-2008-server?forum=netfx64bit
             if (output.Length > 31878)
             {
-                var truncatedMessage = 
-                    "... " + 
+                var truncatedMessage =
+                    "... " +
                     Environment.NewLine +
                     "The output exceeds 31878 characters, thus can't be written to the event log and was truncated.";
 
@@ -517,15 +520,20 @@ namespace GitHgMirror.Runner
             if (configuration.Direction == MirroringDirection.GitToHg) directionIndicator = "<-";
             else if (configuration.Direction == MirroringDirection.TwoWay) directionIndicator = "<->";
 
-            return 
+            return
                 configuration.HgCloneUri +
-                " " + directionIndicator + " " + 
+                " " + directionIndicator + " " +
                 configuration.GitCloneUri;
         }
 
         private static void DeleteDirectoryIfExists(string path)
         {
             if (Directory.Exists(path)) Directory.Delete(path, true);
+        }
+
+        private static string GetGitDirectoryPath(string cloneDirectoryPath)
+        {
+            return Path.Combine(cloneDirectoryPath, ".hg", "git");
         }
 
         /// <summary>
