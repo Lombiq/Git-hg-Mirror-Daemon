@@ -66,6 +66,9 @@ namespace GitHgMirror.Runner
                 {
                     DeleteDirectoryIfExists(cloneDirectoryPath);
                     Directory.CreateDirectory(cloneDirectoryPath);
+
+                    // Debug info file. Not placing it into the clone directory because that would bother Mercurial.
+                    File.WriteAllText(cloneDirectoryPath + "-info.txt", GetMirroringDescriptor(configuration));
                 }
 
 
@@ -122,7 +125,7 @@ namespace GitHgMirror.Runner
                         {
                             CreateBookmarksForBranches();
                             RunGitExport();
-                            PushToGit(configuration.GitCloneUri);
+                            PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
                         }
 
                         break;
@@ -137,14 +140,13 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
-
-                                cdCloneDirectory();
-
                                 RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-
+                                cdCloneDirectory();
                                 CreateBookmarksForBranches();
                                 RunGitExport();
+
+                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                cdCloneDirectory();
                                 RunGitImport();
                             }
                         }
@@ -166,12 +168,11 @@ namespace GitHgMirror.Runner
                                 // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
                                 CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
                                 cdCloneDirectory();
-
                                 CreateBookmarksForBranches();
                                 RunGitExport();
+
                                 PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
                                 cdCloneDirectory();
-                                RunGitExport();
                                 RunGitImport();
                             }
                         }
@@ -185,7 +186,7 @@ namespace GitHgMirror.Runner
                         }
                         else
                         {
-                            PushToGit(configuration.GitCloneUri);
+                            PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
                         }
 
                         break;
@@ -208,7 +209,7 @@ namespace GitHgMirror.Runner
                     var continueWithDelete = true;
                     if (continueWithDelete)
                     {
-                        DeleteDirectoryIfExists(cloneDirectoryPath); 
+                        DeleteDirectoryIfExists(cloneDirectoryPath);
                     }
                 }
                 catch (IOException ioException)
@@ -235,8 +236,11 @@ namespace GitHgMirror.Runner
         }
 
 
-        private void PushToGit(Uri gitCloneUri)
+        private void PushToGit(Uri gitCloneUri, string cloneDirectoryPath)
         {
+            // The git directory won't exist if the hg repo is empty (gexport won't do anything).
+            if (!Directory.Exists(GetGitDirectoryPath(cloneDirectoryPath))) return;
+
             RunCommandAndLogOutput(@"cd .hg\git");
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
             try
@@ -251,7 +255,7 @@ namespace GitHgMirror.Runner
 
         private void PullFromGit(Uri gitCloneUri, string cloneDirectoryPath)
         {
-            var gitDirectoryPath = Path.Combine(cloneDirectoryPath, ".hg", "git");
+            var gitDirectoryPath = GetGitDirectoryPath(cloneDirectoryPath);
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
             if (!Directory.Exists(gitDirectoryPath))
             {
@@ -271,11 +275,29 @@ namespace GitHgMirror.Runner
                 // Git repos should be pulled with git as hg-git pull won't pull in new tags.
                 try
                 {
-                    RunCommandAndLogOutput("git fetch --prune --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes());
+                    RunCommandAndLogOutput("git fetch --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes());
                 }
                 catch (CommandException ex)
                 {
-                    if (IsGitExceptionRealError(ex)) throw;
+                    // We'll get the first exception if the git repo is yet empty.
+                    if (!ex.Error.Contains("Couldn't find remote ref HEAD") && IsGitExceptionRealError(ex)) throw;
+                }
+
+                try
+                {
+                    // The smiley at the end will tell git to fetch all branches. However this would fail if new commits
+                    // were added to an existing branch, that's why we should first do the above pull.
+                    RunCommandAndLogOutput("git fetch --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes() + " *:*");
+                }
+                catch (CommandException ex)
+                {
+                    // "rejected" won't bother us here as those changes were fetched by the above fetch.
+                    if (!ex.Error.Contains("! [rejected]") &&
+                        !ex.Error.Contains("Couldn't find remote ref HEAD") &&
+                        IsGitExceptionRealError(ex))
+                    {
+                        throw;
+                    }
                 }
             }
         }
@@ -376,7 +398,7 @@ namespace GitHgMirror.Runner
                 if (!existingBookmarks.Any(existingBookmark => existingBookmark.EndsWith(GitBookmarkSuffix)))
                 {
                     // Need --force so it moves the bookmark if it already exists.
-                    RunHgCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force"); 
+                    RunHgCommandAndLogOutput("hg bookmark -r " + branch.EncloseInQuotes() + " " + bookmark + " --force");
                 }
             }
         }
@@ -493,8 +515,8 @@ namespace GitHgMirror.Runner
             // https://social.msdn.microsoft.com/Forums/en-US/b7d8e3c6-3607-4a5c-aca2-f828000d25be/not-able-to-write-log-messages-in-event-log-on-windows-2008-server?forum=netfx64bit
             if (output.Length > 31878)
             {
-                var truncatedMessage = 
-                    "... " + 
+                var truncatedMessage =
+                    "... " +
                     Environment.NewLine +
                     "The output exceeds 31878 characters, thus can't be written to the event log and was truncated.";
 
@@ -517,15 +539,20 @@ namespace GitHgMirror.Runner
             if (configuration.Direction == MirroringDirection.GitToHg) directionIndicator = "<-";
             else if (configuration.Direction == MirroringDirection.TwoWay) directionIndicator = "<->";
 
-            return 
+            return
                 configuration.HgCloneUri +
-                " " + directionIndicator + " " + 
+                " " + directionIndicator + " " +
                 configuration.GitCloneUri;
         }
 
         private static void DeleteDirectoryIfExists(string path)
         {
             if (Directory.Exists(path)) Directory.Delete(path, true);
+        }
+
+        private static string GetGitDirectoryPath(string cloneDirectoryPath)
+        {
+            return Path.Combine(cloneDirectoryPath, ".hg", "git");
         }
 
         /// <summary>
