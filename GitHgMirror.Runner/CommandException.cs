@@ -28,6 +28,7 @@ namespace GitHgMirror.Runner
         public override string ToString()
         {
             return
+                typeof(CommandException).FullName + ": " +
                 Message + Environment.NewLine +
                 "Output: " + Output + Environment.NewLine +
                 "Error: " + Error + Environment.NewLine;
