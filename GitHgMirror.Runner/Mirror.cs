@@ -212,9 +212,15 @@ namespace GitHgMirror.Runner
                         DeleteDirectoryIfExists(cloneDirectoryPath);
                     }
                 }
-                catch (IOException ioException)
+                catch (Exception directoryDeleteException)
                 {
-                    throw new MirroringException("An error occured while running Mercurial mirroring commands and subsequently during clean-up after the error.", new AggregateException("Multiple errors occured during mirroring.", mirroringException, ioException));
+                    if (directoryDeleteException.IsFatal() || 
+                        !(directoryDeleteException is IOException || directoryDeleteException is UnauthorizedAccessException))
+                    {
+                        throw;
+                    }
+                    
+                    throw new MirroringException("An error occured while running Mercurial mirroring commands and subsequently during clean-up after the error.", mirroringException, directoryDeleteException);
                 }
 
                 throw mirroringException;
