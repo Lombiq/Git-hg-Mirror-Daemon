@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GitHgMirror.CommonTypes;
+using LibGit2Sharp;
 
 namespace GitHgMirror.Runner
 {
@@ -196,8 +197,6 @@ namespace GitHgMirror.Runner
             }
             catch (Exception ex)
             {
-                if (!(ex is CommandException) && !(ex is IOException)) throw;
-
                 _commandRunner.Dispose(); // Should dispose so the folder is not locked.
 
                 var mirroringException = new MirroringException(string.Format("An error occured while running Mercurial commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
@@ -214,12 +213,12 @@ namespace GitHgMirror.Runner
                 }
                 catch (Exception directoryDeleteException)
                 {
-                    if (directoryDeleteException.IsFatal() || 
+                    if (directoryDeleteException.IsFatal() ||
                         !(directoryDeleteException is IOException || directoryDeleteException is UnauthorizedAccessException))
                     {
                         throw;
                     }
-                    
+
                     throw new MirroringException("An error occured while running Mercurial mirroring commands and subsequently during clean-up after the error.", mirroringException, directoryDeleteException);
                 }
 
@@ -247,16 +246,17 @@ namespace GitHgMirror.Runner
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
             if (!Directory.Exists(GetGitDirectoryPath(cloneDirectoryPath))) return;
 
-            RunCommandAndLogOutput(@"cd .hg\git");
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
-            try
-            {
-                RunCommandAndLogOutput("git push " + gitCloneUri.ToGitUrl().EncloseInQuotes() + " --mirror --follow-tags");
-            }
-            catch (CommandException ex)
-            {
-                if (IsGitExceptionRealError(ex)) throw;
-            }
+
+            RunGitOperation(gitCloneUri, cloneDirectoryPath, repository =>
+                {
+                    // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
+                    // So can't use "+refs/*:refs/*" here, must iterate.
+                    foreach (var reference in repository.Refs)
+                    {
+                        repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
+                    }
+                });
         }
 
         private void PullFromGit(Uri gitCloneUri, string cloneDirectoryPath)
@@ -265,46 +265,12 @@ namespace GitHgMirror.Runner
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
             if (!Directory.Exists(gitDirectoryPath))
             {
-                try
-                {
-                    RunCommandAndLogOutput("git clone --mirror " + gitCloneUri.ToGitUrl().EncloseInQuotes() + " " + gitDirectoryPath.EncloseInQuotes());
-                }
-                catch (CommandException ex)
-                {
-                    if (!ex.Error.Contains("Cloning into bare repository ") && IsGitExceptionRealError(ex)) throw;
-                }
+                Repository.Clone(CreateGitUrl(gitCloneUri), gitDirectoryPath, new CloneOptions { IsBare = true });
             }
             else
             {
-                RunCommandAndLogOutput(@"cd .hg\git");
-
-                // Git repos should be pulled with git as hg-git pull won't pull in new tags.
-                try
-                {
-                    RunCommandAndLogOutput("git fetch --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes());
-                }
-                catch (CommandException ex)
-                {
-                    // We'll get the first exception if the git repo is yet empty.
-                    if (!ex.Error.Contains("Couldn't find remote ref HEAD") && IsGitExceptionRealError(ex)) throw;
-                }
-
-                try
-                {
-                    // The smiley at the end will tell git to fetch all branches. However this would fail if new commits
-                    // were added to an existing branch, that's why we should first do the above pull.
-                    RunCommandAndLogOutput("git fetch --tags " + gitCloneUri.ToGitUrl().EncloseInQuotes() + " *:*");
-                }
-                catch (CommandException ex)
-                {
-                    // "rejected" won't bother us here as those changes were fetched by the above fetch.
-                    if (!ex.Error.Contains("! [rejected]") &&
-                        !ex.Error.Contains("Couldn't find remote ref HEAD") &&
-                        IsGitExceptionRealError(ex))
-                    {
-                        throw;
-                    }
-                }
+                // Unfortunately this won't fetch tags for some reason. TagFetchMode.All won't help either.
+                RunGitOperation(gitCloneUri, cloneDirectoryPath, repository => repository.Fetch("origin"));
             }
         }
 
@@ -561,24 +527,32 @@ namespace GitHgMirror.Runner
             return Path.Combine(cloneDirectoryPath, ".hg", "git");
         }
 
-        /// <summary>
-        /// Git communicates some messages via the error stream, so checking them here.
-        /// </summary>
-        private static bool IsGitExceptionRealError(CommandException ex)
+        private static void RunGitOperation(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository> operation)
         {
-            return
-                // If there is nothing to push git will return this message in the error stream.
-                !ex.Error.Contains("Everything up-to-date") &&
-                // A new branch was added.
-                !ex.Error.Contains("* [new branch]") &&
-                // Branches were deleted in git.
-                !ex.Error.Contains("[deleted]") &&
-                // A new tag was added.
-                !ex.Error.Contains("* [new tag]") &&
-                // The branch head was moved (shown during push).
-                !(ex.Error.Contains("..") && ex.Error.Contains(" -> ")) &&
-                // The branch head was moved (shown during fetch).
-                !(ex.Error.Contains("* branch") && ex.Error.Contains(" -> "));
+            using (var repository = new Repository(GetGitDirectoryPath(cloneDirectoryPath)))
+            {
+                if (repository.Network.Remotes["origin"] == null)
+                {
+                    var newRemote = repository.Network.Remotes.Add("origin", CreateGitUrl(gitCloneUri), "+refs/*:refs/*");
+
+                    repository.Config.Set("remote.origin.mirror", true);
+                }
+
+
+                operation(repository);
+            }
+        }
+
+        private static string CreateGitUrl(Uri gitCloneUri)
+        {
+            if (gitCloneUri.Scheme == "git+https")
+            {
+                var uriBuilder = new UriBuilder(gitCloneUri);
+                uriBuilder.Scheme = "https";
+                gitCloneUri = uriBuilder.Uri;
+            }
+
+            return gitCloneUri.ToString();
         }
     }
 }
