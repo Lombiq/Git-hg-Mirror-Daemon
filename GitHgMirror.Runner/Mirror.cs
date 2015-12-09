@@ -257,7 +257,7 @@ namespace GitHgMirror.Runner
                     }
                     catch (Exception processKillException)
                     {
-                        if (directoryDeleteException.IsFatal() || ex is MirroringException) throw;
+                        if (processKillException.IsFatal() || processKillException is MirroringException) throw;
 
                         throw new MirroringException(
                             exceptionMessage + " Subsequently clean-up after the error failed as well, also the attempt to kill processes that were locking the mirror's folder and clearing all read-only files.",
