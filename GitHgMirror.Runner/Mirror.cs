@@ -200,7 +200,8 @@ namespace GitHgMirror.Runner
             {
                 if (ex.IsFatal()) throw;
 
-                _commandRunner.Dispose(); // Should dispose so the folder is not locked.
+                // We should dispose the command runner so the folder is not locked by the command line.
+                _commandRunner.Dispose();
 
                 var exceptionMessage = string.Format("An error occured while running commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will be re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction);
 
@@ -255,15 +256,15 @@ namespace GitHgMirror.Runner
                             throw new MirroringException(exceptionMessage, ex, directoryDeleteException);
                         }
                     }
-                    catch (Exception processKillException)
+                    catch (Exception forcedCleanUpException)
                     {
-                        if (processKillException.IsFatal() || processKillException is MirroringException) throw;
+                        if (forcedCleanUpException.IsFatal() || forcedCleanUpException is MirroringException) throw;
 
                         throw new MirroringException(
                             exceptionMessage + " Subsequently clean-up after the error failed as well, also the attempt to kill processes that were locking the mirror's folder and clearing all read-only files.",
                             ex,
                             directoryDeleteException,
-                            processKillException);
+                            forcedCleanUpException);
                     }
 
                     throw new MirroringException(
