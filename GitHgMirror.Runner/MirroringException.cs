@@ -24,7 +24,7 @@ namespace GitHgMirror.Runner
             return
                 typeof(MirroringException).FullName + ": " + Message + Environment.NewLine +
                 StackTrace + Environment.NewLine +
-                string.Join(Environment.NewLine + "---> ", InnerExceptions.Select(exception => exception.ToString()));
+                string.Join(Environment.NewLine, InnerExceptions.Select(exception => Environment.NewLine + "---> " + exception.ToString()));
         }
     }
 }
