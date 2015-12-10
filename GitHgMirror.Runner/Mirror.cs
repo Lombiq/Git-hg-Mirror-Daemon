@@ -299,7 +299,7 @@ namespace GitHgMirror.Runner
 
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
 
-            RunGitOperation(gitCloneUri, cloneDirectoryPath, repository =>
+            RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
                     // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
                     // So can't use "+refs/*:refs/*" here, must iterate.
@@ -316,12 +316,13 @@ namespace GitHgMirror.Runner
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
             if (!Directory.Exists(gitDirectoryPath))
             {
-                Repository.Clone(CreateGitUrl(gitCloneUri), gitDirectoryPath, new CloneOptions { IsBare = true });
+                RunLibGit2SharpOperationWithRetry(() =>
+                    Repository.Clone(CreateGitUrl(gitCloneUri), gitDirectoryPath, new CloneOptions { IsBare = true }));
             }
             else
             {
                 // Unfortunately this won't fetch tags for some reason. TagFetchMode.All won't help either.
-                RunGitOperation(gitCloneUri, cloneDirectoryPath, repository => repository.Fetch("origin"));
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository => repository.Fetch("origin"));
             }
         }
 
@@ -550,6 +551,55 @@ namespace GitHgMirror.Runner
             return output;
         }
 
+        private void RunGitOperationOnClonedRepo(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository> operation)
+        {
+            RunLibGit2SharpOperationWithRetry(() =>
+            {
+                using (var repository = new Repository(GetGitDirectoryPath(cloneDirectoryPath)))
+                {
+                    if (repository.Network.Remotes["origin"] == null)
+                    {
+                        var newRemote = repository.Network.Remotes.Add("origin", CreateGitUrl(gitCloneUri), "+refs/*:refs/*");
+
+                        repository.Config.Set("remote.origin.mirror", true);
+                    }
+
+
+                    operation(repository);
+                }
+            });
+        }
+
+        // Since somehow LibGit2Sharp routinely fails with "Failed to receive response: The server returned an invalid 
+        // or unrecognized response" we re-try operations here.
+        private void RunLibGit2SharpOperationWithRetry(Action operation, int retryCount = 0)
+        {
+            try
+            {
+                operation();
+            }
+            catch (LibGit2SharpException)
+            {
+                // We allow 3 tries.
+                if (retryCount < 2)
+                {
+                    _eventLog.WriteEntry(
+                        "The LibGit2Sharp operation " + operation + " failed " + (retryCount + 1) + " times but will be re-tried.",
+                        EventLogEntryType.Warning);
+
+                    RunLibGit2SharpOperationWithRetry(operation, ++retryCount);
+                }
+                else
+                {
+                    _eventLog.WriteEntry(
+                        "The LibGit2Sharp operation " + operation + " failed " + (retryCount + 1) + " times and won't be re-tried again.",
+                        EventLogEntryType.Warning);
+
+                    throw;
+                }
+            }
+        }
+
 
         private static string GetCloneDirectoryName(MirroringConfiguration configuration)
         {
@@ -576,22 +626,6 @@ namespace GitHgMirror.Runner
         private static string GetGitDirectoryPath(string cloneDirectoryPath)
         {
             return Path.Combine(cloneDirectoryPath, ".hg", "git");
-        }
-
-        private static void RunGitOperation(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository> operation)
-        {
-            using (var repository = new Repository(GetGitDirectoryPath(cloneDirectoryPath)))
-            {
-                if (repository.Network.Remotes["origin"] == null)
-                {
-                    var newRemote = repository.Network.Remotes.Add("origin", CreateGitUrl(gitCloneUri), "+refs/*:refs/*");
-
-                    repository.Config.Set("remote.origin.mirror", true);
-                }
-
-
-                operation(repository);
-            }
         }
 
         private static string CreateGitUrl(Uri gitCloneUri)
