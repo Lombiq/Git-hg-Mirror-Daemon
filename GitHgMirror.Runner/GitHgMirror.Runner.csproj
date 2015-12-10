@@ -54,6 +54,7 @@
     <Compile Include="CommandException.cs" />
     <Compile Include="ExceptionExtensions.cs" />
     <Compile Include="Extensions\UriExtensions.cs" />
+    <Compile Include="Helpers\FileUtil.cs" />
     <Compile Include="Mirror.cs" />
     <Compile Include="MirroringException.cs" />
     <Compile Include="MirrorRunner.cs" />

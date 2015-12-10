@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GitHgMirror.CommonTypes;
+using GitHgMirror.Runner.Helpers;
 using LibGit2Sharp;
 
 namespace GitHgMirror.Runner
@@ -197,9 +198,12 @@ namespace GitHgMirror.Runner
             }
             catch (Exception ex)
             {
-                _commandRunner.Dispose(); // Should dispose so the folder is not locked.
+                if (ex.IsFatal()) throw;
 
-                var mirroringException = new MirroringException(string.Format("An error occured while running Mercurial commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction), ex);
+                // We should dispose the command runner so the folder is not locked by the command line.
+                _commandRunner.Dispose();
+
+                var exceptionMessage = string.Format("An error occured while running commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will be re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction);
 
                 try
                 {
@@ -213,16 +217,63 @@ namespace GitHgMirror.Runner
                 }
                 catch (Exception directoryDeleteException)
                 {
-                    if (directoryDeleteException.IsFatal() ||
-                        !(directoryDeleteException is IOException || directoryDeleteException is UnauthorizedAccessException))
+                    if (directoryDeleteException.IsFatal()) throw;
+
+                    try
                     {
-                        throw;
+                        // This most possibly means that for some reason some process is still locking the folder although
+                        // it shouldn't (mostly, but not definitely the cause of IOException) or there are read-only files
+                        // (git pack files commonly are) which can be (but not always) behind UnauthorizedAccessException.
+                        if (directoryDeleteException is IOException || directoryDeleteException is UnauthorizedAccessException)
+                        {
+                            var killedProcesses = new List<string>();
+                            var readOnlyFiles = new List<string>();
+
+                            var files = Directory.EnumerateFiles(cloneDirectoryPath, "*", SearchOption.AllDirectories);
+                            foreach (var file in files)
+                            {
+                                var lockingProcesses = FileUtil.WhoIsLocking(file);
+                                foreach (var process in lockingProcesses)
+                                {
+                                    killedProcesses.Add(process.MainModule.FileName);
+                                    process.Kill();
+                                }
+
+                                if (File.GetAttributes(file).HasFlag(FileAttributes.ReadOnly))
+                                {
+                                    readOnlyFiles.Add(file);
+                                    File.SetAttributes(file, FileAttributes.Normal);
+                                }
+                            }
+
+                            DeleteDirectoryIfExists(cloneDirectoryPath);
+
+                            exceptionMessage += 
+                                " While deleting the folder of the mirror initially failed, after trying to kill processes that were locking files in it and setting all files not to be read-only the folder could be successfully deleted. " +
+                                "Processes killed: " + (killedProcesses.Any() ? string.Join(", ", killedProcesses) : "no processes") +
+                                " Read-only files: " + (readOnlyFiles.Any() ? string.Join(", ", readOnlyFiles) : "no files");
+
+                            throw new MirroringException(exceptionMessage, ex, directoryDeleteException);
+                        }
+                    }
+                    catch (Exception forcedCleanUpException)
+                    {
+                        if (forcedCleanUpException.IsFatal() || forcedCleanUpException is MirroringException) throw;
+
+                        throw new MirroringException(
+                            exceptionMessage + " Subsequently clean-up after the error failed as well, also the attempt to kill processes that were locking the mirror's folder and clearing all read-only files.",
+                            ex,
+                            directoryDeleteException,
+                            forcedCleanUpException);
                     }
 
-                    throw new MirroringException("An error occured while running Mercurial mirroring commands and subsequently during clean-up after the error.", mirroringException, directoryDeleteException);
+                    throw new MirroringException(
+                        exceptionMessage + " Subsequently clean-up after the error failed as well.", 
+                        ex, 
+                        directoryDeleteException);
                 }
 
-                throw mirroringException;
+                throw new MirroringException(exceptionMessage, ex);
             }
         }
 
