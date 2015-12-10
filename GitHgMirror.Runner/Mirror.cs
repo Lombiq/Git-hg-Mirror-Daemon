@@ -317,12 +317,12 @@ namespace GitHgMirror.Runner
             if (!Directory.Exists(gitDirectoryPath))
             {
                 RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, () =>
-                    Repository.Clone(CreateGitUrl(gitCloneUri), gitDirectoryPath, new CloneOptions { IsBare = true }));
+                    Repository.Clone(gitCloneUri.ToGitUrl(), gitDirectoryPath, new CloneOptions { IsBare = true }));
             }
             else
             {
-                // Unfortunately this won't fetch tags for some reason. TagFetchMode.All won't help either.
-                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository => repository.Fetch("origin"));
+                // Unfortunately this won't fetch tags for some reason. TagFetchMode.All won't help either...
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository => repository.Network.Fetch(gitCloneUri.ToGitUrl(), new[] { "+refs/*:refs/*" }));
             }
         }
 
@@ -559,7 +559,7 @@ namespace GitHgMirror.Runner
                 {
                     if (repository.Network.Remotes["origin"] == null)
                     {
-                        var newRemote = repository.Network.Remotes.Add("origin", CreateGitUrl(gitCloneUri), "+refs/*:refs/*");
+                        var newRemote = repository.Network.Remotes.Add("origin", gitCloneUri.ToGitUrl());
 
                         repository.Config.Set("remote.origin.mirror", true);
                     }
@@ -640,18 +640,6 @@ namespace GitHgMirror.Runner
         private static string GetGitDirectoryPath(string cloneDirectoryPath)
         {
             return Path.Combine(cloneDirectoryPath, ".hg", "git");
-        }
-
-        private static string CreateGitUrl(Uri gitCloneUri)
-        {
-            if (gitCloneUri.Scheme == "git+https")
-            {
-                var uriBuilder = new UriBuilder(gitCloneUri);
-                uriBuilder.Scheme = "https";
-                gitCloneUri = uriBuilder.Uri;
-            }
-
-            return gitCloneUri.ToString();
         }
     }
 }
