@@ -316,7 +316,7 @@ namespace GitHgMirror.Runner
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
             if (!Directory.Exists(gitDirectoryPath))
             {
-                RunLibGit2SharpOperationWithRetry(() =>
+                RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, () =>
                     Repository.Clone(CreateGitUrl(gitCloneUri), gitDirectoryPath, new CloneOptions { IsBare = true }));
             }
             else
@@ -553,7 +553,7 @@ namespace GitHgMirror.Runner
 
         private void RunGitOperationOnClonedRepo(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository> operation)
         {
-            RunLibGit2SharpOperationWithRetry(() =>
+            RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, () =>
             {
                 using (var repository = new Repository(GetGitDirectoryPath(cloneDirectoryPath)))
                 {
@@ -572,27 +572,34 @@ namespace GitHgMirror.Runner
 
         // Since somehow LibGit2Sharp routinely fails with "Failed to receive response: The server returned an invalid 
         // or unrecognized response" we re-try operations here.
-        private void RunLibGit2SharpOperationWithRetry(Action operation, int retryCount = 0)
+        private void RunLibGit2SharpOperationWithRetry(Uri gitCloneUri, string cloneDirectoryPath, Action operation, int retryCount = 0)
         {
             try
             {
                 operation();
             }
-            catch (LibGit2SharpException)
+            catch (LibGit2SharpException ex)
             {
+                var errorDescriptor = 
+                    Environment.NewLine + "Operation attempted with the " + gitCloneUri.ToGitUrl() + " repository (directory: " + cloneDirectoryPath + ")" +
+                    Environment.NewLine + ex.ToString() + 
+                    Environment.NewLine + "Operation: " + Environment.NewLine + 
+                    // Removing first two lines from the stack trace that contain the stack trace retrieval itself.
+                    string.Join(Environment.NewLine, Environment.StackTrace.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Skip(2));
+
                 // We allow 3 tries.
                 if (retryCount < 2)
                 {
                     _eventLog.WriteEntry(
-                        "The LibGit2Sharp operation " + operation + " failed " + (retryCount + 1) + " times but will be re-tried.",
+                        "A LibGit2Sharp operation failed " + (retryCount + 1) + " times but will be re-tried." + errorDescriptor,
                         EventLogEntryType.Warning);
 
-                    RunLibGit2SharpOperationWithRetry(operation, ++retryCount);
+                    RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, operation, ++retryCount);
                 }
                 else
                 {
                     _eventLog.WriteEntry(
-                        "The LibGit2Sharp operation " + operation + " failed " + (retryCount + 1) + " times and won't be re-tried again.",
+                        "A LibGit2Sharp operation failed " + (retryCount + 1) + " times and won't be re-tried again." + errorDescriptor,
                         EventLogEntryType.Warning);
 
                     throw;
