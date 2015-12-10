@@ -166,7 +166,7 @@ namespace GitHgMirror.Runner
                             {
                                 // We need to start with cloning the hg repo. Otherwise cloning the git repo, then
                                 // pulling from the hg repo would yield a "repository unrelated" error, even if the git
-                                // repo was created from the hg. For an explanation see: 
+                                // repo was created from the hg repo. For an explanation see: 
                                 // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
                                 CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
                                 cdCloneDirectory();
@@ -598,7 +598,7 @@ namespace GitHgMirror.Runner
                 if (retryCount < 2)
                 {
                     _eventLog.WriteEntry(
-                        "A LibGit2Sharp operation failed " + (retryCount + 1) + " times but will be re-tried." + errorDescriptor,
+                        "A LibGit2Sharp operation failed " + (retryCount + 1) + " time(s) but will be re-tried." + errorDescriptor,
                         EventLogEntryType.Warning);
 
                     RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, operation, ++retryCount);
@@ -606,7 +606,7 @@ namespace GitHgMirror.Runner
                 else
                 {
                     _eventLog.WriteEntry(
-                        "A LibGit2Sharp operation failed " + (retryCount + 1) + " times and won't be re-tried again." + errorDescriptor,
+                        "A LibGit2Sharp operation failed " + (retryCount + 1) + " time(s) and won't be re-tried again." + errorDescriptor,
                         EventLogEntryType.Warning);
 
                     throw;
