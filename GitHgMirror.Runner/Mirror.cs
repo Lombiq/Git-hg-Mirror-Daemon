@@ -580,6 +580,12 @@ namespace GitHgMirror.Runner
             }
             catch (LibGit2SharpException ex)
             {
+                // We won't re-try 404s as these are not necessarily transient errors.
+                if (ex.Message.Contains("Request failed with status code: 404"))
+                {
+                    throw;
+                }
+
                 var errorDescriptor = 
                     Environment.NewLine + "Operation attempted with the " + gitCloneUri.ToGitUrl() + " repository (directory: " + cloneDirectoryPath + ")" +
                     Environment.NewLine + ex.ToString() + 
