@@ -13,19 +13,5 @@ namespace GitHgMirror.CommonTypes
         public Uri GitCloneUri { get; set; }
         public bool GitUrlIsHgUrl { get; set; }
         public MirroringDirection Direction { get; set; }
-
-
-        public MirroringConfiguration(MirroringConfiguration previous) : this()
-        {
-            Id = previous.Id;
-            HgCloneUri = previous.HgCloneUri;
-            GitCloneUri = previous.GitCloneUri;
-            GitUrlIsHgUrl = previous.GitUrlIsHgUrl;
-            Direction = previous.Direction;
-        }
-
-        public MirroringConfiguration()
-        {
-        }
     }
 }

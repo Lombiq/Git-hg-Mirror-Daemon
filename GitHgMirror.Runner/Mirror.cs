@@ -44,69 +44,39 @@ namespace GitHgMirror.Runner
 
             try
             {
-                if (configuration.Direction == MirroringDirection.TwoWay)
+                // Changing directory to other drive if necessary.
+                RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty));
+
+
+                if (!Directory.Exists(cloneDirectoryParentPath))
                 {
-                    // If one direction fails the other can still work, so being optimistic here.
+                    Directory.CreateDirectory(cloneDirectoryParentPath);
+                }
+                var quotedHgCloneUrl = configuration.HgCloneUri.ToString().EncloseInQuotes();
+                var quotedGitCloneUrl = configuration.GitCloneUri.ToString().EncloseInQuotes();
+                var quotedCloneDirectoryPath = cloneDirectoryPath.EncloseInQuotes();
+                var isCloned = IsCloned(configuration);
 
-                    var exceptions = new List<Exception>();
+                Action cdCloneDirectory = () => RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
 
-                    try
-                    {
-                        MirrorRepositories(new MirroringConfiguration(configuration) { Direction = MirroringDirection.HgToGit });
-                    }
-                    catch (Exception ex)
-                    {
-                        exceptions.Add(ex);
-                    }
-
-                    try
-                    {
-                        MirrorRepositories(new MirroringConfiguration(configuration) { Direction = MirroringDirection.GitToHg });
-                    }
-                    catch (Exception ex)
-                    {
-                        exceptions.Add(ex);
-                    }
-
-                    if (exceptions.Any())
-                    {
-                        throw new MirroringException("At least one of the legs of the git to hg and hg to git mirroring failed.", exceptions.ToArray());
-                    }
+                if (isCloned)
+                {
+                    Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
+                    cdCloneDirectory();
                 }
                 else
                 {
-                    // Changing directory to other drive if necessary.
-                    RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty));
+                    DeleteDirectoryIfExists(cloneDirectoryPath);
+                    Directory.CreateDirectory(cloneDirectoryPath);
+
+                    // Debug info file. Not placing it into the clone directory because that would bother Mercurial.
+                    File.WriteAllText(cloneDirectoryPath + "-info.txt", GetMirroringDescriptor(configuration));
+                }
 
 
-                    if (!Directory.Exists(cloneDirectoryParentPath))
-                    {
-                        Directory.CreateDirectory(cloneDirectoryParentPath);
-                    }
-                    var quotedHgCloneUrl = configuration.HgCloneUri.ToString().EncloseInQuotes();
-                    var quotedGitCloneUrl = configuration.GitCloneUri.ToString().EncloseInQuotes();
-                    var quotedCloneDirectoryPath = cloneDirectoryPath.EncloseInQuotes();
-                    var isCloned = IsCloned(configuration);
-
-                    Action cdCloneDirectory = () => RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
-
-                    if (isCloned)
-                    {
-                        Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
-                        cdCloneDirectory();
-                    }
-                    else
-                    {
-                        DeleteDirectoryIfExists(cloneDirectoryPath);
-                        Directory.CreateDirectory(cloneDirectoryPath);
-
-                        // Debug info file. Not placing it into the clone directory because that would bother Mercurial.
-                        File.WriteAllText(cloneDirectoryPath + "-info.txt", GetMirroringDescriptor(configuration));
-                    }
-
-
-                    if (configuration.Direction == MirroringDirection.GitToHg)
-                    {
+                switch (configuration.Direction)
+                {
+                    case MirroringDirection.GitToHg:
                         if (isCloned)
                         {
                             if (configuration.GitUrlIsHgUrl)
@@ -135,9 +105,9 @@ namespace GitHgMirror.Runner
                         cdCloneDirectory();
 
                         PushWithBookmarks(quotedHgCloneUrl);
-                    }
-                    else
-                    {
+
+                        break;
+                    case MirroringDirection.HgToGit:
                         if (isCloned)
                         {
                             RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
@@ -159,9 +129,70 @@ namespace GitHgMirror.Runner
                             RunGitExport();
                             PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
                         }
-                    }
-                }
 
+                        break;
+                    case MirroringDirection.TwoWay:
+                        if (isCloned)
+                        {
+                            if (configuration.GitUrlIsHgUrl)
+                            {
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+
+                                cdCloneDirectory();
+                            }
+                            else
+                            {
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+                                cdCloneDirectory();
+                                CreateBookmarksForBranches();
+                                RunGitExport();
+
+                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                cdCloneDirectory();
+                                RunGitImport();
+                            }
+                        }
+                        else
+                        {
+                            if (configuration.GitUrlIsHgUrl)
+                            {
+                                CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath);
+
+                                cdCloneDirectory();
+
+                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+                            }
+                            else
+                            {
+                                // We need to start with cloning the hg repo. Otherwise cloning the git repo, then
+                                // pulling from the hg repo would yield a "repository unrelated" error, even if the git
+                                // repo was created from the hg repo. For an explanation see: 
+                                // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
+                                CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
+                                cdCloneDirectory();
+                                CreateBookmarksForBranches();
+                                RunGitExport();
+
+                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                cdCloneDirectory();
+                                RunGitImport();
+                            }
+                        }
+
+
+                        PushWithBookmarks(quotedHgCloneUrl);
+
+                        if (configuration.GitUrlIsHgUrl)
+                        {
+                            PushWithBookmarks(quotedGitCloneUrl);
+                        }
+                        else
+                        {
+                            PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
+                        }
+
+                        break;
+                }
 
                 Debug.WriteLine("Finished mirroring: " + descriptor);
             }
@@ -217,7 +248,7 @@ namespace GitHgMirror.Runner
 
                             DeleteDirectoryIfExists(cloneDirectoryPath);
 
-                            exceptionMessage +=
+                            exceptionMessage += 
                                 " While deleting the folder of the mirror initially failed, after trying to kill processes that were locking files in it and setting all files not to be read-only the folder could be successfully deleted. " +
                                 "Processes killed: " + (killedProcesses.Any() ? string.Join(", ", killedProcesses) : "no processes") +
                                 " Read-only files: " + (readOnlyFiles.Any() ? string.Join(", ", readOnlyFiles) : "no files");
@@ -237,8 +268,8 @@ namespace GitHgMirror.Runner
                     }
 
                     throw new MirroringException(
-                        exceptionMessage + " Subsequently clean-up after the error failed as well.",
-                        ex,
+                        exceptionMessage + " Subsequently clean-up after the error failed as well.", 
+                        ex, 
                         directoryDeleteException);
                 }
 
@@ -550,16 +581,16 @@ namespace GitHgMirror.Runner
             catch (LibGit2SharpException ex)
             {
                 // We won't re-try these as these errors are most possibly not transient ones.
-                if (ex.Message.Contains("Request failed with status code: 404") ||
+                if (ex.Message.Contains("Request failed with status code: 404") || 
                     ex.Message.Contains("Request failed with status code: 401"))
                 {
                     throw;
                 }
 
-                var errorDescriptor =
+                var errorDescriptor = 
                     Environment.NewLine + "Operation attempted with the " + gitCloneUri.ToGitUrl() + " repository (directory: " + cloneDirectoryPath + ")" +
-                    Environment.NewLine + ex.ToString() +
-                    Environment.NewLine + "Operation: " + Environment.NewLine +
+                    Environment.NewLine + ex.ToString() + 
+                    Environment.NewLine + "Operation: " + Environment.NewLine + 
                     // Removing first two lines from the stack trace that contain the stack trace retrieval itself.
                     string.Join(Environment.NewLine, Environment.StackTrace.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Skip(2));
 
