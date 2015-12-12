@@ -85,9 +85,9 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath);
                                 cdCloneDirectory();
-                                RunGitImport();
+                                ImportHistoryFromGit();
                             }
                         }
                         else
@@ -125,13 +125,33 @@ namespace GitHgMirror.Runner
                         }
                         else
                         {
-                            CreateBookmarksForBranches();
-                            RunGitExport();
+                            CreateOrUpdateBookmarksForBranches();
+                            ExportHistoryToGit();
                             PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
                         }
 
                         break;
                     case MirroringDirection.TwoWay:
+                        Action syncHgAndGitHistories = () =>
+                            {
+                                cdCloneDirectory();
+                                CreateOrUpdateBookmarksForBranches();
+                                ExportHistoryToGit();
+
+                                // This will clear all commits int he git repo that aren't in the git remote repo but 
+                                // add changes that were added to the git repo.
+                                FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                cdCloneDirectory();
+                                ImportHistoryFromGit();
+                                
+                                // Updating bookmarks which may have shifted after importing from git. This way the
+                                // export to git will create a git repo with history identical to the hg repo.
+                                CreateOrUpdateBookmarksForBranches();
+                                ExportHistoryToGit();
+
+                                PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
+                            };
+
                         if (isCloned)
                         {
                             if (configuration.GitUrlIsHgUrl)
@@ -143,13 +163,8 @@ namespace GitHgMirror.Runner
                             else
                             {
                                 RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                                cdCloneDirectory();
-                                CreateBookmarksForBranches();
-                                RunGitExport();
 
-                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
-                                cdCloneDirectory();
-                                RunGitImport();
+                                syncHgAndGitHistories();
                             }
                         }
                         else
@@ -169,13 +184,8 @@ namespace GitHgMirror.Runner
                                 // repo was created from the hg repo. For an explanation see: 
                                 // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
                                 CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
-                                cdCloneDirectory();
-                                CreateBookmarksForBranches();
-                                RunGitExport();
 
-                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
-                                cdCloneDirectory();
-                                RunGitImport();
+                                syncHgAndGitHistories();
                             }
                         }
 
@@ -186,10 +196,7 @@ namespace GitHgMirror.Runner
                         {
                             PushWithBookmarks(quotedGitCloneUrl);
                         }
-                        else
-                        {
-                            PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
-                        }
+
 
                         break;
                 }
@@ -305,12 +312,16 @@ namespace GitHgMirror.Runner
                     // So can't use "+refs/*:refs/*" here, must iterate.
                     foreach (var reference in repository.Refs)
                     {
+                        // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
+                        // would be force push and completely overwrite the remote repo's content. This would always
+                        // succeed no matter what is there but could wipe out changes made between the repo was fetched
+                        // and pushed.
                         repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
                     }
                 });
         }
 
-        private void PullFromGit(Uri gitCloneUri, string cloneDirectoryPath)
+        private void FetchFromGit(Uri gitCloneUri, string cloneDirectoryPath)
         {
             var gitDirectoryPath = GetGitDirectoryPath(cloneDirectoryPath);
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
@@ -322,7 +333,8 @@ namespace GitHgMirror.Runner
             else
             {
                 // Unfortunately this won't fetch tags for some reason. TagFetchMode.All won't help either...
-                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository => repository.Network.Fetch(gitCloneUri.ToGitUrl(), new[] { "+refs/*:refs/*" }));
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
+                    repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/*:refs/*" }));
             }
         }
 
@@ -371,12 +383,12 @@ namespace GitHgMirror.Runner
             }
         }
 
-        private void RunGitImport()
+        private void ImportHistoryFromGit()
         {
             RunHgCommandAndLogOutput("hg gimport" + HgGitConfig);
         }
 
-        private void RunGitExport()
+        private void ExportHistoryToGit()
         {
             RunHgCommandAndLogOutput("hg gexport" + HgGitConfig);
         }
@@ -386,7 +398,7 @@ namespace GitHgMirror.Runner
             RunRemoteHgCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
         }
 
-        private void CreateBookmarksForBranches()
+        private void CreateOrUpdateBookmarksForBranches()
         {
             // Adding bookmarks for all branches so they appear as proper git branches.
             var branchesOutput = RunHgCommandAndLogOutput("hg branches --closed");
