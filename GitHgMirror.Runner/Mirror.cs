@@ -85,9 +85,9 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath);
                                 cdCloneDirectory();
-                                RunGitImport();
+                                ImportHistoryFromGit();
                             }
                         }
                         else
@@ -125,13 +125,33 @@ namespace GitHgMirror.Runner
                         }
                         else
                         {
-                            CreateBookmarksForBranches();
-                            RunGitExport();
+                            CreateOrUpdateBookmarksForBranches();
+                            ExportHistoryToGit();
                             PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
                         }
 
                         break;
                     case MirroringDirection.TwoWay:
+                        Action syncHgAndGitHistories = () =>
+                            {
+                                cdCloneDirectory();
+                                CreateOrUpdateBookmarksForBranches();
+                                ExportHistoryToGit();
+
+                                // This will clear all commits int he git repo that aren't in the git remote repo but 
+                                // add changes that were added to the git repo.
+                                FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                cdCloneDirectory();
+                                ImportHistoryFromGit();
+                                
+                                // Updating bookmarks which may have shifted after importing from git. This way the
+                                // export to git will create a git repo with history identical to the hg repo.
+                                CreateOrUpdateBookmarksForBranches();
+                                ExportHistoryToGit();
+
+                                PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
+                            };
+
                         if (isCloned)
                         {
                             if (configuration.GitUrlIsHgUrl)
@@ -143,13 +163,8 @@ namespace GitHgMirror.Runner
                             else
                             {
                                 RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-                                cdCloneDirectory();
-                                CreateBookmarksForBranches();
-                                RunGitExport();
 
-                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
-                                cdCloneDirectory();
-                                RunGitImport();
+                                syncHgAndGitHistories();
                             }
                         }
                         else
@@ -166,16 +181,11 @@ namespace GitHgMirror.Runner
                             {
                                 // We need to start with cloning the hg repo. Otherwise cloning the git repo, then
                                 // pulling from the hg repo would yield a "repository unrelated" error, even if the git
-                                // repo was created from the hg. For an explanation see: 
+                                // repo was created from the hg repo. For an explanation see: 
                                 // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
                                 CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath);
-                                cdCloneDirectory();
-                                CreateBookmarksForBranches();
-                                RunGitExport();
 
-                                PullFromGit(configuration.GitCloneUri, cloneDirectoryPath);
-                                cdCloneDirectory();
-                                RunGitImport();
+                                syncHgAndGitHistories();
                             }
                         }
 
@@ -186,10 +196,7 @@ namespace GitHgMirror.Runner
                         {
                             PushWithBookmarks(quotedGitCloneUrl);
                         }
-                        else
-                        {
-                            PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
-                        }
+
 
                         break;
                 }
@@ -299,29 +306,35 @@ namespace GitHgMirror.Runner
 
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
 
-            RunGitOperation(gitCloneUri, cloneDirectoryPath, repository =>
+            RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
                     // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
                     // So can't use "+refs/*:refs/*" here, must iterate.
                     foreach (var reference in repository.Refs)
                     {
+                        // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
+                        // would be force push and completely overwrite the remote repo's content. This would always
+                        // succeed no matter what is there but could wipe out changes made between the repo was fetched
+                        // and pushed.
                         repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
                     }
                 });
         }
 
-        private void PullFromGit(Uri gitCloneUri, string cloneDirectoryPath)
+        private void FetchFromGit(Uri gitCloneUri, string cloneDirectoryPath)
         {
             var gitDirectoryPath = GetGitDirectoryPath(cloneDirectoryPath);
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
             if (!Directory.Exists(gitDirectoryPath))
             {
-                Repository.Clone(CreateGitUrl(gitCloneUri), gitDirectoryPath, new CloneOptions { IsBare = true });
+                RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, () =>
+                    Repository.Clone(gitCloneUri.ToGitUrl(), gitDirectoryPath, new CloneOptions { IsBare = true }));
             }
             else
             {
-                // Unfortunately this won't fetch tags for some reason. TagFetchMode.All won't help either.
-                RunGitOperation(gitCloneUri, cloneDirectoryPath, repository => repository.Fetch("origin"));
+                // Unfortunately this won't fetch tags for some reason. TagFetchMode.All won't help either...
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
+                    repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/*:refs/*" }));
             }
         }
 
@@ -370,12 +383,12 @@ namespace GitHgMirror.Runner
             }
         }
 
-        private void RunGitImport()
+        private void ImportHistoryFromGit()
         {
             RunHgCommandAndLogOutput("hg gimport" + HgGitConfig);
         }
 
-        private void RunGitExport()
+        private void ExportHistoryToGit()
         {
             RunHgCommandAndLogOutput("hg gexport" + HgGitConfig);
         }
@@ -385,7 +398,7 @@ namespace GitHgMirror.Runner
             RunRemoteHgCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
         }
 
-        private void CreateBookmarksForBranches()
+        private void CreateOrUpdateBookmarksForBranches()
         {
             // Adding bookmarks for all branches so they appear as proper git branches.
             var branchesOutput = RunHgCommandAndLogOutput("hg branches --closed");
@@ -550,6 +563,69 @@ namespace GitHgMirror.Runner
             return output;
         }
 
+        private void RunGitOperationOnClonedRepo(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository> operation)
+        {
+            RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, () =>
+            {
+                using (var repository = new Repository(GetGitDirectoryPath(cloneDirectoryPath)))
+                {
+                    if (repository.Network.Remotes["origin"] == null)
+                    {
+                        var newRemote = repository.Network.Remotes.Add("origin", gitCloneUri.ToGitUrl());
+
+                        repository.Config.Set("remote.origin.mirror", true);
+                    }
+
+
+                    operation(repository);
+                }
+            });
+        }
+
+        // Since somehow LibGit2Sharp routinely fails with "Failed to receive response: The server returned an invalid 
+        // or unrecognized response" we re-try operations here.
+        private void RunLibGit2SharpOperationWithRetry(Uri gitCloneUri, string cloneDirectoryPath, Action operation, int retryCount = 0)
+        {
+            try
+            {
+                operation();
+            }
+            catch (LibGit2SharpException ex)
+            {
+                // We won't re-try these as these errors are most possibly not transient ones.
+                if (ex.Message.Contains("Request failed with status code: 404") || 
+                    ex.Message.Contains("Request failed with status code: 401"))
+                {
+                    throw;
+                }
+
+                var errorDescriptor = 
+                    Environment.NewLine + "Operation attempted with the " + gitCloneUri.ToGitUrl() + " repository (directory: " + cloneDirectoryPath + ")" +
+                    Environment.NewLine + ex.ToString() + 
+                    Environment.NewLine + "Operation: " + Environment.NewLine + 
+                    // Removing first two lines from the stack trace that contain the stack trace retrieval itself.
+                    string.Join(Environment.NewLine, Environment.StackTrace.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Skip(2));
+
+                // We allow 3 tries.
+                if (retryCount < 2)
+                {
+                    _eventLog.WriteEntry(
+                        "A LibGit2Sharp operation failed " + (retryCount + 1) + " time(s) but will be re-tried." + errorDescriptor,
+                        EventLogEntryType.Warning);
+
+                    RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, operation, ++retryCount);
+                }
+                else
+                {
+                    _eventLog.WriteEntry(
+                        "A LibGit2Sharp operation failed " + (retryCount + 1) + " time(s) and won't be re-tried again." + errorDescriptor,
+                        EventLogEntryType.Warning);
+
+                    throw;
+                }
+            }
+        }
+
 
         private static string GetCloneDirectoryName(MirroringConfiguration configuration)
         {
@@ -576,34 +652,6 @@ namespace GitHgMirror.Runner
         private static string GetGitDirectoryPath(string cloneDirectoryPath)
         {
             return Path.Combine(cloneDirectoryPath, ".hg", "git");
-        }
-
-        private static void RunGitOperation(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository> operation)
-        {
-            using (var repository = new Repository(GetGitDirectoryPath(cloneDirectoryPath)))
-            {
-                if (repository.Network.Remotes["origin"] == null)
-                {
-                    var newRemote = repository.Network.Remotes.Add("origin", CreateGitUrl(gitCloneUri), "+refs/*:refs/*");
-
-                    repository.Config.Set("remote.origin.mirror", true);
-                }
-
-
-                operation(repository);
-            }
-        }
-
-        private static string CreateGitUrl(Uri gitCloneUri)
-        {
-            if (gitCloneUri.Scheme == "git+https")
-            {
-                var uriBuilder = new UriBuilder(gitCloneUri);
-                uriBuilder.Scheme = "https";
-                gitCloneUri = uriBuilder.Uri;
-            }
-
-            return gitCloneUri.ToString();
         }
     }
 }
