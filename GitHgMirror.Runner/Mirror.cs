@@ -379,7 +379,7 @@ namespace GitHgMirror.Runner
             }
             else
             {
-                RunRemoteHgCommandAndLogOutput("hg " + command);
+                RunRemoteHgCommandAndLogOutput("hg " + command + HgGitConfig);
             }
         }
 
