@@ -154,6 +154,8 @@ namespace GitHgMirror.Runner
 
                         if (isCloned)
                         {
+                            RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+
                             if (configuration.GitUrlIsHgUrl)
                             {
                                 RunRemoteHgCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
@@ -162,8 +164,6 @@ namespace GitHgMirror.Runner
                             }
                             else
                             {
-                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
-
                                 syncHgAndGitHistories();
                             }
                         }
