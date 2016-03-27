@@ -402,16 +402,18 @@ namespace GitHgMirror.Runner
             catch (CommandException ex)
             {
                 // If the error is something like below that can mean that due to slow network we can't clone a large
-                // repo, so we re-try with chunks of 100 revisions.
-                // transaction abort!
-                // rollback completed
-                // abort: stream ended unexpectedly (got 12300 bytes, expected 14312)".
+                // repo, so we re-try with chunks of a single revision. This will be slow but surely work, even if one
+                // changeset is huge like this one: http://hg.openjdk.java.net/openjfx/9-dev/rt/rev/86d5cbe0c60f (~100MB, 
+                // 11000 files).
+                /* transaction abort!
+                   rollback completed
+                   abort: stream ended unexpectedly (got 12300 bytes, expected 14312) */
                 if (ex.Error.Contains("abort: stream ended unexpectedly (got "))
                 {
                     RunRemoteHgCommandAndLogOutput("hg clone --noupdate --rev 0 " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
                     RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
 
-                    var revision = 100;
+                    var revision = 1;
                     var finished = false;
                     while (!finished)
                     {
@@ -423,20 +425,19 @@ namespace GitHgMirror.Runner
                         catch (CommandException pullException)
                         {
                             // This error happens when we try to go beyond existing revisions and it means we reached
-                            // the end of the repo history, so let's pull the rest.
+                            // the end of the repo history.
                             // Maybe the hg identify command could be used to retrieve the latest revision number instead
                             // (see: https://selenic.com/hg/help/identify) although it says "can't query remote revision 
                             // number, branch, or tag" (and even if it could, what if new changes are being pushed?). So
                             // using exceptions for now.
                             if (pullException.Error.Contains("abort: unknown revision "))
                             {
-                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
                                 finished = true;
                             }
                             else throw;
                         }
 
-                        revision += 100;
+                        revision++;
                     }
                 }
                 else throw;
