@@ -646,8 +646,10 @@ namespace GitHgMirror.Runner
             });
         }
 
-        // Since somehow LibGit2Sharp routinely fails with "Failed to receive response: The server returned an invalid 
-        // or unrecognized response" we re-try operations here.
+        /// <summary>
+        /// Since somehow LibGit2Sharp routinely fails with "Failed to receive response: The server returned an invalid 
+        /// or unrecognized response" we re-try operations here.
+        /// </summary>
         private void RunLibGit2SharpOperationWithRetry(Uri gitCloneUri, string cloneDirectoryPath, Action operation, int retryCount = 0)
         {
             try
