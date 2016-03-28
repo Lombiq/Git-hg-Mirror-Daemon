@@ -81,7 +81,7 @@ namespace GitHgMirror.Runner
                         {
                             if (configuration.GitUrlIsHgUrl)
                             {
-                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                                PullHg(quotedGitCloneUrl);
                             }
                             else
                             {
@@ -110,7 +110,7 @@ namespace GitHgMirror.Runner
                     case MirroringDirection.HgToGit:
                         if (isCloned)
                         {
-                            RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+                            PullHg(quotedHgCloneUrl);
                         }
                         else
                         {
@@ -154,11 +154,11 @@ namespace GitHgMirror.Runner
 
                         if (isCloned)
                         {
-                            RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+                            PullHg(quotedHgCloneUrl);
 
                             if (configuration.GitUrlIsHgUrl)
                             {
-                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedGitCloneUrl);
+                                PullHg(quotedGitCloneUrl);
 
                                 cdCloneDirectory();
                             }
@@ -175,7 +175,7 @@ namespace GitHgMirror.Runner
 
                                 cdCloneDirectory();
 
-                                RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+                                PullHg(quotedHgCloneUrl);
                             }
                             else
                             {
@@ -395,7 +395,71 @@ namespace GitHgMirror.Runner
 
         private void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath)
         {
-            RunRemoteHgCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
+            try
+            {
+                RunRemoteHgCommandAndLogOutput("hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
+            }
+            catch (CommandException ex)
+            {
+                if (ex.IsHgConnectionTerminatedError())
+                {
+                    RunRemoteHgCommandAndLogOutput("hg clone --noupdate --rev 0 " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
+                    RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
+
+                    PullPerRevisionsHg(quotedHgCloneUrl);
+                }
+                else throw;
+            }
+        }
+
+        private void PullHg(string quotedHgCloneUrl)
+        {
+            try
+            {
+                RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl);
+            }
+            catch (CommandException ex)
+            {
+                if (ex.IsHgConnectionTerminatedError()) PullPerRevisionsHg(quotedHgCloneUrl);
+                else throw;
+            }
+        }
+
+        /// <summary>
+        /// Pulling chunks a repo history in chunks of revisions. This will be slow but surely work, even if one
+        /// changeset is huge like this one: http://hg.openjdk.java.net/openjfx/9-dev/rt/rev/86d5cbe0c60f (~100MB, 
+        /// 11000 files).
+        /// </summary>
+        private void PullPerRevisionsHg(string quotedHgCloneUrl)
+        {
+            var startRevision = RunHgCommandAndLogOutput("hg identify --rev tip --num")
+                .Split(new[] { Environment.NewLine }, StringSplitOptions.None)[1];
+            var revision = int.Parse(startRevision) + 1;
+            var finished = false;
+            while (!finished)
+            {
+                try
+                {
+                    var output = RunRemoteHgCommandAndLogOutput("hg pull --rev " + revision + " " + quotedHgCloneUrl);
+                    finished = output.Contains("no changes found");
+                }
+                catch (CommandException pullException)
+                {
+                    // This error happens when we try to go beyond existing revisions and it means we reached
+                    // the end of the repo history.
+                    // Maybe the hg identify command could be used to retrieve the latest revision number instead
+                    // (see: https://selenic.com/hg/help/identify) although it says "can't query remote revision 
+                    // number, branch, or tag" (and even if it could, what if new changes are being pushed?). So
+                    // using exceptions for now.
+                    if (pullException.Error.Contains("abort: unknown revision "))
+                    {
+                        finished = true;
+                    }
+                    else throw;
+                }
+
+                revision++;
+            }
         }
 
         private void CreateOrUpdateBookmarksForBranches()
@@ -582,8 +646,10 @@ namespace GitHgMirror.Runner
             });
         }
 
-        // Since somehow LibGit2Sharp routinely fails with "Failed to receive response: The server returned an invalid 
-        // or unrecognized response" we re-try operations here.
+        /// <summary>
+        /// Since somehow LibGit2Sharp routinely fails with "Failed to receive response: The server returned an invalid 
+        /// or unrecognized response" we re-try operations here.
+        /// </summary>
         private void RunLibGit2SharpOperationWithRetry(Uri gitCloneUri, string cloneDirectoryPath, Action operation, int retryCount = 0)
         {
             try
@@ -593,8 +659,9 @@ namespace GitHgMirror.Runner
             catch (LibGit2SharpException ex)
             {
                 // We won't re-try these as these errors are most possibly not transient ones.
-                if (ex.Message.Contains("Request failed with status code: 404") || 
-                    ex.Message.Contains("Request failed with status code: 401"))
+                if (ex.Message.Contains("Request failed with status code: 404") ||
+                    ex.Message.Contains("Request failed with status code: 401") ||
+                    ex.Message.Contains("Request failed with status code: 403"))
                 {
                     throw;
                 }
