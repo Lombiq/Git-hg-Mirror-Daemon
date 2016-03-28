@@ -657,8 +657,9 @@ namespace GitHgMirror.Runner
             catch (LibGit2SharpException ex)
             {
                 // We won't re-try these as these errors are most possibly not transient ones.
-                if (ex.Message.Contains("Request failed with status code: 404") || 
-                    ex.Message.Contains("Request failed with status code: 401"))
+                if (ex.Message.Contains("Request failed with status code: 404") ||
+                    ex.Message.Contains("Request failed with status code: 401") ||
+                    ex.Message.Contains("Request failed with status code: 403"))
                 {
                     throw;
                 }
