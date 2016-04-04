@@ -406,6 +406,9 @@ namespace GitHgMirror.Runner
             {
                 if (ex.IsHgConnectionTerminatedError())
                 {
+                    _eventLog.WriteEntry(
+                        "Cloning from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
+                        EventLogEntryType.Warning);
                     RunRemoteHgCommandAndLogOutput("hg clone --noupdate --rev 0 " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
                     RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
 
@@ -423,7 +426,13 @@ namespace GitHgMirror.Runner
             }
             catch (CommandException ex)
             {
-                if (ex.IsHgConnectionTerminatedError()) PullPerRevisionsHg(quotedHgCloneUrl);
+                if (ex.IsHgConnectionTerminatedError())
+                {
+                    _eventLog.WriteEntry(
+                        "Pulling from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.", 
+                        EventLogEntryType.Warning);
+                    PullPerRevisionsHg(quotedHgCloneUrl);
+                }
                 else throw;
             }
         }
