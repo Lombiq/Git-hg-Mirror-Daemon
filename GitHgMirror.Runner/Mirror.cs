@@ -308,6 +308,9 @@ namespace GitHgMirror.Runner
 
             RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
+                    // This allows large, 200MB pushes, see: https://stackoverflow.com/questions/12651749/git-push-fails-rpc-failed-result-22-http-code-411
+                    repository.Config.Set("http.postBuffer", 209715200);
+
                     // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
                     // So can't use "+refs/*:refs/*" here, must iterate.
                     foreach (var reference in repository.Refs)
@@ -403,6 +406,9 @@ namespace GitHgMirror.Runner
             {
                 if (ex.IsHgConnectionTerminatedError())
                 {
+                    _eventLog.WriteEntry(
+                        "Cloning from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
+                        EventLogEntryType.Warning);
                     RunRemoteHgCommandAndLogOutput("hg clone --noupdate --rev 0 " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath);
                     RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
 
@@ -420,7 +426,13 @@ namespace GitHgMirror.Runner
             }
             catch (CommandException ex)
             {
-                if (ex.IsHgConnectionTerminatedError()) PullPerRevisionsHg(quotedHgCloneUrl);
+                if (ex.IsHgConnectionTerminatedError())
+                {
+                    _eventLog.WriteEntry(
+                        "Pulling from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.", 
+                        EventLogEntryType.Warning);
+                    PullPerRevisionsHg(quotedHgCloneUrl);
+                }
                 else throw;
             }
         }
@@ -661,7 +673,8 @@ namespace GitHgMirror.Runner
                 // We won't re-try these as these errors are most possibly not transient ones.
                 if (ex.Message.Contains("Request failed with status code: 404") ||
                     ex.Message.Contains("Request failed with status code: 401") ||
-                    ex.Message.Contains("Request failed with status code: 403"))
+                    ex.Message.Contains("Request failed with status code: 403") ||
+                    ex is RepositoryNotFoundException)
                 {
                     throw;
                 }
