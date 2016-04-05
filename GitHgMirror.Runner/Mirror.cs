@@ -316,6 +316,10 @@ namespace GitHgMirror.Runner
                         // would be force push and completely overwrite the remote repo's content. This would always
                         // succeed no matter what is there but could wipe out changes made between the repo was fetched
                         // and pushed.
+                        // For large repos this will time out (with e.g. errors like "Failed to write chunk footer: The 
+                        // operation timed out". But nothing to do here, see: https://github.com/libgit2/libgit2sharp/issues/1253
+                        // A workaround would be to push commit by commit (see: http://stackoverflow.com/questions/3230074/git-pushing-specific-commit)
+                        // but that is very hard to get right with big histories having multiple root nodes.
                         repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
                     }
                 });
