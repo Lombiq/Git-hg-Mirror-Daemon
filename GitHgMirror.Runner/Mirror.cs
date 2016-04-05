@@ -306,7 +306,9 @@ namespace GitHgMirror.Runner
 
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
 
-            RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
+            try
+            {
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
                     _eventLog.WriteEntry(
                         "Starting to push to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
@@ -320,10 +322,6 @@ namespace GitHgMirror.Runner
                         // would be force push and completely overwrite the remote repo's content. This would always
                         // succeed no matter what is there but could wipe out changes made between the repo was fetched
                         // and pushed.
-                        // For large repos this will time out (with e.g. errors like "Failed to write chunk footer: The 
-                        // operation timed out". But nothing to do here, see: https://github.com/libgit2/libgit2sharp/issues/1253
-                        // A workaround would be to push commit by commit (see: http://stackoverflow.com/questions/3230074/git-pushing-specific-commit)
-                        // but that is very hard to get right with big histories having multiple root nodes.
                         repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
                     }
 
@@ -331,6 +329,74 @@ namespace GitHgMirror.Runner
                         "Finished pushing to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                         EventLogEntryType.Information);
                 });
+            }
+            catch (LibGit2SharpException ex)
+            {
+                // This will be the message of an exception thrown when a large push times out. So we'll re-try pushing
+                // commit by commit (see: http://stackoverflow.com/questions/3230074/git-pushing-specific-commit).
+                if (!ex.Message.Contains("Failed to write chunk footer: The operation timed out"))
+                {
+                    throw; 
+                }
+
+                _eventLog.WriteEntry(
+                    "Pushing to the follwing git repo timed out even after retries: " + gitCloneUri + " (" + cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
+                    EventLogEntryType.Warning);
+
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
+                {
+                    // Since we can only push a given commit if we also know its branch we need to iterate through them.
+                    foreach (var reference in repository.Refs)
+                    {
+                        // It's costly to iterate over the Commits collection but it could also potentially consume too 
+                        // much memory to enumerate the whole collection once and keep it in memory. Thus we work in batches.
+
+                        var commits = repository.Commits.QueryBy(new CommitFilter { Since = reference });
+                        var commitCount = commits.Count();
+                        var batchSize = 100;
+                        var currentBatchSkip = commitCount;
+                        var currentBatch = Enumerable.Empty<Commit>();
+
+                        var firstCommitOfBranch = true;
+
+                        do
+                        {
+                            currentBatchSkip = currentBatchSkip - batchSize;
+                            if (currentBatchSkip < 0) currentBatchSkip = 0;
+
+                            // We need to push the oldest commit first, so need to do a reverse.
+                            currentBatch = commits.Skip(currentBatchSkip).Reverse();
+
+                            foreach (var commit in currentBatch)
+                            {
+                                _eventLog.WriteEntry(
+                                    "Starting to push commit " + " to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                                    EventLogEntryType.Information);
+
+                                // The first commit for a new remote branch should use the "refs/heads/" prefix, others
+                                // just the branch name.
+                                var remoteReferenceName = firstCommitOfBranch ? 
+                                    reference.CanonicalName :
+                                    // Cutting "refs/heads/" off from the CanonicalName.
+                                    reference.CanonicalName.Substring(11);
+                                firstCommitOfBranch = false;
+
+                                repository.Network.Push(
+                                    repository.Network.Remotes["origin"],
+                                    commit.Sha + ":" + remoteReferenceName);
+
+                                _eventLog.WriteEntry(
+                                    "Starting to push commit " + " to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                                    EventLogEntryType.Information);
+                            }
+                        } while (currentBatchSkip != 0);
+                    }
+                });
+
+                _eventLog.WriteEntry(
+                    "Finished commit by commit pushing to the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                    EventLogEntryType.Information);
+            }
         }
 
         private void FetchFromGit(Uri gitCloneUri, string cloneDirectoryPath)
