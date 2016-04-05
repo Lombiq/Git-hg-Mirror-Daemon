@@ -309,7 +309,7 @@ namespace GitHgMirror.Runner
             RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
                     // This allows large, 150MB pushes, see: https://stackoverflow.com/questions/12651749/git-push-fails-rpc-failed-result-22-http-code-411
-                    repository.Config.Set("http.postBuffer", 157286400);
+                    repository.Config.Set("http.postBuffer", 209715200);
 
                     // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
                     // So can't use "+refs/*:refs/*" here, must iterate.
