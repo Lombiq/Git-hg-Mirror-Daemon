@@ -308,6 +308,10 @@ namespace GitHgMirror.Runner
 
             RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
+                    _eventLog.WriteEntry(
+                        "Starting to push to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                        EventLogEntryType.Information);
+
                     // This allows large, 150MB pushes, see: https://stackoverflow.com/questions/12651749/git-push-fails-rpc-failed-result-22-http-code-411
                     repository.Config.Set("http.postBuffer", 209715200);
 
@@ -325,6 +329,10 @@ namespace GitHgMirror.Runner
                         // but that is very hard to get right with big histories having multiple root nodes.
                         repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
                     }
+
+                    _eventLog.WriteEntry(
+                        "Finished pushing to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                        EventLogEntryType.Information);
                 });
         }
 
@@ -335,13 +343,33 @@ namespace GitHgMirror.Runner
             if (!Directory.Exists(gitDirectoryPath))
             {
                 RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, () =>
-                    Repository.Clone(gitCloneUri.ToGitUrl(), gitDirectoryPath, new CloneOptions { IsBare = true }));
+                    {
+                        _eventLog.WriteEntry(
+                            "Starting to clone git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                            EventLogEntryType.Information);
+
+                        Repository.Clone(gitCloneUri.ToGitUrl(), gitDirectoryPath, new CloneOptions { IsBare = true });
+
+                        _eventLog.WriteEntry(
+                            "Finished cloning git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                            EventLogEntryType.Information);
+                    });
             }
             else
             {
                 // Unfortunately this won't fetch tags for some reason. TagFetchMode.All won't help either...
                 RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
-                    repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/*:refs/*" }));
+                    {
+                        _eventLog.WriteEntry(
+                            "Starting to fetch from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                            EventLogEntryType.Information);
+
+                        repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/*:refs/*" });
+
+                        _eventLog.WriteEntry(
+                            "Finished fetching from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                            EventLogEntryType.Information);
+                    });
             }
         }
 
