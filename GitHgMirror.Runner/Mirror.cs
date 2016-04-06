@@ -143,7 +143,7 @@ namespace GitHgMirror.Runner
                                 FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath);
                                 cdCloneDirectory();
                                 ImportHistoryFromGit();
-                                
+
                                 // Updating bookmarks which may have shifted after importing from git. This way the
                                 // export to git will create a git repo with history identical to the hg repo.
                                 CreateOrUpdateBookmarksForBranches();
@@ -255,7 +255,7 @@ namespace GitHgMirror.Runner
 
                             DeleteDirectoryIfExists(cloneDirectoryPath);
 
-                            exceptionMessage += 
+                            exceptionMessage +=
                                 " While deleting the folder of the mirror initially failed, after trying to kill processes that were locking files in it and setting all files not to be read-only the folder could be successfully deleted. " +
                                 "Processes killed: " + (killedProcesses.Any() ? string.Join(", ", killedProcesses) : "no processes") +
                                 " Read-only files: " + (readOnlyFiles.Any() ? string.Join(", ", readOnlyFiles) : "no files");
@@ -275,8 +275,8 @@ namespace GitHgMirror.Runner
                     }
 
                     throw new MirroringException(
-                        exceptionMessage + " Subsequently clean-up after the error failed as well.", 
-                        ex, 
+                        exceptionMessage + " Subsequently clean-up after the error failed as well.",
+                        ex,
                         directoryDeleteException);
                 }
 
@@ -307,21 +307,26 @@ namespace GitHgMirror.Runner
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
 
             RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
-                {
-                    // This allows large, 200MB pushes, see: https://stackoverflow.com/questions/12651749/git-push-fails-rpc-failed-result-22-http-code-411
-                    repository.Config.Set("http.postBuffer", 209715200);
+            {
+                _eventLog.WriteEntry(
+                    "Starting to push to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                    EventLogEntryType.Information);
 
-                    // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
-                    // So can't use "+refs/*:refs/*" here, must iterate.
-                    foreach (var reference in repository.Refs)
-                    {
-                        // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
-                        // would be force push and completely overwrite the remote repo's content. This would always
-                        // succeed no matter what is there but could wipe out changes made between the repo was fetched
-                        // and pushed.
-                        repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
-                    }
-                });
+                // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
+                // So can't use "+refs/*:refs/*" here, must iterate.
+                foreach (var reference in repository.Refs)
+                {
+                    // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
+                    // would be force push and completely overwrite the remote repo's content. This would always
+                    // succeed no matter what is there but could wipe out changes made between the repo was fetched
+                    // and pushed.
+                    repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
+                }
+
+                _eventLog.WriteEntry(
+                    "Finished pushing to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                    EventLogEntryType.Information);
+            });
         }
 
         private void FetchFromGit(Uri gitCloneUri, string cloneDirectoryPath)
@@ -331,13 +336,33 @@ namespace GitHgMirror.Runner
             if (!Directory.Exists(gitDirectoryPath))
             {
                 RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, () =>
-                    Repository.Clone(gitCloneUri.ToGitUrl(), gitDirectoryPath, new CloneOptions { IsBare = true }));
+                    {
+                        _eventLog.WriteEntry(
+                            "Starting to clone git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                            EventLogEntryType.Information);
+
+                        Repository.Clone(gitCloneUri.ToGitUrl(), gitDirectoryPath, new CloneOptions { IsBare = true });
+
+                        _eventLog.WriteEntry(
+                            "Finished cloning git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                            EventLogEntryType.Information);
+                    });
             }
             else
             {
                 // Unfortunately this won't fetch tags for some reason. TagFetchMode.All won't help either...
                 RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
-                    repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/*:refs/*" }));
+                    {
+                        _eventLog.WriteEntry(
+                            "Starting to fetch from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                            EventLogEntryType.Information);
+
+                        repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/*:refs/*" });
+
+                        _eventLog.WriteEntry(
+                            "Finished fetching from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                            EventLogEntryType.Information);
+                    });
             }
         }
 
@@ -429,7 +454,7 @@ namespace GitHgMirror.Runner
                 if (ex.IsHgConnectionTerminatedError())
                 {
                     _eventLog.WriteEntry(
-                        "Pulling from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.", 
+                        "Pulling from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
                         EventLogEntryType.Warning);
                     PullPerRevisionsHg(quotedHgCloneUrl);
                 }
@@ -679,10 +704,10 @@ namespace GitHgMirror.Runner
                     throw;
                 }
 
-                var errorDescriptor = 
+                var errorDescriptor =
                     Environment.NewLine + "Operation attempted with the " + gitCloneUri.ToGitUrl() + " repository (directory: " + cloneDirectoryPath + ")" +
-                    Environment.NewLine + ex.ToString() + 
-                    Environment.NewLine + "Operation: " + Environment.NewLine + 
+                    Environment.NewLine + ex.ToString() +
+                    Environment.NewLine + "Operation: " + Environment.NewLine +
                     // Removing first two lines from the stack trace that contain the stack trace retrieval itself.
                     string.Join(Environment.NewLine, Environment.StackTrace.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Skip(2));
 
