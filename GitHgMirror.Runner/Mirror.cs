@@ -332,9 +332,10 @@ namespace GitHgMirror.Runner
             }
             catch (LibGit2SharpException ex)
             {
-                // This will be the message of an exception thrown when a large push times out. So we'll re-try pushing
-                // commit by commit (see: http://stackoverflow.com/questions/3230074/git-pushing-specific-commit).
-                if (!ex.Message.Contains("Failed to write chunk footer: The operation timed out"))
+                // These will be the message of an exception thrown when a large push times out. So we'll re-try pushing
+                // commit by commit.
+                if (!ex.Message.Contains("Failed to write chunk footer: The operation timed out") &&
+                    !ex.Message.Contains("Failed to write chunk footer: The connection with the server was terminated abnormally"))
                 {
                     throw; 
                 }
@@ -346,50 +347,86 @@ namespace GitHgMirror.Runner
                 RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
                     // Since we can only push a given commit if we also know its branch we need to iterate through them.
-                    foreach (var reference in repository.Refs)
+                    // This won't push tags but that will be taken care of next time with the above standard push logic.
+                    foreach (var branch in repository.Branches)
                     {
-                        // It's costly to iterate over the Commits collection but it could also potentially consume too 
-                        // much memory to enumerate the whole collection once and keep it in memory. Thus we work in batches.
-
-                        var commits = repository.Commits.QueryBy(new CommitFilter { Since = reference });
-                        var commitCount = commits.Count();
-                        var batchSize = 100;
-                        var currentBatchSkip = commitCount;
-                        var currentBatch = Enumerable.Empty<Commit>();
-
-                        var firstCommitOfBranch = true;
-
-                        do
+                        // Neither of the left part of these push refspeces will match anything, so neither will work,
+                        // despite master~1425 just working fine like this: repository.Commits.QueryBy(new CommitFilter { Since = "master~1425" });
+                        // HEAD~1425 won't work either.
+                        try
                         {
-                            currentBatchSkip = currentBatchSkip - batchSize;
-                            if (currentBatchSkip < 0) currentBatchSkip = 0;
+                            repository.Network.Push(
+                                repository.Network.Remotes["origin"],
+                                "master~1425:refs/heads/master");
+                        }
+                        catch (Exception)
+                        {
+                        }
 
-                            // We need to push the oldest commit first, so need to do a reverse.
-                            currentBatch = commits.Skip(currentBatchSkip).Reverse();
+                        try
+                        {
+                            repository.Network.Push(
+                                repository.Network.Remotes["origin"],
+                                "refs/heads/master~1425:refs/heads/master");
+                        }
+                        catch (Exception)
+                        {
+                        }
 
-                            foreach (var commit in currentBatch)
-                            {
-                                _eventLog.WriteEntry(
-                                    "Starting to push commit " + " to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
-                                    EventLogEntryType.Information);
+                        try
+                        {
+                            repository.Network.Push(
+                                repository.Network.Remotes["origin"],
+                                "refs/remotes/origin/master~1425:refs/heads/master");
+                        }
+                        catch (Exception)
+                        {
+                        }
 
-                                // The first commit for a new remote branch should use the "refs/heads/" prefix, others
-                                // just the branch name.
-                                var remoteReferenceName = firstCommitOfBranch ? 
-                                    reference.CanonicalName :
-                                    // Cutting "refs/heads/" off from the CanonicalName.
-                                    reference.CanonicalName.Substring(11);
-                                firstCommitOfBranch = false;
+                        try
+                        {
+                            repository.Network.Push(
+                                repository.Network.Remotes["origin"],
+                                "origin/master~1425:refs/heads/master");
+                        }
+                        catch (Exception)
+                        {
+                        }
+                        
 
-                                repository.Network.Push(
-                                    repository.Network.Remotes["origin"],
-                                    commit.Sha + ":" + remoteReferenceName);
+                        // Since we can't use push by commit hash as described on http://stackoverflow.com/questions/3230074/git-pushing-specific-commit
+                        // (because of lack of libgit2 support, see: https://github.com/libgit2/libgit2/issues/3178) we 
+                        // need to build refspeces to push individual commits in ascending order (starting with the root
+                        // commit/s).
 
-                                _eventLog.WriteEntry(
-                                    "Starting to push commit " + " to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
-                                    EventLogEntryType.Information);
-                            }
-                        } while (currentBatchSkip != 0);
+                        var currentCommit = repository.Commits.First();
+                        var firstParentDepth = 0;
+                        while (currentCommit.Parents.Any())
+                        {
+                            var firstParent = currentCommit.Parents.First();
+                            currentCommit = firstParent;
+                            firstParentDepth++;
+                        }
+
+                        // For the refspec syntax see: http://stackoverflow.com/questions/2221658/whats-the-difference-between-head-and-head-in-git
+                        // and: http://www.paulboxley.com/blog/2011/06/git-caret-and-tilde.
+                        //var commits = repository.Commits.QueryBy(new CommitFilter { Since = branch.Name + "~" + firstParentDepth });
+                        //var commitCount = commits.Count();
+
+                        for (int i = firstParentDepth; i >= 0; i--)
+                        {
+                            _eventLog.WriteEntry(
+                                "Starting to push commit " + " to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                                EventLogEntryType.Information);
+
+                            repository.Network.Push(
+                                repository.Network.Remotes["origin"],
+                                branch.Name + "~" + i + ":" + branch.CanonicalName);
+
+                            _eventLog.WriteEntry(
+                                "Starting to push commit " + " to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                                EventLogEntryType.Information);
+                        }
                     }
                 });
 
