@@ -306,134 +306,27 @@ namespace GitHgMirror.Runner
 
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
 
-            try
+            RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
             {
-                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
-                {
-                    _eventLog.WriteEntry(
-                        "Starting to push to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
-                        EventLogEntryType.Information);
+                _eventLog.WriteEntry(
+                    "Starting to push to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                    EventLogEntryType.Information);
 
-                    // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
-                    // So can't use "+refs/*:refs/*" here, must iterate.
-                    foreach (var reference in repository.Refs)
-                    {
-                        // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
-                        // would be force push and completely overwrite the remote repo's content. This would always
-                        // succeed no matter what is there but could wipe out changes made between the repo was fetched
-                        // and pushed.
-                        repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
-                    }
-
-                    _eventLog.WriteEntry(
-                        "Finished pushing to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
-                        EventLogEntryType.Information);
-                });
-            }
-            catch (LibGit2SharpException ex)
-            {
-                // These will be the message of an exception thrown when a large push times out. So we'll re-try pushing
-                // commit by commit.
-                if (!ex.Message.Contains("Failed to write chunk footer: The operation timed out") &&
-                    !ex.Message.Contains("Failed to write chunk footer: The connection with the server was terminated abnormally"))
+                // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
+                // So can't use "+refs/*:refs/*" here, must iterate.
+                foreach (var reference in repository.Refs)
                 {
-                    throw; 
+                    // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
+                    // would be force push and completely overwrite the remote repo's content. This would always
+                    // succeed no matter what is there but could wipe out changes made between the repo was fetched
+                    // and pushed.
+                    repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
                 }
 
                 _eventLog.WriteEntry(
-                    "Pushing to the follwing git repo timed out even after retries: " + gitCloneUri + " (" + cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
-                    EventLogEntryType.Warning);
-
-                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
-                {
-                    // Since we can only push a given commit if we also know its branch we need to iterate through them.
-                    // This won't push tags but that will be taken care of next time with the above standard push logic.
-                    foreach (var branch in repository.Branches)
-                    {
-                        // Neither of the left part of these push refspeces will match anything, so neither will work,
-                        // despite master~1425 just working fine like this: repository.Commits.QueryBy(new CommitFilter { Since = "master~1425" });
-                        // HEAD~1425 won't work either.
-                        try
-                        {
-                            repository.Network.Push(
-                                repository.Network.Remotes["origin"],
-                                "master~1425:refs/heads/master");
-                        }
-                        catch (Exception)
-                        {
-                        }
-
-                        try
-                        {
-                            repository.Network.Push(
-                                repository.Network.Remotes["origin"],
-                                "refs/heads/master~1425:refs/heads/master");
-                        }
-                        catch (Exception)
-                        {
-                        }
-
-                        try
-                        {
-                            repository.Network.Push(
-                                repository.Network.Remotes["origin"],
-                                "refs/remotes/origin/master~1425:refs/heads/master");
-                        }
-                        catch (Exception)
-                        {
-                        }
-
-                        try
-                        {
-                            repository.Network.Push(
-                                repository.Network.Remotes["origin"],
-                                "origin/master~1425:refs/heads/master");
-                        }
-                        catch (Exception)
-                        {
-                        }
-                        
-
-                        // Since we can't use push by commit hash as described on http://stackoverflow.com/questions/3230074/git-pushing-specific-commit
-                        // (because of lack of libgit2 support, see: https://github.com/libgit2/libgit2/issues/3178) we 
-                        // need to build refspeces to push individual commits in ascending order (starting with the root
-                        // commit/s).
-
-                        var currentCommit = repository.Commits.First();
-                        var firstParentDepth = 0;
-                        while (currentCommit.Parents.Any())
-                        {
-                            var firstParent = currentCommit.Parents.First();
-                            currentCommit = firstParent;
-                            firstParentDepth++;
-                        }
-
-                        // For the refspec syntax see: http://stackoverflow.com/questions/2221658/whats-the-difference-between-head-and-head-in-git
-                        // and: http://www.paulboxley.com/blog/2011/06/git-caret-and-tilde.
-                        //var commits = repository.Commits.QueryBy(new CommitFilter { Since = branch.Name + "~" + firstParentDepth });
-                        //var commitCount = commits.Count();
-
-                        for (int i = firstParentDepth; i >= 0; i--)
-                        {
-                            _eventLog.WriteEntry(
-                                "Starting to push commit " + " to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
-                                EventLogEntryType.Information);
-
-                            repository.Network.Push(
-                                repository.Network.Remotes["origin"],
-                                branch.Name + "~" + i + ":" + branch.CanonicalName);
-
-                            _eventLog.WriteEntry(
-                                "Starting to push commit " + " to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
-                                EventLogEntryType.Information);
-                        }
-                    }
-                });
-
-                _eventLog.WriteEntry(
-                    "Finished commit by commit pushing to the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                    "Finished pushing to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                     EventLogEntryType.Information);
-            }
+            });
         }
 
         private void FetchFromGit(Uri gitCloneUri, string cloneDirectoryPath)
