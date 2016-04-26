@@ -24,28 +24,126 @@ namespace GitHgMirror.Runner.Services
 
             // Git repos should be pushed with git as otherwise large (even as large as 15MB) pushes can fail.
 
-            RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
+            try
             {
-                _eventLog.WriteEntry(
-                    "Starting to push to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
-                    EventLogEntryType.Information);
-
-                // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
-                // So can't use "+refs/*:refs/*" here, must iterate.
-                foreach (var reference in repository.Refs)
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
-                    // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
-                    // would be force push and completely overwrite the remote repo's content. This would always
-                    // succeed no matter what is there but could wipe out changes made between the repo was fetched
-                    // and pushed.
-                    repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
+                    _eventLog.WriteEntry(
+                        "Starting to push to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                        EventLogEntryType.Information);
+
+                    // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
+                    // So can't use "+refs/*:refs/*" here, must iterate.
+                    foreach (var reference in repository.Refs)
+                    {
+                        // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
+                        // would be force push and completely overwrite the remote repo's content. This would always
+                        // succeed no matter what is there but could wipe out changes made between the repo was fetched
+                        // and pushed.
+                        repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
+                    }
+
+                    _eventLog.WriteEntry(
+                        "Finished pushing to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                        EventLogEntryType.Information);
+                });
+            }
+            catch (LibGit2SharpException ex)
+            {
+                // These will be the messages of an exception thrown when a large push times out. So we'll re-try pushing
+                // commit by commit.
+                if (!ex.Message.Contains("Failed to write chunk footer: The operation timed out") &&
+                    !ex.Message.Contains("Failed to write chunk footer: The connection with the server was terminated abnormally"))
+                {
+                    throw;
                 }
 
                 _eventLog.WriteEntry(
-                    "Finished pushing to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
-                    EventLogEntryType.Information);
-            });
+                    "Pushing to the follwing git repo timed out even after retries: " + gitCloneUri + " (" + cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
+                    EventLogEntryType.Warning);
 
+                RunCommandAndLogOutput("cd " + Path.Combine(cloneDirectoryPath, ".hg", "git").EncloseInQuotes());
+
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
+                {
+                    // Since we can only push a given commit if we also know its branch we need to iterate through them.
+                    // This won't push tags but that will be taken care of next time with the above standard push logic.
+                    foreach (var branch in repository.Branches)
+                    {
+                        // We can't use push by commit hash (as described on 
+                        // http://stackoverflow.com/questions/3230074/git-pushing-specific-commit) with libgit2 because
+                        // of lack of support (see: https://github.com/libgit2/libgit2/issues/3178). So we need to use
+                        // git directly.
+                        // This is super-slow as it iterates over every commit in every branch (and a commit can be in
+                        // multiple branches), but will surely work.
+
+                        // It's costly to iterate over the Commits collection but it could also potentially consume too 
+                        // much memory to enumerate the whole collection once and keep it in memory. Thus we work in
+                        // batches.
+
+                        var commits = repository.Commits.QueryBy(new CommitFilter { Since = branch });
+                        var commitCount = commits.Count();
+                        var batchSize = 100;
+                        var currentBatchSkip = commitCount;
+                        var currentBatch = Enumerable.Empty<Commit>();
+
+                        var firstCommitOfBranch = true;
+
+                        do
+                        {
+                            currentBatchSkip = currentBatchSkip - batchSize;
+                            if (currentBatchSkip < 0) currentBatchSkip = 0;
+
+                            // We need to push the oldest commit first, so need to do a reverse.
+                            currentBatch = commits.Skip(currentBatchSkip).Reverse();
+
+                            foreach (var commit in currentBatch)
+                            {
+                                var sha = commit.Sha;
+
+                                _eventLog.WriteEntry(
+                                    "Starting to push commit " + sha + " to the branch " + branch.Name + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                                    EventLogEntryType.Information);
+
+                                try
+                                {
+                                    // The first commit for a new remote branch should use the "refs/heads/" prefix, 
+                                    // others just the branch name.
+                                    var branchName = branch.Name;
+                                    if (firstCommitOfBranch) branchName = "refs/heads/" + branchName;
+
+                                    // The --mirror switch can't be used with refspec push.
+                                    RunCommandAndLogOutput(
+                                        "git push " + 
+                                        gitCloneUri.ToGitUrl().EncloseInQuotes() + " "
+                                        + sha + ":" + branchName + " --follow-tags");
+                                }
+                                catch (CommandException commandException)
+                                {
+                                    if (IsGitExceptionRealError(commandException)) throw;
+                                }
+
+                                _eventLog.WriteEntry(
+                                    "Finished pushing commit " + sha + " to the branch " + branch.Name + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                                    EventLogEntryType.Information);
+                            }
+                        } while (currentBatchSkip != 0);
+
+                        var currentCommit = repository.Commits.First();
+                        var firstParentDepth = 0;
+                        while (currentCommit.Parents.Any())
+                        {
+                            var firstParent = currentCommit.Parents.First();
+                            currentCommit = firstParent;
+                            firstParentDepth++;
+                        }
+                    }
+                });
+
+                _eventLog.WriteEntry(
+                    "Finished commit by commit pushing to the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                    EventLogEntryType.Information);
+            }
         }
 
         public void FetchFromGit(Uri gitCloneUri, string cloneDirectoryPath)
@@ -161,6 +259,26 @@ namespace GitHgMirror.Runner.Services
         private static string GetGitDirectoryPath(string cloneDirectoryPath)
         {
             return Path.Combine(cloneDirectoryPath, ".hg", "git");
+        }
+
+        /// <summary>
+        /// Git communicates some messages via the error stream, so checking them here.
+        /// </summary>
+        private static bool IsGitExceptionRealError(CommandException ex)
+        {
+            return
+                // If there is nothing to push git will return this message in the error stream.
+                !ex.Error.Contains("Everything up-to-date") &&
+                // A new branch was added.
+                !ex.Error.Contains("* [new branch]") &&
+                // Branches were deleted in git.
+                !ex.Error.Contains("[deleted]") &&
+                // A new tag was added.
+                !ex.Error.Contains("* [new tag]") &&
+                // The branch head was moved (shown during push).
+                !(ex.Error.Contains("..") && ex.Error.Contains(" -> ")) &&
+                // The branch head was moved (shown during fetch).
+                !(ex.Error.Contains("* branch") && ex.Error.Contains(" -> "));
         }
     }
 }
