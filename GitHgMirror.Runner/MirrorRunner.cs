@@ -9,13 +9,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Schedulers;
 using GitHgMirror.CommonTypes;
+using GitHgMirror.Runner.Services;
 using Newtonsoft.Json;
 
 namespace GitHgMirror.Runner
 {
     public class MirrorRunner
     {
-        private readonly Settings _settings;
+        private readonly MirroringSettings _settings;
         private readonly EventLog _eventLog;
         private readonly ApiService _apiService;
 
@@ -25,13 +26,15 @@ namespace GitHgMirror.Runner
         private readonly System.Timers.Timer _tasksRefreshTimer;
 
 
-        public MirrorRunner(Settings settings, EventLog eventLog)
+        public MirrorRunner(MirroringSettings settings, EventLog eventLog)
         {
             _settings = settings;
             _eventLog = eventLog;
             _apiService = new ApiService(settings);
 
             _taskScheduler = new QueuedTaskScheduler(TaskScheduler.Default, settings.MaxDegreeOfParallelism);
+
+            
             _tasksRefreshTimer = new System.Timers.Timer(settings.SecondsBetweenConfigurationCountChecks * 1000);
             _tasksRefreshTimer.Elapsed += AdjustTasksToPageCount;
         }
@@ -88,7 +91,7 @@ namespace GitHgMirror.Runner
 
                         for (int c = 0; c < configurations.Count; c++)
                         {
-                            using (var mirror = new Mirror(_settings, _eventLog))
+                            using (var mirror = new Mirror(_eventLog))
                             {
                                 if (_cancellationTokenSource.IsCancellationRequested)
                                 {
@@ -97,7 +100,7 @@ namespace GitHgMirror.Runner
 
                                 var configuration = configurations[c];
 
-                                if (!mirror.IsCloned(configuration))
+                                if (!mirror.IsCloned(configuration, _settings))
                                 {
                                     _apiService.Post("Report", new MirroringStatusReport
                                     {
@@ -108,7 +111,7 @@ namespace GitHgMirror.Runner
 
                                 try
                                 {
-                                    mirror.MirrorRepositories(configuration);
+                                    mirror.MirrorRepositories(configuration, _settings);
 
                                     _apiService.Post("Report", new MirroringStatusReport
                                     {

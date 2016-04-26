@@ -11,10 +11,10 @@ namespace GitHgMirror.Runner
 {
     class ApiService
     {
-        private readonly Settings _settings;
+        private readonly MirroringSettings _settings;
 
 
-        public ApiService(Settings settings)
+        public ApiService(MirroringSettings settings)
         {
             _settings = settings;
         }

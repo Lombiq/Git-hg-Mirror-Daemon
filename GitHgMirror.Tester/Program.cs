@@ -30,7 +30,7 @@ namespace GitHgMirror.Tester
                     };
 
 
-                var settings = new Settings
+                var settings = new MirroringSettings
                 {
                     ApiEndpointUrl = new Uri("http://githgmirror.com.127-0-0-1.org.uk/api/GitHgMirror.Common/Mirrorings"),
                     ApiPassword = "Fsdfp342LE8%!",
