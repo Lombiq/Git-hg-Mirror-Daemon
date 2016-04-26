@@ -14,7 +14,7 @@ namespace GitHgMirror.Daemon
 {
     public partial class GitHgMirrorService : ServiceBase
     {
-        private Settings _settings;
+        private MirroringSettings _settings;
         private MirrorRunner _runner;
         private UntouchedRepositoriesCleaner _cleaner;
         private ManualResetEvent _waitHandle = new ManualResetEvent(false);
@@ -31,12 +31,12 @@ namespace GitHgMirror.Daemon
             serviceEventLog.MaximumKilobytes = 65536;
             serviceEventLog.WriteEntry("GitHgMirrorDaemon started.");
 
-            _settings = new Settings
+            _settings = new MirroringSettings
             {
                 ApiEndpointUrl = new Uri("http://githgmirror.com/api/GitHgMirror.Common/Mirrorings"),
                 ApiPassword = "Fsdfp342LE8%!",
                 RepositoriesDirectoryPath = @"C:\GitHgMirror\Repositories",
-                MaxDegreeOfParallelism = 5,
+                MaxDegreeOfParallelism = 8,
                 BatchSize = 1
             };
 

@@ -10,11 +10,12 @@ This is needed on the server as well as locally if you want to test mirroring.
 2. Enable the hggit extension (if it wasn't already; it comes with TortoiseHg). 
 3. Make sure that the mercurial_keyring extension is **not** enabled and there are no prefixes configured in the `[auth]` section of mercurial.ini (as these will override the authentication configs used during git interactions).
 4. Restart TortoiseHg.
+5. Install [Git](https://git-scm.com/) (if you have GitExtensions already installed, you can skip this step). During installation select the option "Use Git from the Windows Command Prompt"; everything else can be the default.
 
 
 ## Installation on the server
 
-1. Set up Mercurial as described above.
+1. Set up Mercurial and Git as described above.
 2. Copy the service exe and its dependencies (basically the whole Release bin folder) onto the server in a desired location (e.g. C:\GitHgMirror\GitHgMirrorDaemon).
 3. Run the exe as administrator. This will install the service (running it again uninstalls it). Verify if the installation was successful by checking Services.
 4. Set up the service to run as the local user from under Properties/Log On. This makes it possible for the service to use the same settings what you see in TortoiseHg.

@@ -10,11 +10,11 @@ namespace GitHgMirror.Runner
 {
     public class UntouchedRepositoriesCleaner
     {
-        private readonly Settings _settings;
+        private readonly MirroringSettings _settings;
         private readonly EventLog _eventLog;
 
 
-        public UntouchedRepositoriesCleaner(Settings settings, EventLog eventLog)
+        public UntouchedRepositoriesCleaner(MirroringSettings settings, EventLog eventLog)
         {
             _settings = settings;
             _eventLog = eventLog;

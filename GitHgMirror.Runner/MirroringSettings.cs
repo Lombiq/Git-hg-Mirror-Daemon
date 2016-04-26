@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace GitHgMirror.Runner
 {
-    public class Settings
+    public class MirroringSettings
     {
         public Uri ApiEndpointUrl { get; set; }
         public string ApiPassword { get; set; }
@@ -32,7 +32,7 @@ namespace GitHgMirror.Runner
         public MercurialSettings MercurialSettings { get; set; }
 
 
-        public Settings()
+        public MirroringSettings()
         {
             MaxDegreeOfParallelism = 10;
             BatchSize = 50;
