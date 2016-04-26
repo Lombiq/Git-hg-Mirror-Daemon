@@ -36,7 +36,7 @@ namespace GitHgMirror.Daemon
                 ApiEndpointUrl = new Uri("http://githgmirror.com/api/GitHgMirror.Common/Mirrorings"),
                 ApiPassword = "Fsdfp342LE8%!",
                 RepositoriesDirectoryPath = @"C:\GitHgMirror\Repositories",
-                MaxDegreeOfParallelism = 5,
+                MaxDegreeOfParallelism = 8,
                 BatchSize = 1
             };
 
