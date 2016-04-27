@@ -37,6 +37,8 @@ namespace GitHgMirror.Daemon
                 ApiPassword = "Fsdfp342LE8%!",
                 RepositoriesDirectoryPath = @"C:\GitHgMirror\Repositories",
                 MaxDegreeOfParallelism = 8,
+                // This way no sync waits for another one to finish in a batch but they run independently of each other,
+                // the throughput only being limited by MaxDegreeOfParallelism.
                 BatchSize = 1
             };
 
