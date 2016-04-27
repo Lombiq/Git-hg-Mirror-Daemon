@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using LibGit2Sharp;
 
@@ -105,30 +106,56 @@ namespace GitHgMirror.Runner.Services
                                     "Starting to push commit " + sha + " to the branch " + branch.Name + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                                     EventLogEntryType.Information);
 
-                                try
-                                {
-                                    // The first commit for a new remote branch should use the "refs/heads/" prefix, 
-                                    // others just the branch name.
-                                    var branchName = branch.Name;
-                                    if (firstCommitOfBranch) branchName = "refs/heads/" + branchName;
 
-                                    // The --mirror switch can't be used with refspec push.
-                                    RunCommandAndLogOutput(
-                                        "git push " + 
-                                        gitCloneUri.ToGitUrl().EncloseInQuotes() + " "
-                                        + sha + ":" + branchName + " --follow-tags");
-                                }
-                                catch (CommandException commandException)
+                                var tryCount = 0;
+                                var reRunGitPush = false;
+
+                                do
                                 {
-                                    if (IsGitExceptionRealError(commandException) && 
-                                        // When trying to re-push a commit we'll get an error like below, but this isn't
-                                        // an issue:
-                                        // ! [rejected]        b028f04f5092cb47db015dd7d9bfc2ad8cd8ce98 -> master (non-fast-forward)
-                                        !commandException.Error.Contains(" ! [rejected]"))
+                                    try
                                     {
-                                        throw;
+                                        tryCount++;
+                                        reRunGitPush = false;
+
+                                        // The first commit for a new remote branch should use the "refs/heads/" prefix, 
+                                        // others just the branch name.
+                                        var branchName = branch.Name;
+                                        if (firstCommitOfBranch) branchName = "refs/heads/" + branchName;
+
+                                        // The --mirror switch can't be used with refspec push.
+                                        RunCommandAndLogOutput(
+                                            "git push " +
+                                            gitCloneUri.ToGitUrl().EncloseInQuotes() + " "
+                                            + sha + ":" + branchName + " --follow-tags");
                                     }
-                                }
+                                    catch (CommandException commandException)
+                                    {
+                                        if (IsGitExceptionRealError(commandException) &&
+                                            // When trying to re-push a commit we'll get an error like below, but this isn't
+                                            // an issue:
+                                            // ! [rejected]        b028f04f5092cb47db015dd7d9bfc2ad8cd8ce98 -> master (non-fast-forward)
+                                            !commandException.Error.Contains(" ! [rejected]"))
+                                        {
+                                            // Pushing commit by commit is very slow, thus restarting from the beginning
+                                            // is tedious. Thus if pushing a git commit happens to fail then re-try on
+                                            // this micro level first.
+                                            if (tryCount < 3)
+                                            {
+                                                _eventLog.WriteEntry(
+                                                    "Pushing commit " + sha + " to the branch " + branch.Name + 
+                                                    " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + 
+                                                    ") failed with the following exception: " + commandException.ToString() +
+                                                    "This was try #" + tryCount + ", retrying.",
+                                                    EventLogEntryType.Warning);
+                                                reRunGitPush = true;
+                                                // Waiting a bit so maybe the error will go away if it was temporary.
+                                                Thread.Sleep(10000);
+                                            }
+                                            else throw;
+                                        }
+                                    }  
+                                } while (reRunGitPush);
+
 
                                 _eventLog.WriteEntry(
                                     "Finished pushing commit " + sha + " to the branch " + branch.Name + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
