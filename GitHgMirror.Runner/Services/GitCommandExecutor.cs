@@ -290,7 +290,7 @@ namespace GitHgMirror.Runner.Services
         }
 
 
-        private static string GetGitDirectoryPath(string cloneDirectoryPath)
+        public static string GetGitDirectoryPath(string cloneDirectoryPath)
         {
             return Path.Combine(cloneDirectoryPath, ".hg", "git");
         }

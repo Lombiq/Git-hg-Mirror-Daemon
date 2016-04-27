@@ -80,7 +80,8 @@ namespace GitHgMirror.Runner.Services
                             }
                             else
                             {
-                                _gitCommandExecutor.FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                RunGitCommandAndMarkException(() =>
+                                    _gitCommandExecutor.FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath));
                                 _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings);
                             }
                         }
@@ -117,7 +118,8 @@ namespace GitHgMirror.Runner.Services
                         {
                             _hgCommandExecutor.CreateOrUpdateBookmarksForBranches(quotedCloneDirectoryPath, settings);
                             _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings);
-                            _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
+                            RunGitCommandAndMarkException(() =>
+                                _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath));
                         }
 
                         break;
@@ -129,7 +131,8 @@ namespace GitHgMirror.Runner.Services
 
                                 // This will clear all commits int he git repo that aren't in the git remote repo but 
                                 // add changes that were added to the git repo.
-                                _gitCommandExecutor.FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                RunGitCommandAndMarkException(() =>
+                                    _gitCommandExecutor.FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath));
                                 _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings);
 
                                 // Updating bookmarks which may have shifted after importing from git. This way the
@@ -137,7 +140,8 @@ namespace GitHgMirror.Runner.Services
                                 _hgCommandExecutor.CreateOrUpdateBookmarksForBranches(quotedCloneDirectoryPath, settings);
                                 _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings);
 
-                                _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath);
+                                RunGitCommandAndMarkException(() =>
+                                    _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath));
                             };
 
                         if (isCloned)
@@ -194,17 +198,41 @@ namespace GitHgMirror.Runner.Services
                 Dispose();
 
                 var exceptionMessage = string.Format(
-                    "An error occured while running commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will be re-started next time.", 
-                    configuration.HgCloneUri, 
-                    configuration.GitCloneUri, 
+                    "An error occured while running commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will be re-started next time.",
+                    configuration.HgCloneUri,
+                    configuration.GitCloneUri,
                     configuration.Direction);
 
                 try
                 {
                     // Re-cloning a repo is costly. During local debugging you can flip this variable from the
-                    // Immediate Window to prevent it if necessary.
-                    var continueWithDelete = true;
-                    if (continueWithDelete)
+                    // Immediate Window to prevent it if necessary too.
+                    var continueWithRepoFolderDelete = true;
+
+                    if (ex.Data.Contains("IsGitException"))
+                    {
+                        exceptionMessage += " The error was a git error.";
+
+                        try
+                        {
+                            DeleteDirectoryIfExists(GitCommandExecutor.GetGitDirectoryPath(cloneDirectoryPath));
+
+                            exceptionMessage += " Thus just the git folder was removed.";
+                            continueWithRepoFolderDelete = false;
+                        }
+                        catch (Exception gitDirectoryDeleteException)
+                        {
+                            if (gitDirectoryDeleteException.IsFatal()) throw;
+
+                            exceptionMessage += " While the removal of the git folder was attempted it failed (" + 
+                                gitDirectoryDeleteException +
+                                "), thus the deletion of the whole repository folder will be attempted.";
+
+                            // We'll continue with the repo folder removal below.
+                        }
+                    }
+
+                    if (continueWithRepoFolderDelete)
                     {
                         DeleteDirectoryIfExists(cloneDirectoryPath);
                     }
@@ -286,6 +314,27 @@ namespace GitHgMirror.Runner.Services
 
             _hgCommandExecutor.Dispose();
             _gitCommandExecutor.Dispose();
+        }
+
+
+        /// <summary>
+        /// Runs a git command and if it throws an exception it will mark the exception as coming from git. This allows
+        /// subsequent clean-up to only remove the git folder instead of the whole repo folder, sparing hg re-cloning.
+        /// </summary>
+        private void RunGitCommandAndMarkException(Action commandRunner)
+        {
+            try
+            {
+                commandRunner();
+            }
+            catch (Exception ex)
+            {
+                if (ex.IsFatal()) throw;
+
+                ex.Data["IsGitException"] = true;
+
+                throw;
+            }
         }
 
 
