@@ -193,7 +193,11 @@ namespace GitHgMirror.Runner.Services
                 // We should dispose the command runner so the folder is not locked by the command line.
                 _commandRunner.Dispose();
 
-                var exceptionMessage = string.Format("An error occured while running commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will be re-started next time.", configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction);
+                var exceptionMessage = string.Format(
+                    "An error occured while running commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will be re-started next time.", 
+                    configuration.HgCloneUri, 
+                    configuration.GitCloneUri, 
+                    configuration.Direction);
 
                 try
                 {
