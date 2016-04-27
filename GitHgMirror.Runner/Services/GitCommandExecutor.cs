@@ -120,7 +120,14 @@ namespace GitHgMirror.Runner.Services
                                 }
                                 catch (CommandException commandException)
                                 {
-                                    if (IsGitExceptionRealError(commandException)) throw;
+                                    if (IsGitExceptionRealError(commandException) && 
+                                        // When trying to re-push a commit we'll get an error like below, but this isn't
+                                        // an issue:
+                                        // ! [rejected]        b028f04f5092cb47db015dd7d9bfc2ad8cd8ce98 -> master (non-fast-forward)
+                                        !commandException.Error.Contains(" ! [rejected]"))
+                                    {
+                                        throw;
+                                    }
                                 }
 
                                 _eventLog.WriteEntry(
