@@ -23,7 +23,7 @@ namespace GitHgMirror.Runner
         public int MaxDegreeOfParallelism { get; set; }
 
         /// <summary>
-        /// The amount of sync runs processed in on batch (executed in one task).
+        /// The amount of sync runs processed in one batch (executed in one task).
         /// </summary>
         public int BatchSize { get; set; }
 
