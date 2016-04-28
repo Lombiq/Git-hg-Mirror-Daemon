@@ -93,7 +93,11 @@ namespace GitHgMirror.Runner.Services
                         do
                         {
                             currentBatchSkip = currentBatchSkip - batchSize;
-                            if (currentBatchSkip < 0) currentBatchSkip = 0;
+                            if (currentBatchSkip < 0)
+                            {
+                                batchSize = Math.Abs(currentBatchSkip);
+                                currentBatchSkip = 0;
+                            }
 
                             // We need to push the oldest commit first, so need to do a reverse.
                             currentBatch = commits.Skip(currentBatchSkip).Take(batchSize).Reverse();
