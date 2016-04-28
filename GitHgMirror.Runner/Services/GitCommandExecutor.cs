@@ -162,15 +162,6 @@ namespace GitHgMirror.Runner.Services
                                     EventLogEntryType.Information);
                             }
                         } while (currentBatchSkip != 0);
-
-                        var currentCommit = repository.Commits.First();
-                        var firstParentDepth = 0;
-                        while (currentCommit.Parents.Any())
-                        {
-                            var firstParent = currentCommit.Parents.First();
-                            currentCommit = firstParent;
-                            firstParentDepth++;
-                        }
                     }
                 });
 
