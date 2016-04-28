@@ -96,7 +96,7 @@ namespace GitHgMirror.Runner.Services
                             if (currentBatchSkip < 0) currentBatchSkip = 0;
 
                             // We need to push the oldest commit first, so need to do a reverse.
-                            currentBatch = commits.Skip(currentBatchSkip).Reverse();
+                            currentBatch = commits.Skip(currentBatchSkip).Take(batchSize).Reverse();
 
                             foreach (var commit in currentBatch)
                             {
@@ -162,15 +162,6 @@ namespace GitHgMirror.Runner.Services
                                     EventLogEntryType.Information);
                             }
                         } while (currentBatchSkip != 0);
-
-                        var currentCommit = repository.Commits.First();
-                        var firstParentDepth = 0;
-                        while (currentCommit.Parents.Any())
-                        {
-                            var firstParent = currentCommit.Parents.First();
-                            currentCommit = firstParent;
-                            firstParentDepth++;
-                        }
                     }
                 });
 
