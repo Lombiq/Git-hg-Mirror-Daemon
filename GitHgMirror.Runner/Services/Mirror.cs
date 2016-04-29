@@ -224,9 +224,9 @@ namespace GitHgMirror.Runner.Services
                         {
                             if (gitDirectoryDeleteException.IsFatal()) throw;
 
-                            exceptionMessage += " While the removal of the git folder was attempted it failed (" + 
-                                gitDirectoryDeleteException +
-                                "), thus the deletion of the whole repository folder will be attempted.";
+                            exceptionMessage += 
+                                " While the removal of just the git folder was attempted it failed with the following exception, thus the deletion of the whole repository folder will be attempted: " + 
+                                gitDirectoryDeleteException;
 
                             // We'll continue with the repo folder removal below.
                         }
