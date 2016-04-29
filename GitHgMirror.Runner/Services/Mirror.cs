@@ -196,6 +196,9 @@ namespace GitHgMirror.Runner.Services
 
                 // We should dispose the command runners so the folder is not locked by the command line.
                 Dispose();
+                // Waiting a bit for any file locks or leases to be disposed even though CommandRunners and processes 
+                // were killed.
+                Thread.Sleep(10000);
 
                 var exceptionMessage = string.Format(
                     "An error occured while running commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will be re-started next time.",
