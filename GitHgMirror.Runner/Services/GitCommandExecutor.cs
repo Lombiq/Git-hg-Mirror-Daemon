@@ -63,7 +63,7 @@ namespace GitHgMirror.Runner.Services
                     "Pushing to the follwing git repo timed out even after retries: " + gitCloneUri + " (" + cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
                     EventLogEntryType.Warning);
 
-                RunCommandAndLogOutput("cd " + GetGitDirectoryPath(cloneDirectoryPath).EncloseInQuotes());
+                CdDirectory(GetGitDirectoryPath(cloneDirectoryPath).EncloseInQuotes());
 
                 RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
