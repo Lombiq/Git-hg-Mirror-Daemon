@@ -63,7 +63,7 @@ namespace GitHgMirror.Runner.Services
                     "Pushing to the follwing git repo timed out even after retries: " + gitCloneUri + " (" + cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
                     EventLogEntryType.Warning);
 
-                RunCommandAndLogOutput("cd " + GetGitDirectoryPath(cloneDirectoryPath).EncloseInQuotes());
+                CdDirectory(GetGitDirectoryPath(cloneDirectoryPath).EncloseInQuotes());
 
                 RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
@@ -93,7 +93,11 @@ namespace GitHgMirror.Runner.Services
                         do
                         {
                             currentBatchSkip = currentBatchSkip - batchSize;
-                            if (currentBatchSkip < 0) currentBatchSkip = 0;
+                            if (currentBatchSkip < 0)
+                            {
+                                batchSize = Math.Abs(currentBatchSkip);
+                                currentBatchSkip = 0;
+                            }
 
                             // We need to push the oldest commit first, so need to do a reverse.
                             currentBatch = commits.Skip(currentBatchSkip).Take(batchSize).Reverse();
@@ -199,7 +203,13 @@ namespace GitHgMirror.Runner.Services
                         "Starting to fetch from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                         EventLogEntryType.Information);
 
-                    repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/*:refs/*" });
+                    // We can't just use the +refs/*:refs/* refspec since on GitHub PRs have their own specials refs as
+                    // refs/pull/[ID]/head and refs/pull/[ID]/merge refs. Pushing a latter ref merges the PR, what of
+                    // course we don't want. So we need to filter just the interesting refs.
+                    // Also we really shouldn't fetch and push other namespaces like meta/config either, see:
+                    // https://groups.google.com/forum/#!topic/repo-discuss/zpqpPpHAwSM
+                    repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/heads/*:refs/heads/*" });
+                    repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/tags/*:refs/tags/*" });
 
                     _eventLog.WriteEntry(
                         "Finished fetching from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",

@@ -196,6 +196,9 @@ namespace GitHgMirror.Runner.Services
 
                 // We should dispose the command runners so the folder is not locked by the command line.
                 Dispose();
+                // Waiting a bit for any file locks or leases to be disposed even though CommandRunners and processes 
+                // were killed.
+                Thread.Sleep(10000);
 
                 var exceptionMessage = string.Format(
                     "An error occured while running commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will be re-started next time.",
@@ -224,9 +227,9 @@ namespace GitHgMirror.Runner.Services
                         {
                             if (gitDirectoryDeleteException.IsFatal()) throw;
 
-                            exceptionMessage += " While the removal of the git folder was attempted it failed (" + 
-                                gitDirectoryDeleteException +
-                                "), thus the deletion of the whole repository folder will be attempted.";
+                            exceptionMessage += 
+                                " While the removal of just the git folder was attempted it failed with the following exception, thus the deletion of the whole repository folder will be attempted: " + 
+                                gitDirectoryDeleteException;
 
                             // We'll continue with the repo folder removal below.
                         }
