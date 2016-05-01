@@ -54,8 +54,6 @@ namespace GitHgMirror.Runner.Services
                 var quotedCloneDirectoryPath = cloneDirectoryPath.EncloseInQuotes();
                 var isCloned = IsCloned(configuration, settings);
 
-                //Action cdCloneDirectory = () => RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
-
                 if (isCloned)
                 {
                     Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
