@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using GitHgMirror.Runner.Services;
 
 namespace GitHgMirror.Runner
 {
@@ -32,7 +33,8 @@ namespace GitHgMirror.Runner
                 {
                     foreach (var repositoryDirectory in Directory.EnumerateDirectories(letterDirectory))
                     {
-                        if (Directory.GetLastAccessTimeUtc(repositoryDirectory) < DateTime.UtcNow.Subtract(new TimeSpan(24, 0, 0)))
+                        if (Directory.GetLastAccessTimeUtc(repositoryDirectory) < DateTime.UtcNow.Subtract(new TimeSpan(24, 0, 0)) &&
+                            !File.Exists(Mirror.GetRepositoryLockFilePath(repositoryDirectory)))
                         {
                             Directory.Delete(repositoryDirectory, true);
                             _eventLog.WriteEntry("Removed untouched repository folder: " + repositoryDirectory);
