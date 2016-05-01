@@ -23,7 +23,7 @@ namespace GitHgMirror.Runner
 
         public void Clean()
         {
-            _eventLog.WriteEntry("Starting cleaning untouched repositories");
+            _eventLog.WriteEntry("Starting cleaning untouched repositories.");
 
             var count = 0;
             if (Directory.Exists(_settings.RepositoriesDirectoryPath))
@@ -35,13 +35,15 @@ namespace GitHgMirror.Runner
                         if (Directory.GetLastAccessTimeUtc(repositoryDirectory) < DateTime.UtcNow.Subtract(new TimeSpan(24, 0, 0)))
                         {
                             Directory.Delete(repositoryDirectory, true);
+                            _eventLog.WriteEntry("Removed untouched repository folder: " + repositoryDirectory);
+
                             count++;
                         }
                     }
                 } 
             }
 
-            _eventLog.WriteEntry("Finished cleaning untouched repositories, " + count + " folders removed");
+            _eventLog.WriteEntry("Finished cleaning untouched repositories, " + count + " folders removed.");
         }
     }
 }
