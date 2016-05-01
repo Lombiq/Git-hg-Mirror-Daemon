@@ -37,6 +37,7 @@ namespace GitHgMirror.Runner.Services
             var repositoryDirectoryName = GetCloneDirectoryName(configuration);
             var cloneDirectoryParentPath = Path.Combine(settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
             var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
+            var repositoryLockFilePath = GetRepositoryLockFilePath(cloneDirectoryPath);
 
             try
             {
@@ -53,8 +54,6 @@ namespace GitHgMirror.Runner.Services
                 var quotedCloneDirectoryPath = cloneDirectoryPath.EncloseInQuotes();
                 var isCloned = IsCloned(configuration, settings);
 
-                //Action cdCloneDirectory = () => RunCommandAndLogOutput("cd " + quotedCloneDirectoryPath);
-
                 if (isCloned)
                 {
                     Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
@@ -67,6 +66,8 @@ namespace GitHgMirror.Runner.Services
                     // Debug info file. Not placing it into the clone directory because that would bother Mercurial.
                     File.WriteAllText(cloneDirectoryPath + "-info.txt", GetMirroringDescriptor(configuration));
                 }
+
+                File.Create(repositoryLockFilePath).Dispose();
 
 
                 switch (configuration.Direction)
@@ -300,6 +301,13 @@ namespace GitHgMirror.Runner.Services
 
                 throw new MirroringException(exceptionMessage, ex);
             }
+            finally
+            {
+                if (File.Exists(repositoryLockFilePath))
+                {
+                    File.Delete(repositoryLockFilePath);
+                }
+            }
         }
 
         public bool IsCloned(MirroringConfiguration configuration, MirroringSettings settings)
@@ -338,6 +346,16 @@ namespace GitHgMirror.Runner.Services
 
                 throw;
             }
+        }
+
+
+        /// <summary>
+        /// Gets the path for the lock file for the repository. This lock file shows that the repository is being worked
+        /// on.
+        /// </summary>
+        public static string GetRepositoryLockFilePath(string cloneDirectoryPath)
+        {
+            return cloneDirectoryPath + "-lock";
         }
 
 
