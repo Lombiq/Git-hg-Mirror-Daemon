@@ -31,10 +31,12 @@ The service writes log messages to the Windows event log. You can view the entri
 If you get `mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:581)` or similar errors then it means that Mercurial couldn't verify the SSL certificates of remote servers. To work around this set fingerprints like following in Mercurial.ini for all affected hosts:
 
     [hostfingerprints]
-    bitbucket.org = 46:DE:34:E7:9B:18:CD:7F:AE:FD:8B:E3:BC:F4:1A:5E:38:D7:AC:24
+    bitbucket.org = ‎3F:D3:C5:17:23:3C:CD:F5:2D:17:76:06:93:7E:EE:97:42:21:14:AA
     github.com = A0:C4:A7:46:00:ED:A7:2D:C0:BE:CB:9A:8C:B6:07:CA:58:EE:74:5E
 
 **Fingerprints should be all uppercase!**
+
+Note that since TortoiseHg 3.5.2 such errors seem not to happen with Bitbucket and GitHub so adding such fingerprints shouldn't be required.
 
 ### "EOF occurred in violation of protocol" errors
 If you get `EOF occurred in violation of protocol (_ssl.c:581)` or similar errors when a remote operation is done on a repository then you have an outdated version of Mercurial: you need at least Mercurial 3.6.1 (bundled with TortoiseHg 3.6.1).
