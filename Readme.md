@@ -53,7 +53,7 @@ If you want to test the Daemon locally just run `GitHgMirror.Tester`; make sure 
 
 You can configure some settings in `GitHgMirror.Tester.Program`. If you want to test the mirroring of a specific config you can add the following to the constructor of `MirrorRunner` after the initial setup:
 
-    using (var mirror = new Mirror(_settings, _eventLog))
+    using (var mirror = new Mirror(_eventLog))
     {
         var configuration = new MirroringConfiguration
         {
@@ -61,7 +61,7 @@ You can configure some settings in `GitHgMirror.Tester.Program`. If you want to 
             GitCloneUri = new Uri("git+https://github.com/path-to-git-repo.git"),
             HgCloneUri = new Uri("https://LombiqBot:password@bitbucket.org/path-to-hg-repo")
         };
-        mirror.MirrorRepositories(configuration);
+        mirror.MirrorRepositories(configuration, _settings);
     }
 
 Of course make sure not to commit such tests (at least not to the dev branch).
