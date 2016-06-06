@@ -191,10 +191,8 @@ namespace GitHgMirror.Runner.Services
 
                 Debug.WriteLine("Finished mirroring: " + descriptor);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!ex.IsFatal())
             {
-                if (ex.IsFatal()) throw;
-
                 // We should dispose the command runners so the folder is not locked by the command line.
                 Dispose();
                 // Waiting a bit for any file locks or leases to be disposed even though CommandRunners and processes 
@@ -224,10 +222,8 @@ namespace GitHgMirror.Runner.Services
                             exceptionMessage += " Thus just the git folder was removed.";
                             continueWithRepoFolderDelete = false;
                         }
-                        catch (Exception gitDirectoryDeleteException)
+                        catch (Exception gitDirectoryDeleteException) when (!gitDirectoryDeleteException.IsFatal())
                         {
-                            if (gitDirectoryDeleteException.IsFatal()) throw;
-
                             exceptionMessage += 
                                 " While the removal of just the git folder was attempted it failed with the following exception, thus the deletion of the whole repository folder will be attempted: " + 
                                 gitDirectoryDeleteException;
@@ -241,10 +237,8 @@ namespace GitHgMirror.Runner.Services
                         DeleteDirectoryIfExists(cloneDirectoryPath);
                     }
                 }
-                catch (Exception directoryDeleteException)
+                catch (Exception directoryDeleteException) when (!directoryDeleteException.IsFatal())
                 {
-                    if (directoryDeleteException.IsFatal()) throw;
-
                     try
                     {
                         // This most possibly means that for some reason some process is still locking the folder although
@@ -338,10 +332,8 @@ namespace GitHgMirror.Runner.Services
             {
                 commandRunner();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!ex.IsFatal())
             {
-                if (ex.IsFatal()) throw;
-
                 ex.Data["IsGitException"] = true;
 
                 throw;
