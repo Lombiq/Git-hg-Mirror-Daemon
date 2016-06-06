@@ -45,7 +45,7 @@ namespace GitHgMirror.Runner.Services
                 RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty));
 
 
-                if (!Directory.Exists(cloneDirectoryParentPath))
+                  if (!Directory.Exists(cloneDirectoryParentPath))
                 {
                     Directory.CreateDirectory(cloneDirectoryParentPath);
                 }
@@ -211,7 +211,12 @@ namespace GitHgMirror.Runner.Services
                     // Immediate Window to prevent it if necessary too.
                     var continueWithRepoFolderDelete = true;
 
-                    if (ex.Data.Contains("IsGitException"))
+                    // These git exceptions are caused by hg errors in a way, so despite them coming from git the whole
+                    // repo folder should be removed.
+                    var isHgOriginatedGitException = 
+                        ex.Message.Contains("does not match any existing object") ||
+                        ex.Message.Contains("Object not found - failed to find pack entry");
+                    if (ex.Data.Contains("IsGitException") && !isHgOriginatedGitException)
                     {
                         exceptionMessage += " The error was a git error.";
 
