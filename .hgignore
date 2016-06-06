@@ -8,3 +8,4 @@ bin/
 *.user
 *Thumbs.db
 packages/
+.vs/
