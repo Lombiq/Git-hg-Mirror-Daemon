@@ -9,8 +9,8 @@ namespace GitHgMirror.Runner
     public static class CommandExceptionExtensions
     {
         /// <summary>
-        /// Checks if the error is something like in the example that can mean that due to slow network we can't clone a
-        /// large repo.
+        /// Checks if the error is something like in the example that can mean that due to slow network we can't clone 
+        /// or pull a large repo.
         /// </summary>
         /// <example>
         /// transaction abort!
@@ -19,7 +19,11 @@ namespace GitHgMirror.Runner
         /// </example>
         public static bool IsHgConnectionTerminatedError(this CommandException exception)
         {
-            return exception.Error.Contains("abort: stream ended unexpectedly (got ");
+            var error = exception.Error;
+
+            return 
+                error.Contains("abort: stream ended unexpectedly (got ") ||
+                error.Contains("abort: connection ended unexpectedly");
         }
     }
 }
