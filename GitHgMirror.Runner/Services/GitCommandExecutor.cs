@@ -196,20 +196,24 @@ namespace GitHgMirror.Runner.Services
             }
             else
             {
-                // Unfortunately this won't fetch tags for some reason. TagFetchMode.All won't help either...
                 RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
                 {
                     _eventLog.WriteEntry(
                         "Starting to fetch from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                         EventLogEntryType.Information);
 
-                    // We can't just use the +refs/*:refs/* refspec since on GitHub PRs have their own specials refs as
-                    // refs/pull/[ID]/head and refs/pull/[ID]/merge refs. Pushing a latter ref merges the PR, what of
-                    // course we don't want. So we need to filter just the interesting refs.
-                    // Also we really shouldn't fetch and push other namespaces like meta/config either, see:
-                    // https://groups.google.com/forum/#!topic/repo-discuss/zpqpPpHAwSM
-                    repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/heads/*:refs/heads/*" });
-                    repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/tags/*:refs/tags/*" });
+                    CdDirectory(gitDirectoryPath.EncloseInQuotes());
+
+                    // Tried to use LibGit2Sharp for fetching but using the "+refs/heads/*:refs/heads/*" and
+                    // "+refs/tags/*:refs/tags/*" refspec wipes out changes export from hg.
+                    try
+                    {
+                        RunCommandAndLogOutput("git fetch --tags \"origin\"");
+                    }
+                    catch (CommandException commandException)
+                    {
+                        if (IsGitExceptionRealError(commandException)) throw;
+                    }
 
                     _eventLog.WriteEntry(
                         "Finished fetching from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
