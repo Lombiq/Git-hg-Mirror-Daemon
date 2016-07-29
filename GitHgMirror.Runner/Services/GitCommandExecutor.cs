@@ -317,9 +317,9 @@ namespace GitHgMirror.Runner.Services
                 // The branch head was moved (shown during push).
                 !(ex.Error.Contains("..") && ex.Error.Contains(" -> ")) &&
                 // The branch head was moved (shown during fetch).
-                !(ex.Error.Contains("* branch") && ex.Error.Contains(" -> ") &&
+                !(ex.Error.Contains("* branch") && ex.Error.Contains(" -> ")) &&
                 // Git GC is running.
-                !ex.Error.Contains("Auto packing the repository in background for optimum performance."));
+                !ex.Error.Contains("Auto packing the repository in background for optimum performance.");
         }
     }
 }
