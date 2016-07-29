@@ -175,7 +175,7 @@ namespace GitHgMirror.Runner.Services
             }
         }
 
-        public void FetchFromGit(Uri gitCloneUri, string cloneDirectoryPath)
+        public void FetchFromGit(Uri gitCloneUri, string cloneDirectoryPath, bool useLibGit2Sharp)
         {
             var gitDirectoryPath = GetGitDirectoryPath(cloneDirectoryPath);
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
@@ -202,17 +202,30 @@ namespace GitHgMirror.Runner.Services
                         "Starting to fetch from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                         EventLogEntryType.Information);
 
-                    CdDirectory(gitDirectoryPath.EncloseInQuotes());
-
-                    // Tried to use LibGit2Sharp for fetching but using the "+refs/heads/*:refs/heads/*" and
-                    // "+refs/tags/*:refs/tags/*" refspec wipes out changes export from hg.
-                    try
+                    if (useLibGit2Sharp)
                     {
-                        RunCommandAndLogOutput("git fetch --tags \"origin\"");
+                        // We can't just use the +refs/*:refs/* refspec since on GitHub PRs have their own specials refs as
+                        // refs/pull/[ID]/head and refs/pull/[ID]/merge refs. Pushing a latter ref merges the PR, what of
+                        // course we don't want. So we need to filter just the interesting refs.
+                        // Also we really shouldn't fetch and push other namespaces like meta/config either, see:
+                        // https://groups.google.com/forum/#!topic/repo-discuss/zpqpPpHAwSM
+                        repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/heads/*:refs/heads/*" });
+                        repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/tags/*:refs/tags/*" }); 
                     }
-                    catch (CommandException commandException)
+                    else
                     {
-                        if (IsGitExceptionRealError(commandException)) throw;
+                        CdDirectory(gitDirectoryPath.EncloseInQuotes());
+
+                        // Tried to use LibGit2Sharp for fetching but using the "+refs/heads/*:refs/heads/*" and
+                        // "+refs/tags/*:refs/tags/*" refspec wipes out changes export from hg.
+                        try
+                        {
+                            RunCommandAndLogOutput("git fetch --tags \"origin\"");
+                        }
+                        catch (CommandException commandException)
+                        {
+                            if (IsGitExceptionRealError(commandException)) throw;
+                        } 
                     }
 
                     _eventLog.WriteEntry(
