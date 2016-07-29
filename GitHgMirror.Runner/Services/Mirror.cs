@@ -82,7 +82,7 @@ namespace GitHgMirror.Runner.Services
                             else
                             {
                                 RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath));
+                                    _gitCommandExecutor.FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath, true));
                                 _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings);
                             }
                         }
@@ -133,7 +133,7 @@ namespace GitHgMirror.Runner.Services
                                 // This will clear all commits int he git repo that aren't in the git remote repo but 
                                 // add changes that were added to the git repo.
                                 RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath));
+                                    _gitCommandExecutor.FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath, false));
                                 _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings);
 
                                 // Updating bookmarks which may have shifted after importing from git. This way the
