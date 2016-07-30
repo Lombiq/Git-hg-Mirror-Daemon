@@ -202,6 +202,8 @@ namespace GitHgMirror.Runner.Services
                         "Starting to fetch from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                         EventLogEntryType.Information);
 
+                    // The LibGit2Sharp version will work well when fetching updates into repos that were cloned with
+                    // hg-git from a git repo. The git.exe version will work for two-way mirrors...
                     if (useLibGit2Sharp)
                     {
                         // We can't just use the +refs/*:refs/* refspec since on GitHub PRs have their own specials refs as
