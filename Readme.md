@@ -2,9 +2,9 @@
 
 
 
-Two-way Git-Mercurial repository syncing Windows service used by [Git-hg Mirror](https://githgmirror.com). This is a C# project that you'll need Visual Studio to work with.
+Two-way Git-Mercurial repository syncing Windows service used by [Git-hg Mirror](https://githgmirror.com). The frontend component is [Git-Hg Mirror Common](https://github.com/Lombiq/Git-Hg-Mirror-Common).
 
-Commits in the master/default branch represent deployments, i.e. the latest commit in that branch shows the version currently running in production.
+This is a C# project that you'll need Visual Studio to work with. Commits in the master/default branch represent deployments, i.e. the latest commit in that branch shows the version currently running in production.
 
 The project's source is available in two public source repositories, automatically mirrored in both directions with Git-hg Mirror itself:
 
