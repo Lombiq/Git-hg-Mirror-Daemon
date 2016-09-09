@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Configuration;
 using System.Data;
 using System.Diagnostics;
 using System.Linq;
@@ -34,7 +35,7 @@ namespace GitHgMirror.Daemon
             _settings = new MirroringSettings
             {
                 ApiEndpointUrl = new Uri("http://githgmirror.com/api/GitHgMirror.Common/Mirrorings"),
-                ApiPassword = "Fsdfp342LE8%!",
+                ApiPassword = ConfigurationManager.ConnectionStrings[Constants.ApiPasswordKey]?.ConnectionString ?? string.Empty,
                 RepositoriesDirectoryPath = @"C:\GitHgMirror\Repositories",
                 MaxDegreeOfParallelism = 6,
                 // This way no sync waits for another one to finish in a batch but they run independently of each other,
@@ -74,11 +75,29 @@ namespace GitHgMirror.Daemon
 
             _runner = new MirrorRunner(_settings, serviceEventLog);
 
-            _runner.Start();
+            var started = false;
+            while (!started)
+            {
+                try
+                {
+                    _runner.Start();
 
-            serviceEventLog.WriteEntry("Mirroring started.");
+                    serviceEventLog.WriteEntry("Mirroring started.");
 
-            _waitHandle.WaitOne();
+                    _waitHandle.WaitOne();
+                    started = true;
+                }
+                catch (Exception ex)
+                {
+                    serviceEventLog.WriteEntry(
+                        "Starting mirroring failed with the following exception: " + ex.ToString() +
+                        Environment.NewLine +
+                        "A new start will be attempted in 30s.",
+                        EventLogEntryType.Error);
+
+                    Thread.Sleep(30000);
+                }
+            }
         }
     }
 }
