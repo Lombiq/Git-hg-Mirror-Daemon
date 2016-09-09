@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Configuration;
 using System.Data;
 using System.Diagnostics;
 using System.Linq;
@@ -34,7 +35,7 @@ namespace GitHgMirror.Daemon
             _settings = new MirroringSettings
             {
                 ApiEndpointUrl = new Uri("http://githgmirror.com/api/GitHgMirror.Common/Mirrorings"),
-                ApiPassword = "Fsdfp342LE8%!",
+                ApiPassword = ConfigurationManager.ConnectionStrings[Constants.ApiPasswordKey]?.ConnectionString ?? string.Empty,
                 RepositoriesDirectoryPath = @"C:\GitHgMirror\Repositories",
                 MaxDegreeOfParallelism = 6,
                 // This way no sync waits for another one to finish in a batch but they run independently of each other,
