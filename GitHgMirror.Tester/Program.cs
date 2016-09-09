@@ -13,6 +13,7 @@ namespace GitHgMirror.Tester
     {
         private static ManualResetEvent _waitHandle = new ManualResetEvent(false);
 
+
         static void Main(string[] args)
         {
             if (!EventLog.Exists("Git-hg Mirror Daemon"))
