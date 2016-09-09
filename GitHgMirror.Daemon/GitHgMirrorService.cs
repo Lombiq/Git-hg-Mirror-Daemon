@@ -75,11 +75,29 @@ namespace GitHgMirror.Daemon
 
             _runner = new MirrorRunner(_settings, serviceEventLog);
 
-            _runner.Start();
+            var started = false;
+            while (!started)
+            {
+                try
+                {
+                    _runner.Start();
 
-            serviceEventLog.WriteEntry("Mirroring started.");
+                    serviceEventLog.WriteEntry("Mirroring started.");
 
-            _waitHandle.WaitOne();
+                    _waitHandle.WaitOne();
+                    started = true;
+                }
+                catch (Exception ex)
+                {
+                    serviceEventLog.WriteEntry(
+                        "Starting mirroring failed with the following exception: " + ex.ToString() +
+                        Environment.NewLine +
+                        "A new start will be attempted in 30s.",
+                        EventLogEntryType.Error);
+
+                    Thread.Sleep(30000);
+                }
+            }
         }
     }
 }
