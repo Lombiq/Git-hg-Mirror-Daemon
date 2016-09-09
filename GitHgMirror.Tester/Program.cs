@@ -40,7 +40,8 @@ namespace GitHgMirror.Tester
                     BatchSize = 1
                 };
 
-                new UntouchedRepositoriesCleaner(settings, eventLog).Clean();
+                // Uncomment if you want to also test repo cleaning.
+                //new UntouchedRepositoriesCleaner(settings, eventLog).Clean();
 
                 var runner = new MirrorRunner(settings, eventLog);
 
