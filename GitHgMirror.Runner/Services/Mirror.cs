@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -45,7 +44,7 @@ namespace GitHgMirror.Runner.Services
                 RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty));
 
 
-                  if (!Directory.Exists(cloneDirectoryParentPath))
+                if (!Directory.Exists(cloneDirectoryParentPath))
                 {
                     Directory.CreateDirectory(cloneDirectoryParentPath);
                 }
