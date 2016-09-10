@@ -29,12 +29,13 @@ namespace GitHgMirror.Daemon
             // Started from the SCM
             else
             {
-                System.ServiceProcess.ServiceBase[] servicestorun;
-                servicestorun = new System.ServiceProcess.ServiceBase[] { new GitHgMirrorService() };
+                ServiceBase[] servicestorun;
+                servicestorun = new ServiceBase[] { new GitHgMirrorService() };
                 ServiceBase.Run(servicestorun);
             }
         }
     }
+
 
     static class SelfInstaller
     {
