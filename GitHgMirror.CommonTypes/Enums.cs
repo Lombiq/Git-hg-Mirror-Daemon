@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace GitHgMirror.CommonTypes
+﻿namespace GitHgMirror.CommonTypes
 {
     public enum MirroringDirection
     {
@@ -17,6 +12,7 @@ namespace GitHgMirror.CommonTypes
         New,
         Cloning,
         Syncing,
-        Failed
+        Failed,
+        Disabled
     }
 }
