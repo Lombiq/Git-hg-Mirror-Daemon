@@ -147,7 +147,7 @@ namespace GitHgMirror.Runner
 
         private int FetchConfigurationPageCount()
         {
-            return (int)Math.Ceiling((double)_apiService.Get<int>("Count") / (double)_settings.BatchSize);
+            return (int)Math.Ceiling(_apiService.Get<int>("Count") / (double)_settings.BatchSize);
         }
 
         /// <summary>
