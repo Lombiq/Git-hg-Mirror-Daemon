@@ -34,7 +34,7 @@ namespace GitHgMirror.Daemon
 
             _settings = new MirroringSettings
             {
-                ApiEndpointUrl = new Uri("http://githgmirror.com/api/GitHgMirror.Common/Mirrorings"),
+                ApiEndpointUrl = new Uri("https://githgmirror.com/api/GitHgMirror.Common/Mirrorings"),
                 ApiPassword = ConfigurationManager.ConnectionStrings[Constants.ApiPasswordKey]?.ConnectionString ?? string.Empty,
                 RepositoriesDirectoryPath = @"C:\GitHgMirror\Repositories",
                 MaxDegreeOfParallelism = 15,
