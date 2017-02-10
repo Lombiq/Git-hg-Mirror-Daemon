@@ -1,15 +1,11 @@
-﻿using System;
+﻿using GitHgMirror.CommonTypes;
+using GitHgMirror.Runner.Helpers;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
-using GitHgMirror.CommonTypes;
-using GitHgMirror.Runner.Helpers;
-using LibGit2Sharp;
 
 namespace GitHgMirror.Runner.Services
 {
@@ -198,11 +194,7 @@ namespace GitHgMirror.Runner.Services
                 // were killed.
                 Thread.Sleep(10000);
 
-                var exceptionMessage = string.Format(
-                    "An error occured while running commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will be re-started next time.",
-                    configuration.HgCloneUri,
-                    configuration.GitCloneUri,
-                    configuration.Direction);
+                var exceptionMessage = ex.Message;
 
                 try
                 {
