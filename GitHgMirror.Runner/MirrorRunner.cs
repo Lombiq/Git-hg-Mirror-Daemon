@@ -66,8 +66,8 @@ namespace GitHgMirror.Runner
         {
             var pageCount = FetchConfigurationPageCount();
 
-            // We only care if the page count increased; if it decreased there are tasks just periodically checking whether their page has
-            // any items.
+            // We only care if the page count increased; if it decreased there are tasks just periodically checking 
+            // whether their page has any items.
             if (pageCount <= _mirrorTasks.Count) return;
 
             for (int i = _mirrorTasks.Count; i < pageCount; i++)
