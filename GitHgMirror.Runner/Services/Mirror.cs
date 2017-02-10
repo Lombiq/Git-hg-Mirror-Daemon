@@ -40,14 +40,17 @@ namespace GitHgMirror.Runner.Services
 
             try
             {
-                // Changing directory to other drive if necessary.
-                RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty));
-
 
                 if (!Directory.Exists(cloneDirectoryParentPath))
                 {
                     Directory.CreateDirectory(cloneDirectoryParentPath);
                 }
+
+                File.Create(repositoryLockFilePath).Dispose();
+
+                // Changing directory to other drive if necessary.
+                RunCommandAndLogOutput(Path.GetPathRoot(cloneDirectoryPath).Replace("\\", string.Empty));
+
                 var quotedHgCloneUrl = configuration.HgCloneUri.ToString().EncloseInQuotes();
                 var quotedGitCloneUrl = configuration.GitCloneUri.ToString().EncloseInQuotes();
                 var quotedCloneDirectoryPath = cloneDirectoryPath.EncloseInQuotes();
@@ -65,8 +68,6 @@ namespace GitHgMirror.Runner.Services
                     // Debug info file. Not placing it into the clone directory because that would bother Mercurial.
                     File.WriteAllText(cloneDirectoryPath + "-info.txt", GetMirroringDescriptor(configuration));
                 }
-
-                File.Create(repositoryLockFilePath).Dispose();
 
 
                 switch (configuration.Direction)
