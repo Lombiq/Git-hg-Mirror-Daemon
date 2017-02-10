@@ -34,10 +34,10 @@ namespace GitHgMirror.Daemon
 
             _settings = new MirroringSettings
             {
-                ApiEndpointUrl = new Uri("http://githgmirror.com/api/GitHgMirror.Common/Mirrorings"),
+                ApiEndpointUrl = new Uri("https://githgmirror.com/api/GitHgMirror.Common/Mirrorings"),
                 ApiPassword = ConfigurationManager.ConnectionStrings[Constants.ApiPasswordKey]?.ConnectionString ?? string.Empty,
                 RepositoriesDirectoryPath = @"C:\GitHgMirror\Repositories",
-                MaxDegreeOfParallelism = 10,
+                MaxDegreeOfParallelism = 15,
                 // This way no sync waits for another one to finish in a batch but they run independently of each other,
                 // the throughput only being limited by MaxDegreeOfParallelism.
                 BatchSize = 1
