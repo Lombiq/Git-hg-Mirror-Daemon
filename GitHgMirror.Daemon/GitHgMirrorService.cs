@@ -29,7 +29,7 @@ namespace GitHgMirror.Daemon
 
         protected override void OnStart(string[] args)
         {
-            serviceEventLog.MaximumKilobytes = 65536;
+            serviceEventLog.MaximumKilobytes = 4194240; // 4GB
             serviceEventLog.WriteEntry("GitHgMirrorDaemon started.");
 
             _settings = new MirroringSettings
