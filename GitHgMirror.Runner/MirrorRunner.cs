@@ -78,7 +78,7 @@ namespace GitHgMirror.Runner
 
         private void CreateNewTaskForPage(int page)
         {
-            _mirrorTasks.Add(Task.Factory.StartNew(async pageObject =>
+            _mirrorTasks.Add(Task.Factory.StartNew(pageObject =>
             {
                 var pageNum = (int)pageObject;
 
@@ -137,8 +137,6 @@ namespace GitHgMirror.Runner
                         if (ex.IsFatal() || ex is MirroringException || ex is OperationCanceledException) throw;
                         _eventLog.WriteEntry("Unhandled exception while running mirrorings: " + ex, EventLogEntryType.Error);
                     }
-
-                    await Task.Delay(600000, _cancellationTokenSource.Token); // Wait a bit between loops.
                 }
 
                 _cancellationTokenSource.Token.ThrowIfCancellationRequested();
