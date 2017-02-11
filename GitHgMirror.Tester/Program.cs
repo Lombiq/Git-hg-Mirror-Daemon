@@ -23,7 +23,6 @@ namespace GitHgMirror.Tester
 
             using (var eventLog = new EventLog("Git-hg Mirror Daemon", ".", "GitHgMirror.Tester"))
             {
-                eventLog.MaximumKilobytes = 4194240; // 4GB
                 eventLog.EnableRaisingEvents = true;
 
                 eventLog.EntryWritten += (sender, e) =>
