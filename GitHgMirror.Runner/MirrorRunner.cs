@@ -22,6 +22,7 @@ namespace GitHgMirror.Runner
 
         private readonly QueuedTaskScheduler _taskScheduler;
         private readonly List<Task> _mirrorTasks = new List<Task>();
+        private readonly object _mirrorTasksLock = new object();
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private readonly System.Timers.Timer _tasksRefreshTimer;
 
@@ -34,7 +35,7 @@ namespace GitHgMirror.Runner
 
             _taskScheduler = new QueuedTaskScheduler(TaskScheduler.Default, settings.MaxDegreeOfParallelism);
 
-            
+
             _tasksRefreshTimer = new System.Timers.Timer(settings.SecondsBetweenConfigurationCountChecks * 1000);
             _tasksRefreshTimer.Elapsed += AdjustTasksToPageCount;
         }
@@ -66,11 +67,17 @@ namespace GitHgMirror.Runner
         {
             var pageCount = FetchConfigurationPageCount();
 
+            var mirrorTaskCount = 0;
+            lock (_mirrorTasksLock)
+            {
+                mirrorTaskCount = _mirrorTasks.Count;
+            }
+
             // We only care if the page count increased; if it decreased there are tasks just periodically checking 
             // whether their page has any items.
-            if (pageCount <= _mirrorTasks.Count) return;
+            if (pageCount <= mirrorTaskCount) return;
 
-            for (int i = _mirrorTasks.Count; i < pageCount; i++)
+            for (int i = mirrorTaskCount; i < pageCount; i++)
             {
                 CreateNewTaskForPage(i);
             }
@@ -78,13 +85,12 @@ namespace GitHgMirror.Runner
 
         private void CreateNewTaskForPage(int page)
         {
-            _mirrorTasks.Add(Task.Factory.StartNew(async pageObject =>
+            lock (_mirrorTasksLock)
             {
-                var pageNum = (int)pageObject;
-
-                // Refreshing will run until cancelled.
-                while (!_cancellationTokenSource.IsCancellationRequested)
+                var newTask = Task.Factory.StartNew(pageObject =>
                 {
+                    var pageNum = (int)pageObject;
+
                     try
                     {
                         var configurations = FetchConfigurations(pageNum);
@@ -111,6 +117,8 @@ namespace GitHgMirror.Runner
 
                                 try
                                 {
+                                    Debug.WriteLine("Mirroring page " + pageNum + ": " + configuration);
+
                                     mirror.MirrorRepositories(configuration, _settings);
 
                                     _apiService.Post("Report", new MirroringStatusReport
@@ -138,11 +146,21 @@ namespace GitHgMirror.Runner
                         _eventLog.WriteEntry("Unhandled exception while running mirrorings: " + ex, EventLogEntryType.Error);
                     }
 
-                    await Task.Delay(600000, _cancellationTokenSource.Token); // Wait a bit between loops.
-                }
+                    _cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
-                _cancellationTokenSource.Token.ThrowIfCancellationRequested();
-            }, page, _cancellationTokenSource.Token, TaskCreationOptions.LongRunning, _taskScheduler));
+                    CreateNewTaskForPage(pageNum);
+                }, page, _cancellationTokenSource.Token, TaskCreationOptions.PreferFairness, _taskScheduler);
+
+
+                if (_mirrorTasks.Count >= page + 1)
+                {
+                    _mirrorTasks[page] = newTask;
+                }
+                else
+                {
+                    _mirrorTasks.Add(newTask);
+                }
+            }
         }
 
         private int FetchConfigurationPageCount()
