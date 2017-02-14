@@ -134,7 +134,7 @@ namespace GitHgMirror.Runner
                                     {
                                         ConfigurationId = configuration.Id,
                                         Status = MirroringStatus.Failed,
-                                        Message = ex.Message
+                                        Message = ex.InnerException.Message
                                     });
                                 }
                             }
