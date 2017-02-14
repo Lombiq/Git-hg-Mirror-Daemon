@@ -194,7 +194,11 @@ namespace GitHgMirror.Runner.Services
                 // were killed.
                 Thread.Sleep(10000);
 
-                var exceptionMessage = ex.Message;
+                var exceptionMessage = string.Format(
+                    "An error occured while running commands when mirroring the repositories {0} and {1} in direction {2}. Mirroring will be re-started next time.",
+                    configuration.HgCloneUri,
+                    configuration.GitCloneUri,
+                    configuration.Direction);
 
                 try
                 {
