@@ -82,7 +82,7 @@ namespace GitHgMirror.Runner.Services
                         // much memory to enumerate the whole collection once and keep it in memory. Thus we work in
                         // batches.
 
-                        var commits = repository.Commits.QueryBy(new CommitFilter { Since = branch });
+                        var commits = repository.Commits.QueryBy(new CommitFilter { IncludeReachableFrom = branch });
                         var commitCount = commits.Count();
                         var batchSize = 100;
                         var currentBatchSkip = commitCount;
@@ -107,7 +107,7 @@ namespace GitHgMirror.Runner.Services
                                 var sha = commit.Sha;
 
                                 _eventLog.WriteEntry(
-                                    "Starting to push commit " + sha + " to the branch " + branch.Name + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                                    "Starting to push commit " + sha + " to the branch " + branch.FriendlyName + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                                     EventLogEntryType.Information);
 
 
@@ -123,7 +123,7 @@ namespace GitHgMirror.Runner.Services
 
                                         // The first commit for a new remote branch should use the "refs/heads/" prefix, 
                                         // others just the branch name.
-                                        var branchName = branch.Name;
+                                        var branchName = branch.FriendlyName;
                                         if (firstCommitOfBranch) branchName = "refs/heads/" + branchName;
 
                                         // The --mirror switch can't be used with refspec push.
@@ -146,7 +146,7 @@ namespace GitHgMirror.Runner.Services
                                             if (tryCount < 3)
                                             {
                                                 _eventLog.WriteEntry(
-                                                    "Pushing commit " + sha + " to the branch " + branch.Name + 
+                                                    "Pushing commit " + sha + " to the branch " + branch.FriendlyName + 
                                                     " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + 
                                                     ") failed with the following exception: " + commandException.ToString() +
                                                     "This was try #" + tryCount + ", retrying.",
@@ -162,7 +162,7 @@ namespace GitHgMirror.Runner.Services
 
 
                                 _eventLog.WriteEntry(
-                                    "Finished pushing commit " + sha + " to the branch " + branch.Name + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                                    "Finished pushing commit " + sha + " to the branch " + branch.FriendlyName + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                                     EventLogEntryType.Information);
                             }
                         } while (currentBatchSkip != 0);
