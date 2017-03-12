@@ -105,7 +105,7 @@ namespace GitHgMirror.Runner.Services
 
         private string ReadOutputUntilBlankLine()
         {
-            return ReadOutputUntil(lines => lines.Count > 0 && lines.Last() == string.Empty);
+            return ReadOutputUntil(lines => lines.Count > 0 && string.IsNullOrEmpty(lines.Last()));
         }
     }
 }
