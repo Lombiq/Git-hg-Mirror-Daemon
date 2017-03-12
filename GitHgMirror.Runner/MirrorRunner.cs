@@ -33,7 +33,7 @@ namespace GitHgMirror.Runner
             _eventLog = eventLog;
             _apiService = new ApiService(settings);
 
-            _taskScheduler = new QueuedTaskScheduler(TaskScheduler.Default, settings.MaxDegreeOfParallelism);
+            _taskScheduler = new QueuedTaskScheduler(_settings.MaxDegreeOfParallelism, "");
 
 
             _tasksRefreshTimer = new System.Timers.Timer(settings.SecondsBetweenConfigurationCountChecks * 1000);

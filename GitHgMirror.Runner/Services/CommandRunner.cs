@@ -37,7 +37,7 @@ namespace GitHgMirror.Runner.Services
             _waitHandle.WaitOne(1000);
             _waitHandle.Reset();
 
-            if (!string.IsNullOrEmpty(_error))
+            if (!string.IsNullOrWhiteSpace(_error))
             {
                 // Waiting for more error lines to appear.
                 for (int i = 0; i < 10; i++)
@@ -58,7 +58,8 @@ namespace GitHgMirror.Runner.Services
         {
             if (_process == null || _process.HasExited) return;
 
-            _process.Kill();
+            // Gracefully exiting the process instead of killing it.
+            RunCommand("exit");
             _process.Dispose();
             _process = null;
         }
@@ -104,7 +105,7 @@ namespace GitHgMirror.Runner.Services
 
         private string ReadOutputUntilBlankLine()
         {
-            return ReadOutputUntil(lines => lines.Count > 0 && lines.Last() == string.Empty);
+            return ReadOutputUntil(lines => lines.Count > 0 && string.IsNullOrEmpty(lines.Last()));
         }
     }
 }
