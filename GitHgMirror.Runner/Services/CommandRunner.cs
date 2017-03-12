@@ -37,7 +37,7 @@ namespace GitHgMirror.Runner.Services
             _waitHandle.WaitOne(1000);
             _waitHandle.Reset();
 
-            if (!string.IsNullOrEmpty(_error))
+            if (!string.IsNullOrWhiteSpace(_error))
             {
                 // Waiting for more error lines to appear.
                 for (int i = 0; i < 10; i++)
