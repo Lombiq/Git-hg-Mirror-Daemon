@@ -36,8 +36,19 @@ namespace GitHgMirror.Runner
                         if (Directory.GetLastAccessTimeUtc(repositoryDirectory) < DateTime.UtcNow.Subtract(new TimeSpan(24, 0, 0)) &&
                             !File.Exists(Mirror.GetRepositoryLockFilePath(repositoryDirectory)))
                         {
-                            Directory.Delete(repositoryDirectory, true);
-                            _eventLog.WriteEntry("Removed untouched repository folder: " + repositoryDirectory);
+                            _eventLog.WriteEntry("Attempting to remove untouched repository folder: " + repositoryDirectory);
+                            try
+                            {
+                                Directory.Delete(repositoryDirectory, true);
+                                _eventLog.WriteEntry("Removed untouched repository folder: " + repositoryDirectory);
+                            }
+                            catch (Exception ex) when (!ex.IsFatal())
+                            {
+                                _eventLog.WriteEntry(
+                                    "Removing the untouched repository folder \"" + repositoryDirectory + 
+                                    "\" failed with the following exception: " + ex.ToString(), 
+                                    EventLogEntryType.Error);
+                            }
 
                             count++;
                         }
