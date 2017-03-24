@@ -17,6 +17,7 @@ namespace GitHgMirror.Daemon
             process.Account = ServiceAccount.LocalSystem;
             var serviceAdmin = new ServiceInstaller();
             serviceAdmin.StartType = ServiceStartMode.Automatic;
+            serviceAdmin.DelayedAutoStart = true;
             serviceAdmin.ServiceName = "GitHgMirrorService";
             serviceAdmin.DisplayName = "Git-hg Mirror Service";
             serviceAdmin.Description = "Runs the mirroring of the repositories.";
