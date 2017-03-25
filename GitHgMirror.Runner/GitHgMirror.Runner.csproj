@@ -50,6 +50,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ApiService.cs" />
+    <Compile Include="Helpers\RepositoryInfoFileHelper.cs" />
     <Compile Include="Services\CommandRunner.cs" />
     <Compile Include="CommandException.cs" />
     <Compile Include="ExceptionExtensions.cs" />
