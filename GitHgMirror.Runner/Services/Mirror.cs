@@ -30,7 +30,8 @@ namespace GitHgMirror.Runner.Services
             Debug.WriteLine("Starting mirroring: " + descriptor);
 
             var repositoryDirectoryName = GetCloneDirectoryName(configuration);
-            var cloneDirectoryParentPath = Path.Combine(settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
+            // A subfolder per clone dir start letter:
+            var cloneDirectoryParentPath = Path.Combine(settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString());
             var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
             var repositoryLockFilePath = GetRepositoryLockFilePath(cloneDirectoryPath);
 
@@ -52,19 +53,13 @@ namespace GitHgMirror.Runner.Services
                 var quotedCloneDirectoryPath = cloneDirectoryPath.EncloseInQuotes();
                 var isCloned = IsCloned(configuration, settings);
 
-                if (isCloned)
-                {
-                    Directory.SetLastAccessTimeUtc(cloneDirectoryPath, DateTime.UtcNow);
-                }
-                else
+                if (!isCloned)
                 {
                     DeleteDirectoryIfExists(cloneDirectoryPath);
                     Directory.CreateDirectory(cloneDirectoryPath);
-
-                    // Debug info file. Not placing it into the clone directory because that would bother Mercurial.
-                    File.WriteAllText(cloneDirectoryPath + "-info.txt", GetMirroringDescriptor(configuration));
                 }
 
+                RepositoryInfoFileHelper.CreateOrUpdateFile(cloneDirectoryPath, descriptor);
 
                 switch (configuration.Direction)
                 {
