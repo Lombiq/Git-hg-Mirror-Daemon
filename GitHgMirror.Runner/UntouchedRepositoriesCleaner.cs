@@ -41,6 +41,7 @@ namespace GitHgMirror.Runner
                             try
                             {
                                 Directory.Delete(repositoryDirectory, true);
+                                RepositoryInfoFileHelper.DeleteFileIfExists(repositoryDirectory);
                                 _eventLog.WriteEntry("Removed untouched repository folder: " + repositoryDirectory);
                             }
                             catch (Exception ex) when (!ex.IsFatal())
