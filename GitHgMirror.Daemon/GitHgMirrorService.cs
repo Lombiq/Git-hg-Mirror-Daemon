@@ -29,6 +29,11 @@ namespace GitHgMirror.Daemon
 
         protected override void OnStart(string[] args)
         {
+            if (!EventLog.Exists("Git-hg Mirror Daemon"))
+            {
+                EventLog.CreateEventSource(new EventSourceCreationData("GitHgMirror.Daemon", "Git-hg Mirror Daemon"));
+            }
+
             serviceEventLog.MaximumKilobytes = 4194240; // 4GB
             serviceEventLog.WriteEntry("GitHgMirrorDaemon started.");
 
