@@ -36,6 +36,16 @@ namespace GitHgMirror.Runner.Helpers
             return DateTime.Parse(fileLines[1]);
         }
 
+        public static void DeleteFileIfExists(string cloneDirectoryPath)
+        {
+            var filePath = GetFilePath(cloneDirectoryPath);
+
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+
 
         private static string GetFilePath(string cloneDirectoryPath)
         {
