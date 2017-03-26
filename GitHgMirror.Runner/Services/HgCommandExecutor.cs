@@ -13,7 +13,13 @@ namespace GitHgMirror.Runner.Services
     internal class HgCommandExecutor : CommandExecutorBase
     {
         private const string GitBookmarkSuffix = "-git";
-        private const string HgGitConfig = " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix;
+        private const string HgGitConfig = 
+            // Setting the suffix for all bookmarks created corresponding to git branches (when importing from git to hg).
+            " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix + 
+            // Enabling the hggit extension.
+            " --config extensions.hggit=" + 
+            // Disabling the mercurial_keyring extension.
+            " --config extensions.mercurial_keyring=!";
 
 
         public HgCommandExecutor(EventLog eventLog)
@@ -43,20 +49,20 @@ namespace GitHgMirror.Runner.Services
             if (!string.IsNullOrEmpty(userName))
             {
                 RunRemoteHgCommandAndLogOutput(
-                    "hg --config auth.rc.prefix=" +
-                    ("https://" + gitUri.Host).EncloseInQuotes() +
-                    " --config auth.rc.username=" +
-                    userName.EncloseInQuotes() +
-                    " --config auth.rc.password=" +
-                    password.EncloseInQuotes()
-                    + HgGitConfig +
-                    " " +
-                    command,
+                    PrefixHgCommandWithHgGitConfig(
+                        "--config auth.rc.prefix=" +
+                        ("https://" + gitUri.Host).EncloseInQuotes() +
+                        " --config auth.rc.username=" +
+                        userName.EncloseInQuotes() +
+                        " --config auth.rc.password=" +
+                        password.EncloseInQuotes() +
+                        " " +
+                        command),
                     settings);
             }
             else
             {
-                RunRemoteHgCommandAndLogOutput("hg " + command + HgGitConfig, settings);
+                RunRemoteHgCommandAndLogOutput(PrefixHgCommandWithHgGitConfig(command), settings);
             }
         }
 
@@ -72,13 +78,13 @@ namespace GitHgMirror.Runner.Services
         public void ImportHistoryFromGit(string quotedCloneDirectoryPath, MirroringSettings settings)
         {
             CdDirectory(quotedCloneDirectoryPath);
-            RunHgCommandAndLogOutput("hg gimport" + HgGitConfig, settings);
+            RunHgCommandAndLogOutput(PrefixHgCommandWithHgGitConfig("gimport"), settings);
         }
 
         public void ExportHistoryToGit(string quotedCloneDirectoryPath, MirroringSettings settings)
         {
             CdDirectory(quotedCloneDirectoryPath);
-            RunHgCommandAndLogOutput("hg gexport" + HgGitConfig, settings);
+            RunHgCommandAndLogOutput(PrefixHgCommandWithHgGitConfig("gexport"), settings);
         }
 
         public void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath, MirroringSettings settings)
@@ -317,6 +323,12 @@ namespace GitHgMirror.Runner.Services
             }
 
             return RunCommandAndLogOutput(hgCommand);
+        }
+
+
+        private static string PrefixHgCommandWithHgGitConfig(string hgCommand)
+        {
+            return "hg" + HgGitConfig + " " + hgCommand;
         }
     }
 }
