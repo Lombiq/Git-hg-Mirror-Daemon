@@ -28,7 +28,7 @@ This is needed on the server as well as locally if you want to test mirroring.
 
 1. Set up Mercurial and Git as described above.
 2. Copy the service exe and its dependencies (basically the whole Release bin folder) onto the server in a desired location (e.g. C:\GitHgMirror\GitHgMirrorDaemon).
-3. Configure the service in the *GitHgMirror.Daemon.exe.config* file (for documentation on these take a look at the `GitHgMirror.Daemon.Constats` class), at least set a custom API password. This should be the same as what's configured in the frontend component.
+3. Configure the service in the *GitHgMirror.Daemon.exe.config* file (for documentation on these take a look at the `GitHgMirror.Daemon.Constats` class), at least set a custom API password. This should be the same as what's configured in the frontend component. If you're updating the service on an already running server then make sure not to overwrite the config file to keep the settings.
 4. Unless you want Windows Defender to check every repository for viruses exclude the repository directory (e.g. _C:\GitHgMirror\Repositories_) and the _GitHgMirror.Daemon.exe_, _hg.exe_ and _git.exe_ processes from scanning.
 6. Run the exe as administrator. This will install the service (running it again uninstalls it). Verify if the installation was successful by checking Services. Note that unless you set up the service to run as the local user from under Properties/Log On the Daemon won't use the same settings as what you see in TortoiseHg (thought that shouldn't be necessary unless you're testing configs).
 7. The service is set to automatic start, i.e. it will start with Windows. The first time however it should be manually started from Services.
