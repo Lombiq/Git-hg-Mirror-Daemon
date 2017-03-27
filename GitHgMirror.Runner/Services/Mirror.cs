@@ -37,6 +37,11 @@ namespace GitHgMirror.Runner.Services
 
             try
             {
+                if (configuration.HgCloneUri.Scheme.Equals("ssh", StringComparison.InvariantCultureIgnoreCase) ||
+                    configuration.GitCloneUri.Scheme.Equals("ssh", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    throw new MirroringException("SSH protocol is not supported, only HTTPS.");
+                }
 
                 if (!Directory.Exists(cloneDirectoryParentPath))
                 {
