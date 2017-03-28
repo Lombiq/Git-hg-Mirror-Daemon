@@ -34,7 +34,9 @@ namespace GitHgMirror.Daemon
                 EventLog.CreateEventSource(new EventSourceCreationData("GitHgMirror.Daemon", "Git-hg Mirror Daemon"));
             }
 
-            serviceEventLog.MaximumKilobytes = 4194240; // 4GB
+            // Keep in mind that the event log consumes memory so unless you kep this well beyond what you can spare the
+            // server will run out of RAM.
+            serviceEventLog.MaximumKilobytes = 65536;
             serviceEventLog.WriteEntry("GitHgMirrorDaemon started.");
 
             _settings = new MirroringSettings
