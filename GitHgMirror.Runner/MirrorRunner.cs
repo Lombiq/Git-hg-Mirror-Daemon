@@ -65,21 +65,28 @@ namespace GitHgMirror.Runner
 
         private void AdjustTasksToPageCount(object sender, System.Timers.ElapsedEventArgs e)
         {
-            var pageCount = FetchConfigurationPageCount();
-
-            var mirrorTaskCount = 0;
-            lock (_mirrorTasksLock)
+            try
             {
-                mirrorTaskCount = _mirrorTasks.Count;
+                var pageCount = FetchConfigurationPageCount();
+
+                var mirrorTaskCount = 0;
+                lock (_mirrorTasksLock)
+                {
+                    mirrorTaskCount = _mirrorTasks.Count;
+                }
+
+                // We only care if the page count increased; if it decreased there are tasks just periodically checking 
+                // whether their page has any items.
+                if (pageCount <= mirrorTaskCount) return;
+
+                for (int i = mirrorTaskCount; i < pageCount; i++)
+                {
+                    CreateNewTaskForPage(i);
+                }
             }
-
-            // We only care if the page count increased; if it decreased there are tasks just periodically checking 
-            // whether their page has any items.
-            if (pageCount <= mirrorTaskCount) return;
-
-            for (int i = mirrorTaskCount; i < pageCount; i++)
+            catch (Exception ex) when (!ex.IsFatal())
             {
-                CreateNewTaskForPage(i);
+                // Swallowing non-fatal exceptions like when the page count can't be retrieved.
             }
         }
 
