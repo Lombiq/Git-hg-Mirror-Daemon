@@ -154,7 +154,7 @@ namespace GitHgMirror.Runner
                     }
                     catch (Exception ex)
                     {
-                        if (ex.IsFatal() || ex is MirroringException || ex is OperationCanceledException) throw;
+                        if (ex.IsFatal() || ex is OperationCanceledException) throw;
                         _eventLog.WriteEntry(
                             "Unhandled exception while running mirrorings: " + ex.ToString(), 
                             EventLogEntryType.Error);
