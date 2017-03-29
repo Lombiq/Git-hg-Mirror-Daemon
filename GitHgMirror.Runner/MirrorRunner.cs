@@ -65,21 +65,28 @@ namespace GitHgMirror.Runner
 
         private void AdjustTasksToPageCount(object sender, System.Timers.ElapsedEventArgs e)
         {
-            var pageCount = FetchConfigurationPageCount();
-
-            var mirrorTaskCount = 0;
-            lock (_mirrorTasksLock)
+            try
             {
-                mirrorTaskCount = _mirrorTasks.Count;
+                var pageCount = FetchConfigurationPageCount();
+
+                var mirrorTaskCount = 0;
+                lock (_mirrorTasksLock)
+                {
+                    mirrorTaskCount = _mirrorTasks.Count;
+                }
+
+                // We only care if the page count increased; if it decreased there are tasks just periodically checking 
+                // whether their page has any items.
+                if (pageCount <= mirrorTaskCount) return;
+
+                for (int i = mirrorTaskCount; i < pageCount; i++)
+                {
+                    CreateNewTaskForPage(i);
+                }
             }
-
-            // We only care if the page count increased; if it decreased there are tasks just periodically checking 
-            // whether their page has any items.
-            if (pageCount <= mirrorTaskCount) return;
-
-            for (int i = mirrorTaskCount; i < pageCount; i++)
+            catch (Exception ex) when (!ex.IsFatal())
             {
-                CreateNewTaskForPage(i);
+                // Swallowing non-fatal exceptions like when the page count can't be retrieved.
             }
         }
 
@@ -99,10 +106,7 @@ namespace GitHgMirror.Runner
                         {
                             using (var mirror = new Mirror(_eventLog))
                             {
-                                if (_cancellationTokenSource.IsCancellationRequested)
-                                {
-                                    _cancellationTokenSource.Token.ThrowIfCancellationRequested();
-                                }
+                                _cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
                                 var configuration = configurations[c];
 
@@ -130,9 +134,9 @@ namespace GitHgMirror.Runner
                                 catch (MirroringException ex)
                                 {
                                     _eventLog.WriteEntry(string.Format(
-                                        "An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + 
+                                        "An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
                                         Environment.NewLine + "Exception: {3}",
-                                        configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), 
+                                        configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex),
                                         EventLogEntryType.Error);
 
                                     _apiService.Post("Report", new MirroringStatusReport
@@ -147,9 +151,9 @@ namespace GitHgMirror.Runner
                     }
                     catch (Exception ex)
                     {
-                        if (ex.IsFatal() || ex is MirroringException || ex is OperationCanceledException) throw;
+                        if (ex.IsFatal() || ex is OperationCanceledException) throw;
                         _eventLog.WriteEntry(
-                            "Unhandled exception while running mirrorings: " + ex.ToString(), 
+                            "Unhandled exception while running mirrorings: " + ex.ToString(),
                             EventLogEntryType.Error);
                     }
 
