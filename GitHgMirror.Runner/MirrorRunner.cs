@@ -106,10 +106,7 @@ namespace GitHgMirror.Runner
                         {
                             using (var mirror = new Mirror(_eventLog))
                             {
-                                if (_cancellationTokenSource.IsCancellationRequested)
-                                {
-                                    _cancellationTokenSource.Token.ThrowIfCancellationRequested();
-                                }
+                                _cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
                                 var configuration = configurations[c];
 
@@ -137,9 +134,9 @@ namespace GitHgMirror.Runner
                                 catch (MirroringException ex)
                                 {
                                     _eventLog.WriteEntry(string.Format(
-                                        "An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." + 
+                                        "An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
                                         Environment.NewLine + "Exception: {3}",
-                                        configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex), 
+                                        configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex),
                                         EventLogEntryType.Error);
 
                                     _apiService.Post("Report", new MirroringStatusReport
@@ -156,7 +153,7 @@ namespace GitHgMirror.Runner
                     {
                         if (ex.IsFatal() || ex is OperationCanceledException) throw;
                         _eventLog.WriteEntry(
-                            "Unhandled exception while running mirrorings: " + ex.ToString(), 
+                            "Unhandled exception while running mirrorings: " + ex.ToString(),
                             EventLogEntryType.Error);
                     }
 
