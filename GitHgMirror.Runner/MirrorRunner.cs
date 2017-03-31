@@ -92,15 +92,13 @@ namespace GitHgMirror.Runner
         {
             _mirrorTasks.Add(Task.Run(async () =>
             {
-                var tryDequeue = true;
-                while (tryDequeue)
+                // Checking for new queue items until cancelled.
+                while (true)
                 {
                     int pageNum;
 
                     if (_mirrorQueue.TryDequeue(out pageNum))
                     {
-                        tryDequeue = false;
-
                         try
                         {
                             var configurations = FetchConfigurations(pageNum);
