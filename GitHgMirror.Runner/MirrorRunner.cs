@@ -62,6 +62,7 @@ namespace GitHgMirror.Runner
         {
             _pageCountAdjustTimer.Stop();
             _cancellationTokenSource.Cancel();
+            Task.WhenAll(_mirrorTasks.ToArray()).Wait();
         }
 
 
@@ -93,7 +94,7 @@ namespace GitHgMirror.Runner
             _mirrorTasks.Add(Task.Run(async () =>
             {
                 // Checking for new queue items until cancelled.
-                while (true)
+                while (!_cancellationTokenSource.IsCancellationRequested)
                 {
                     int pageNum;
 
@@ -165,8 +166,6 @@ namespace GitHgMirror.Runner
                         // If there is no queue item present, wait 10s, then re-try.
                         await Task.Delay(10000);
                     }
-
-                    _cancellationTokenSource.Token.ThrowIfCancellationRequested(); 
                 }
 
             }, _cancellationTokenSource.Token));
