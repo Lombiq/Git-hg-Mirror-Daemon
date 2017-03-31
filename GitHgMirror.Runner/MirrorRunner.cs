@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -7,7 +8,6 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Schedulers;
 using GitHgMirror.CommonTypes;
 using GitHgMirror.Runner.Services;
 using Newtonsoft.Json;
@@ -20,11 +20,11 @@ namespace GitHgMirror.Runner
         private readonly EventLog _eventLog;
         private readonly ApiService _apiService;
 
-        private readonly QueuedTaskScheduler _taskScheduler;
+        private readonly ConcurrentQueue<int> _mirrorQueue = new ConcurrentQueue<int>();
+        private int _pageCount = 0;
         private readonly List<Task> _mirrorTasks = new List<Task>();
-        private readonly object _mirrorTasksLock = new object();
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        private readonly System.Timers.Timer _tasksRefreshTimer;
+        private readonly System.Timers.Timer _pageCountAdjustTimer;
 
 
         public MirrorRunner(MirroringSettings settings, EventLog eventLog)
@@ -33,11 +33,8 @@ namespace GitHgMirror.Runner
             _eventLog = eventLog;
             _apiService = new ApiService(settings);
 
-            _taskScheduler = new QueuedTaskScheduler(_settings.MaxDegreeOfParallelism, "");
-
-
-            _tasksRefreshTimer = new System.Timers.Timer(settings.SecondsBetweenConfigurationCountChecks * 1000);
-            _tasksRefreshTimer.Elapsed += AdjustTasksToPageCount;
+            _pageCountAdjustTimer = new System.Timers.Timer(settings.SecondsBetweenConfigurationCountChecks * 1000);
+            _pageCountAdjustTimer.Elapsed += AdjustPageCount;
         }
 
 
@@ -48,41 +45,43 @@ namespace GitHgMirror.Runner
                 Directory.CreateDirectory(_settings.RepositoriesDirectoryPath);
             }
 
-            for (int i = 0; i < FetchConfigurationPageCount(); i++)
+            for (int i = 0; i < _settings.MaxDegreeOfParallelism; i++)
             {
-                CreateNewTaskForPage(i);
+                CreateNewMirrorTask();
             }
 
-            _tasksRefreshTimer.Start();
+            // Mirroring wil actually start once the page count was adjusted the first time. Note that startup time will
+            // increase with the increase of the number mirroring configurations. However this is close to being
+            // negligible for unless the amount of pages is big (it takes <1ms with ~100 pages).
+            // Using a queue is much more reliable than utilizing QueuedTaskScheduler with as many tasks as pages (that
+            // was used before 31.03.2017).
+            _pageCountAdjustTimer.Start();
         }
 
         public void Stop()
         {
-            _tasksRefreshTimer.Stop();
+            _pageCountAdjustTimer.Stop();
             _cancellationTokenSource.Cancel();
+            Task.WhenAll(_mirrorTasks.ToArray()).Wait();
         }
 
 
-        private void AdjustTasksToPageCount(object sender, System.Timers.ElapsedEventArgs e)
+        private void AdjustPageCount(object sender, System.Timers.ElapsedEventArgs e)
         {
             try
             {
-                var pageCount = FetchConfigurationPageCount();
+                var newPageCount = FetchConfigurationPageCount();
 
-                var mirrorTaskCount = 0;
-                lock (_mirrorTasksLock)
+                // We only care if the page count increased; if it decreased then processing those queue items will just
+                // do nothing (sine they'll fetch empty pages).
+                if (newPageCount <= _pageCount) return;
+
+                for (int i = _pageCount; i < newPageCount; i++)
                 {
-                    mirrorTaskCount = _mirrorTasks.Count;
+                    _mirrorQueue.Enqueue(i);
                 }
 
-                // We only care if the page count increased; if it decreased there are tasks just periodically checking 
-                // whether their page has any items.
-                if (pageCount <= mirrorTaskCount) return;
-
-                for (int i = mirrorTaskCount; i < pageCount; i++)
-                {
-                    CreateNewTaskForPage(i);
-                }
+                _pageCount = newPageCount;
             }
             catch (Exception ex) when (!ex.IsFatal())
             {
@@ -90,88 +89,86 @@ namespace GitHgMirror.Runner
             }
         }
 
-        private void CreateNewTaskForPage(int page)
+        private void CreateNewMirrorTask()
         {
-            lock (_mirrorTasksLock)
+            _mirrorTasks.Add(Task.Run(async () =>
             {
-                var newTask = Task.Factory.StartNew(pageObject =>
+                // Checking for new queue items until cancelled.
+                while (!_cancellationTokenSource.IsCancellationRequested)
                 {
-                    var pageNum = (int)pageObject;
+                    int pageNum;
 
-                    try
+                    if (_mirrorQueue.TryDequeue(out pageNum))
                     {
-                        var configurations = FetchConfigurations(pageNum);
-
-                        for (int c = 0; c < configurations.Count; c++)
+                        try
                         {
-                            using (var mirror = new Mirror(_eventLog))
+                            var configurations = FetchConfigurations(pageNum);
+
+                            for (int c = 0; c < configurations.Count; c++)
                             {
-                                _cancellationTokenSource.Token.ThrowIfCancellationRequested();
-
-                                var configuration = configurations[c];
-
-                                if (!mirror.IsCloned(configuration, _settings))
+                                using (var mirror = new Mirror(_eventLog))
                                 {
-                                    _apiService.Post("Report", new MirroringStatusReport
+                                    _cancellationTokenSource.Token.ThrowIfCancellationRequested();
+
+                                    var configuration = configurations[c];
+
+                                    if (!mirror.IsCloned(configuration, _settings))
                                     {
-                                        ConfigurationId = configuration.Id,
-                                        Status = MirroringStatus.Cloning
-                                    });
-                                }
+                                        _apiService.Post("Report", new MirroringStatusReport
+                                        {
+                                            ConfigurationId = configuration.Id,
+                                            Status = MirroringStatus.Cloning
+                                        });
+                                    }
 
-                                try
-                                {
-                                    Debug.WriteLine("Mirroring page " + pageNum + ": " + configuration);
-
-                                    mirror.MirrorRepositories(configuration, _settings);
-
-                                    _apiService.Post("Report", new MirroringStatusReport
+                                    try
                                     {
-                                        ConfigurationId = configuration.Id,
-                                        Status = MirroringStatus.Syncing
-                                    });
-                                }
-                                catch (MirroringException ex)
-                                {
-                                    _eventLog.WriteEntry(string.Format(
-                                        "An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
-                                        Environment.NewLine + "Exception: {3}",
-                                        configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex),
-                                        EventLogEntryType.Error);
+                                        Debug.WriteLine("Mirroring page " + pageNum + ": " + configuration);
 
-                                    _apiService.Post("Report", new MirroringStatusReport
+                                        mirror.MirrorRepositories(configuration, _settings);
+
+                                        _apiService.Post("Report", new MirroringStatusReport
+                                        {
+                                            ConfigurationId = configuration.Id,
+                                            Status = MirroringStatus.Syncing
+                                        });
+                                    }
+                                    catch (MirroringException ex)
                                     {
-                                        ConfigurationId = configuration.Id,
-                                        Status = MirroringStatus.Failed,
-                                        Message = ex.InnerException.Message
-                                    });
+                                        _eventLog.WriteEntry(string.Format(
+                                            "An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
+                                            Environment.NewLine + "Exception: {3}",
+                                            configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex),
+                                            EventLogEntryType.Error);
+
+                                        _apiService.Post("Report", new MirroringStatusReport
+                                        {
+                                            ConfigurationId = configuration.Id,
+                                            Status = MirroringStatus.Failed,
+                                            Message = ex.InnerException.Message
+                                        });
+                                    }
                                 }
                             }
                         }
+                        catch (Exception ex)
+                        {
+                            if (ex.IsFatal() || ex is OperationCanceledException) throw;
+                            _eventLog.WriteEntry(
+                                "Unhandled exception while running mirrorings: " + ex.ToString(),
+                                EventLogEntryType.Error);
+                        }
+
+                        _mirrorQueue.Enqueue(pageNum);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        if (ex.IsFatal() || ex is OperationCanceledException) throw;
-                        _eventLog.WriteEntry(
-                            "Unhandled exception while running mirrorings: " + ex.ToString(),
-                            EventLogEntryType.Error);
+                        // If there is no queue item present, wait 10s, then re-try.
+                        await Task.Delay(10000);
                     }
-
-                    _cancellationTokenSource.Token.ThrowIfCancellationRequested();
-
-                    CreateNewTaskForPage(pageNum);
-                }, page, _cancellationTokenSource.Token, TaskCreationOptions.PreferFairness, _taskScheduler);
-
-
-                if (_mirrorTasks.Count >= page + 1)
-                {
-                    _mirrorTasks[page] = newTask;
                 }
-                else
-                {
-                    _mirrorTasks.Add(newTask);
-                }
-            }
+
+            }, _cancellationTokenSource.Token));
         }
 
         private int FetchConfigurationPageCount()

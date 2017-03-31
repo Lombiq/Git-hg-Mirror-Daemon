@@ -64,7 +64,6 @@
     <Compile Include="MirroringException.cs" />
     <Compile Include="MirrorRunner.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="QueuedTaskScheduler.cs" />
     <Compile Include="MirroringSettings.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="UntouchedRepositoriesCleaner.cs" />
