@@ -211,8 +211,8 @@ namespace GitHgMirror.Runner.Services
                         // of course we don't want. So we need to filter just the interesting refs.
                         // Also we really shouldn't fetch and push other namespaces like meta/config either, see:
                         // https://groups.google.com/forum/#!topic/repo-discuss/zpqpPpHAwSM
-                        repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/heads/*:refs/heads/*" });
-                        repository.Network.Fetch(repository.Network.Remotes["origin"], new[] { "+refs/tags/*:refs/tags/*" });
+                        Commands.Fetch(repository, "origin", new[] { "+refs/heads/*:refs/heads/*" }, new FetchOptions(), string.Empty);
+                        Commands.Fetch(repository, "origin", new[] { "+refs/tags/*:refs/tags/*" }, new FetchOptions(), string.Empty);
                     }
                     else
                     {
