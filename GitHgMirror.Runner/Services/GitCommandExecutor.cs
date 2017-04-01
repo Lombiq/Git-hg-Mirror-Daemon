@@ -27,7 +27,7 @@ namespace GitHgMirror.Runner.Services
 
             try
             {
-                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, (repository, remoteName) =>
                 {
                     _eventLog.WriteEntry(
                         "Starting to push to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
@@ -41,7 +41,7 @@ namespace GitHgMirror.Runner.Services
                         // would be force push and completely overwrite the remote repo's content. This would always
                         // succeed no matter what is there but could wipe out changes made between the repo was fetched
                         // and pushed.
-                        repository.Network.Push(repository.Network.Remotes["origin"], reference.CanonicalName);
+                        repository.Network.Push(repository.Network.Remotes[remoteName], reference.CanonicalName);
                     }
 
                     _eventLog.WriteEntry(
@@ -65,7 +65,7 @@ namespace GitHgMirror.Runner.Services
 
                 CdDirectory(GetGitDirectoryPath(cloneDirectoryPath).EncloseInQuotes());
 
-                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, (repository, remoteName) =>
                 {
                     // Since we can only push a given commit if we also know its branch we need to iterate through them.
                     // This won't push tags but that will be taken care of next time with the above standard push logic.
@@ -175,7 +175,7 @@ namespace GitHgMirror.Runner.Services
             }
         }
 
-        public void FetchFromGit(Uri gitCloneUri, string cloneDirectoryPath, bool useLibGit2Sharp)
+        public void FetchOrCloneFromGit(Uri gitCloneUri, string cloneDirectoryPath, bool useLibGit2Sharp)
         {
             var gitDirectoryPath = GetGitDirectoryPath(cloneDirectoryPath);
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
@@ -196,7 +196,7 @@ namespace GitHgMirror.Runner.Services
             }
             else
             {
-                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, repository =>
+                RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, (repository, remoteName) =>
                 {
                     _eventLog.WriteEntry(
                         "Starting to fetch from git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
@@ -211,8 +211,8 @@ namespace GitHgMirror.Runner.Services
                         // of course we don't want. So we need to filter just the interesting refs.
                         // Also we really shouldn't fetch and push other namespaces like meta/config either, see:
                         // https://groups.google.com/forum/#!topic/repo-discuss/zpqpPpHAwSM
-                        Commands.Fetch(repository, "origin", new[] { "+refs/heads/*:refs/heads/*" }, null, null);
-                        Commands.Fetch(repository, "origin", new[] { "+refs/tags/*:refs/tags/*" }, null, null);
+                        Commands.Fetch(repository, remoteName, new[] { "+refs/heads/*:refs/heads/*" }, null, null);
+                        Commands.Fetch(repository, remoteName, new[] { "+refs/tags/*:refs/tags/*" }, null, null);
                     }
                     else
                     {
@@ -238,21 +238,40 @@ namespace GitHgMirror.Runner.Services
         }
 
 
-        private void RunGitOperationOnClonedRepo(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository> operation)
+        private void RunGitOperationOnClonedRepo(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository, string> operation)
         {
             RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, () =>
             {
                 using (var repository = new Repository(GetGitDirectoryPath(cloneDirectoryPath)))
                 {
+                    // Keeping a configured remote for each repo URL the repository is synced with. This is necessary
+                    // because some LibGit2Sharp operations need one, can't operate with just a clone URL.
+
+                    var remoteName = "origin";
+                    var gitUrl = gitCloneUri.ToGitUrl();
+
                     if (repository.Network.Remotes["origin"] == null)
                     {
-                        var newRemote = repository.Network.Remotes.Add("origin", gitCloneUri.ToGitUrl());
+                        repository.AddMirrorRemote("origin", gitUrl);
+                    }
+                    else
+                    {
+                        var existingOtherRemote = repository.Network.Remotes
+                            .SingleOrDefault(remote => remote.Url == gitUrl);
 
-                        repository.Config.Set("remote.origin.mirror", true);
+                        if (existingOtherRemote != null)
+                        {
+                            remoteName = existingOtherRemote.Name;
+                        }
+                        else
+                        {
+                            remoteName = "remote" + repository.Network.Remotes.Count();
+                            repository.AddMirrorRemote(remoteName, gitUrl);
+                        }
                     }
 
 
-                    operation(repository);
+                    operation(repository, remoteName);
                 }
             });
         }
@@ -277,6 +296,8 @@ namespace GitHgMirror.Runner.Services
                 if (ex.Message.Contains("Request failed with status code: 404") ||
                     ex.Message.Contains("Request failed with status code: 401") ||
                     ex.Message.Contains("Request failed with status code: 403") ||
+                    ex.Message.Contains("Cannot push because a reference that you are trying to update on the remote contains commits that are not present locally.") ||
+                    ex.Message.Contains("Cannot push non-fastforwardable reference") ||
                     ex is RepositoryNotFoundException)
                 {
                     throw;
