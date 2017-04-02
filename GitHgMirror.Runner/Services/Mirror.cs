@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using LibGit2Sharp;
 
 namespace GitHgMirror.Runner.Services
 {
@@ -66,35 +67,49 @@ namespace GitHgMirror.Runner.Services
 
                 RepositoryInfoFileHelper.CreateOrUpdateFile(cloneDirectoryPath, descriptor);
 
+                // Mirroring between two git repos is supported, but in a hacked-in way at the moment. This needs a
+                // clean-up. Also, do note that only GitToHg and TwoWay is implemented. It would make the whole thing
+                // even more messy to duplicate the logic in HgToGit.
+                var hgUrlIsGitUrl = configuration.HgCloneUri.Scheme == "git+https";
+
                 switch (configuration.Direction)
                 {
                     case MirroringDirection.GitToHg:
-                        if (isCloned)
+                        if (hgUrlIsGitUrl)
                         {
-                            if (configuration.GitUrlIsHgUrl)
-                            {
-                                _hgCommandExecutor.PullHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
-                            }
-                            else
-                            {
-                                RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath, true));
-                                _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings);
-                            }
+                            RunGitCommandAndMarkException(() =>
+                                _gitCommandExecutor.FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, true));
+                            _gitCommandExecutor.PushToGit(configuration.HgCloneUri, cloneDirectoryPath);
                         }
                         else
                         {
-                            if (configuration.GitUrlIsHgUrl)
+                            if (isCloned)
                             {
-                                _hgCommandExecutor.CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+                                if (configuration.GitUrlIsHgUrl)
+                                {
+                                    _hgCommandExecutor.PullHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+                                }
+                                else
+                                {
+                                    RunGitCommandAndMarkException(() =>
+                                        _gitCommandExecutor.FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, true));
+                                    _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings);
+                                }
                             }
                             else
                             {
-                                _hgCommandExecutor.CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath, settings);
+                                if (configuration.GitUrlIsHgUrl)
+                                {
+                                    _hgCommandExecutor.CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+                                }
+                                else
+                                {
+                                    _hgCommandExecutor.CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath, settings);
+                                }
                             }
-                        }
 
-                        _hgCommandExecutor.PushWithBookmarks(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                            _hgCommandExecutor.PushWithBookmarks(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                        }
 
                         break;
                     case MirroringDirection.HgToGit:
@@ -129,7 +144,7 @@ namespace GitHgMirror.Runner.Services
                                 // This will clear all commits int he git repo that aren't in the git remote repo but 
                                 // add changes that were added to the git repo.
                                 RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.FetchFromGit(configuration.GitCloneUri, cloneDirectoryPath, false));
+                                    _gitCommandExecutor.FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, false));
                                 _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings);
 
                                 // Updating bookmarks which may have shifted after importing from git. This way the
@@ -141,46 +156,93 @@ namespace GitHgMirror.Runner.Services
                                     _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath));
                             };
 
-                        if (isCloned)
+                        if (hgUrlIsGitUrl)
                         {
-                            _hgCommandExecutor.PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                            // The easiest solution to do two-way git mirroring is to sync separately, with two clones.
+                            // Otherwise when e.g. repository A adds a new commit, then repository B is pulled in, the
+                            // head of the branch will be at the point where it is in B. Thus pushing to A will fail 
+                            // with "Cannot push non-fastforwardable reference". There are other similar errors that 
+                            // can arise but can't easily be fixed automatically in a safe way. So first pulling both
+                            // repos then pushing them won't work.
 
-                            if (configuration.GitUrlIsHgUrl)
+                            var gitDirectoryPath = GitCommandExecutor.GetGitDirectoryPath(cloneDirectoryPath);
+
+                            var secondToFirstClonePath = Path.Combine(gitDirectoryPath, "secondToFirst");
+                            Action pullSecondPushToFirst = () =>
                             {
-                                _hgCommandExecutor.PullHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
-                            }
-                            else
+                                RunGitCommandAndMarkException(() =>
+                                    _gitCommandExecutor.FetchOrCloneFromGit(configuration.HgCloneUri, secondToFirstClonePath, true));
+                                RunGitCommandAndMarkException(() =>
+                                    _gitCommandExecutor.PushToGit(configuration.GitCloneUri, secondToFirstClonePath));
+                            };
+
+                            var firstToSecondClonePath = Path.Combine(gitDirectoryPath, "firstToSecond");
+                            RunGitCommandAndMarkException(() =>
+                                _gitCommandExecutor.FetchOrCloneFromGit(configuration.GitCloneUri, firstToSecondClonePath, true));
+                            try
                             {
-                                syncHgAndGitHistories();
+                                RunGitCommandAndMarkException(() =>
+                                    _gitCommandExecutor.PushToGit(configuration.HgCloneUri, firstToSecondClonePath));
+
+                                pullSecondPushToFirst();
                             }
+                            catch (LibGit2SharpException ex) when (ex.Message.Contains("Cannot push because a reference that you are trying to update on the remote contains commits that are not present locally."))
+                            {
+                                pullSecondPushToFirst();
+
+                                // This exception can happen when the second repo contains changes not present in the
+                                // first one. Then we need to update the first repo with the second's changes and pull-
+                                // push again.
+                                RunGitCommandAndMarkException(() =>
+                                    _gitCommandExecutor.FetchOrCloneFromGit(configuration.GitCloneUri, firstToSecondClonePath, true));
+                                RunGitCommandAndMarkException(() =>
+                                    _gitCommandExecutor.PushToGit(configuration.HgCloneUri, firstToSecondClonePath));
+                            }
+
                         }
                         else
                         {
-                            if (configuration.GitUrlIsHgUrl)
+                            if (isCloned)
                             {
-                                _hgCommandExecutor.CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+
                                 _hgCommandExecutor.PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+
+                                if (configuration.GitUrlIsHgUrl)
+                                {
+                                    _hgCommandExecutor.PullHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+                                }
+                                else
+                                {
+                                    syncHgAndGitHistories();
+                                }
                             }
                             else
                             {
-                                // We need to start with cloning the hg repo. Otherwise cloning the git repo, then
-                                // pulling from the hg repo would yield a "repository unrelated" error, even if the git
-                                // repo was created from the hg repo. For an explanation see: 
-                                // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
-                                _hgCommandExecutor.CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                                if (configuration.GitUrlIsHgUrl)
+                                {
+                                    _hgCommandExecutor.CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+                                    _hgCommandExecutor.PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                                }
+                                else
+                                {
+                                    // We need to start with cloning the hg repo. Otherwise cloning the git repo, then
+                                    // pulling from the hg repo would yield a "repository unrelated" error, even if the git
+                                    // repo was created from the hg repo. For an explanation see: 
+                                    // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
+                                    _hgCommandExecutor.CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
 
-                                syncHgAndGitHistories();
+                                    syncHgAndGitHistories();
+                                }
+                            }
+
+
+                            _hgCommandExecutor.PushWithBookmarks(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+
+                            if (configuration.GitUrlIsHgUrl)
+                            {
+                                _hgCommandExecutor.PushWithBookmarks(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
                             }
                         }
-
-
-                        _hgCommandExecutor.PushWithBookmarks(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
-
-                        if (configuration.GitUrlIsHgUrl)
-                        {
-                            _hgCommandExecutor.PushWithBookmarks(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
-                        }
-
 
                         break;
                 }
@@ -209,7 +271,7 @@ namespace GitHgMirror.Runner.Services
 
                     // These git exceptions are caused by hg errors in a way, so despite them coming from git the whole
                     // repo folder should be removed.
-                    var isHgOriginatedGitException = 
+                    var isHgOriginatedGitException =
                         ex.Message.Contains("does not match any existing object") ||
                         ex.Message.Contains("Object not found - failed to find pack entry");
                     if (ex.Data.Contains("IsGitException") && !isHgOriginatedGitException)
@@ -225,8 +287,8 @@ namespace GitHgMirror.Runner.Services
                         }
                         catch (Exception gitDirectoryDeleteException) when (!gitDirectoryDeleteException.IsFatal())
                         {
-                            exceptionMessage += 
-                                " While the removal of just the git folder was attempted it failed with the following exception, thus the deletion of the whole repository folder will be attempted: " + 
+                            exceptionMessage +=
+                                " While the removal of just the git folder was attempted it failed with the following exception, thus the deletion of the whole repository folder will be attempted: " +
                                 gitDirectoryDeleteException;
 
                             // We'll continue with the repo folder removal below.
