@@ -186,7 +186,8 @@ namespace GitHgMirror.Runner.Services
 
             var bookmarksOutput = RunHgCommandAndLogOutput("hg bookmarks", settings);
 
-            // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there are no bookmarks.
+            // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there 
+            // are no bookmarks.
             if (bookmarksOutput.Contains("no bookmarks set"))
             {
                 RunRemoteHgCommandAndLogOutput("hg push --new-branch --force " + quotedHgCloneUrl, settings);
@@ -201,7 +202,8 @@ namespace GitHgMirror.Runner.Services
                       .Where(line => !string.IsNullOrEmpty(line))
                       .Select(line => "-B " + line);
 
-                // Pushing a lot of bookmarks at once would result in a "RuntimeError: maximum recursion depth exceeded" error.
+                // Pushing a lot of bookmarks at once would result in a "RuntimeError: maximum recursion depth exceeded" 
+                // error.
                 var batchSize = 30;
                 var bookmarksBatch = bookmarks.Take(batchSize);
                 var skip = 0;
