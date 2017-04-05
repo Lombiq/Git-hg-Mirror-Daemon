@@ -58,8 +58,7 @@ namespace GitHgMirror.Runner.Services
         {
             if (_process == null || _process.HasExited) return;
 
-            // Gracefully exiting the process instead of killing it.
-            RunCommand("exit");
+            _process.Kill();
             _process.Dispose();
             _process = null;
         }
