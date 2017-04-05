@@ -125,13 +125,20 @@ namespace GitHgMirror.Runner
                                     {
                                         Debug.WriteLine("Mirroring page " + pageNum + ": " + configuration);
 
-                                        mirror.MirrorRepositories(configuration, _settings);
-
-                                        _apiService.Post("Report", new MirroringStatusReport
+                                        // Hg and git push command randomly hang without any apparent reason (when just
+                                        // pushing small payloads). To prevent such a hang causing repositories stop
+                                        // syncing and Tasks being blocked forever there is a timout for mirroring.
+                                        // Such a kill timeout is not a nice solution but the hangs are unexplainable.
+                                        var mirrorExecutionTask = 
+                                            Task.Run(() =>  mirror.MirrorRepositories(configuration, _settings));
+                                        if (mirrorExecutionTask.Wait(2 * 60 * 60 * 1000)) // Two hours.
                                         {
-                                            ConfigurationId = configuration.Id,
-                                            Status = MirroringStatus.Syncing
-                                        });
+                                            _apiService.Post("Report", new MirroringStatusReport
+                                            {
+                                                ConfigurationId = configuration.Id,
+                                                Status = MirroringStatus.Syncing
+                                            });
+                                        }
                                     }
                                     catch (MirroringException ex)
                                     {
