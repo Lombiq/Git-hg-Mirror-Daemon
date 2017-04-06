@@ -86,6 +86,9 @@ namespace GitHgMirror.Runner
             catch (Exception ex) when (!ex.IsFatal())
             {
                 // Swallowing non-fatal exceptions like when the page count can't be retrieved.
+                _eventLog.WriteEntry(
+                    "Adjusting page counts failed and will be re-tried next time. Exception: " + ex, 
+                    EventLogEntryType.Error);
             }
         }
 
@@ -131,13 +134,21 @@ namespace GitHgMirror.Runner
                                         // Such a kill timeout is not a nice solution but the hangs are unexplainable.
                                         var mirrorExecutionTask = 
                                             Task.Run(() =>  mirror.MirrorRepositories(configuration, _settings));
-                                        if (mirrorExecutionTask.Wait(2 * 60 * 60 * 1000)) // Two hours.
+                                        var mirroringTimoutSeconds = 2 * 60 * 60; // Two hours.
+                                        if (mirrorExecutionTask.Wait(mirroringTimoutSeconds * 1000))
                                         {
                                             _apiService.Post("Report", new MirroringStatusReport
                                             {
                                                 ConfigurationId = configuration.Id,
                                                 Status = MirroringStatus.Syncing
                                             });
+                                        }
+                                        else
+                                        {
+                                            _eventLog.WriteEntry(string.Format(
+                                                "Mirroring the hg repository {0} and git repository {1} in the direction {2} has hung and was forcefully terminated after {3}s.",
+                                                configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, mirroringTimoutSeconds),
+                                                EventLogEntryType.Error);
                                         }
                                     }
                                     catch (MirroringException ex)
