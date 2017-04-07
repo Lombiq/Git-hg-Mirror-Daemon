@@ -134,7 +134,7 @@ namespace GitHgMirror.Runner
                                         // Such a kill timeout is not a nice solution but the hangs are unexplainable.
                                         var mirrorExecutionTask = 
                                             Task.Run(() =>  mirror.MirrorRepositories(configuration, _settings));
-                                        var mirroringTimoutSeconds = 2 * 60 * 60; // Two hours.
+                                        var mirroringTimoutSeconds = 10 * 60 * 60; // Ten hours.
                                         if (mirrorExecutionTask.Wait(mirroringTimoutSeconds * 1000))
                                         {
                                             _apiService.Post("Report", new MirroringStatusReport
