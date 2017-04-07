@@ -134,7 +134,7 @@ namespace GitHgMirror.Runner
                                         // Such a kill timeout is not a nice solution but the hangs are unexplainable.
                                         var mirrorExecutionTask = 
                                             Task.Run(() =>  mirror.MirrorRepositories(configuration, _settings));
-                                        var mirroringTimoutSeconds = 2 * 60 * 60; // Two hours.
+                                        var mirroringTimoutSeconds = 10 * 60 * 60; // Ten hours.
                                         if (mirrorExecutionTask.Wait(mirroringTimoutSeconds * 1000))
                                         {
                                             _apiService.Post("Report", new MirroringStatusReport
@@ -151,19 +151,21 @@ namespace GitHgMirror.Runner
                                                 EventLogEntryType.Error);
                                         }
                                     }
-                                    catch (MirroringException ex)
+                                    catch (AggregateException ex)
                                     {
+                                        var mirroringException = (MirroringException)ex.InnerException;
+
                                         _eventLog.WriteEntry(string.Format(
                                             "An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
                                             Environment.NewLine + "Exception: {3}",
-                                            configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, ex),
+                                            configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, mirroringException),
                                             EventLogEntryType.Error);
 
                                         _apiService.Post("Report", new MirroringStatusReport
                                         {
                                             ConfigurationId = configuration.Id,
                                             Status = MirroringStatus.Failed,
-                                            Message = ex.InnerException.Message
+                                            Message = mirroringException.InnerException.Message
                                         });
                                     }
                                 }
