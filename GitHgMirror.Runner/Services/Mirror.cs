@@ -309,32 +309,14 @@ namespace GitHgMirror.Runner.Services
                         // (git pack files commonly are) which can be (but not always) behind UnauthorizedAccessException.
                         if (directoryDeleteException is IOException || directoryDeleteException is UnauthorizedAccessException)
                         {
-                            var killedProcesses = new List<string>();
-                            var readOnlyFiles = new List<string>();
-
-                            var files = Directory.EnumerateFiles(cloneDirectoryPath, "*", SearchOption.AllDirectories);
-                            foreach (var file in files)
-                            {
-                                var lockingProcesses = FileUtil.WhoIsLocking(file);
-                                foreach (var process in lockingProcesses)
-                                {
-                                    killedProcesses.Add(process.MainModule.FileName);
-                                    process.Kill();
-                                }
-
-                                if (File.GetAttributes(file).HasFlag(FileAttributes.ReadOnly))
-                                {
-                                    readOnlyFiles.Add(file);
-                                    File.SetAttributes(file, FileAttributes.Normal);
-                                }
-                            }
+                            var killResult = DirectoryUtil.KillProcessesLockingFiles(cloneDirectoryPath);
 
                             DeleteDirectoryIfExists(cloneDirectoryPath);
 
                             exceptionMessage +=
                                 " While deleting the folder of the mirror initially failed, after trying to kill processes that were locking files in it and setting all files not to be read-only the folder could be successfully deleted. " +
-                                "Processes killed: " + (killedProcesses.Any() ? string.Join(", ", killedProcesses) : "no processes") +
-                                " Read-only files: " + (readOnlyFiles.Any() ? string.Join(", ", readOnlyFiles) : "no files");
+                                "Processes killed: " + (killResult.KilledProcesseFileNames.Any() ? string.Join(", ", killResult.KilledProcesseFileNames) : "no processes") +
+                                " Read-only files: " + (killResult.ReadOnlyFilePaths.Any() ? string.Join(", ", killResult.ReadOnlyFilePaths) : "no files");
 
                             throw new MirroringException(exceptionMessage, ex, directoryDeleteException);
                         }

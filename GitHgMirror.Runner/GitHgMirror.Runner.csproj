@@ -51,6 +51,7 @@
   <ItemGroup>
     <Compile Include="ApiService.cs" />
     <Compile Include="Extensions\RepositoryExtensions.cs" />
+    <Compile Include="Helpers\DirectoryUtil.cs" />
     <Compile Include="Helpers\RepositoryInfoFileHelper.cs" />
     <Compile Include="Services\CommandRunner.cs" />
     <Compile Include="CommandException.cs" />
