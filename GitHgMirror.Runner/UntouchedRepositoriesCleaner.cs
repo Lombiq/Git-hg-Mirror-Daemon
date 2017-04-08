@@ -38,24 +38,43 @@ namespace GitHgMirror.Runner
                             !File.Exists(Mirror.GetRepositoryLockFilePath(repositoryDirectory)))
                         {
                             _eventLog.WriteEntry("Attempting to remove untouched repository folder: " + repositoryDirectory);
+
                             try
                             {
-                                Directory.Delete(repositoryDirectory, true);
+                                try
+                                {
+                                    Directory.Delete(repositoryDirectory, true);
+                                }
+                                catch (UnauthorizedAccessException)
+                                {
+                                    var killResult = DirectoryUtil.KillProcessesLockingFiles(repositoryDirectory);
+
+                                    _eventLog.WriteEntry(
+                                        "Removing the untouched repository folder: " + repositoryDirectory +
+                                        " initially failed, so trying to kill processes that are locking files in it and setting all files not to be read-only resulted in the following." +
+                                        " Processes killed: " + (killResult.KilledProcesseFileNames.Any() ? string.Join(", ", killResult.KilledProcesseFileNames) : "no processes") +
+                                        " Read-only files: " + (killResult.ReadOnlyFilePaths.Any() ? string.Join(", ", killResult.ReadOnlyFilePaths) : "no files"),
+                                        EventLogEntryType.Warning);
+
+                                    Directory.Delete(repositoryDirectory, true);
+                                }
+
                                 RepositoryInfoFileHelper.DeleteFileIfExists(repositoryDirectory);
+
                                 _eventLog.WriteEntry("Removed untouched repository folder: " + repositoryDirectory);
                             }
                             catch (Exception ex) when (!ex.IsFatal())
                             {
                                 _eventLog.WriteEntry(
-                                    "Removing the untouched repository folder \"" + repositoryDirectory + 
-                                    "\" failed with the following exception: " + ex.ToString(), 
+                                    "Removing the untouched repository folder \"" + repositoryDirectory +
+                                    "\" failed with the following exception: " + ex.ToString(),
                                     EventLogEntryType.Error);
                             }
 
                             count++;
                         }
                     }
-                } 
+                }
             }
 
             _eventLog.WriteEntry("Finished cleaning untouched repositories, " + count + " folders removed.");
