@@ -153,7 +153,9 @@ namespace GitHgMirror.Runner
                                     }
                                     catch (AggregateException ex)
                                     {
-                                        var mirroringException = (MirroringException)ex.InnerException;
+                                        var mirroringException = ex.InnerException as MirroringException;
+
+                                        if (mirroringException == null) throw;
 
                                         _eventLog.WriteEntry(string.Format(
                                             "An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
