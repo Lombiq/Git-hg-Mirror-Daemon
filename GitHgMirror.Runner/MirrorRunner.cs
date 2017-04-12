@@ -134,7 +134,7 @@ namespace GitHgMirror.Runner
                                         // Such a kill timeout is not a nice solution but the hangs are unexplainable.
                                         var mirrorExecutionTask = 
                                             Task.Run(() =>  mirror.MirrorRepositories(configuration, _settings));
-                                        var mirroringTimoutSeconds = 10 * 60 * 60; // Ten hours.
+                                        var mirroringTimoutSeconds = 15 * 60 * 60; // 15 hours.
                                         if (mirrorExecutionTask.Wait(mirroringTimoutSeconds * 1000))
                                         {
                                             _apiService.Post("Report", new MirroringStatusReport
@@ -145,6 +145,15 @@ namespace GitHgMirror.Runner
                                         }
                                         else
                                         {
+                                            _apiService.Post("Report", new MirroringStatusReport
+                                            {
+                                                ConfigurationId = configuration.Id,
+                                                Status = MirroringStatus.Failed,
+                                                Message = 
+                                                    "Mirroring didn't finish after " + mirroringTimoutSeconds +
+                                                    "s so was terminated. Possible causes include one of the repos being too slow to access (could be a temporary issues with the hosting provider) or simply being too big."
+                                            });
+
                                             _eventLog.WriteEntry(string.Format(
                                                 "Mirroring the hg repository {0} and git repository {1} in the direction {2} has hung and was forcefully terminated after {3}s.",
                                                 configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, mirroringTimoutSeconds),
@@ -153,7 +162,9 @@ namespace GitHgMirror.Runner
                                     }
                                     catch (AggregateException ex)
                                     {
-                                        var mirroringException = (MirroringException)ex.InnerException;
+                                        var mirroringException = ex.InnerException as MirroringException;
+
+                                        if (mirroringException == null) throw;
 
                                         _eventLog.WriteEntry(string.Format(
                                             "An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
