@@ -151,7 +151,7 @@ namespace GitHgMirror.Runner
                                                 Status = MirroringStatus.Failed,
                                                 Message = 
                                                     "Mirroring didn't finish after " + mirroringTimoutSeconds +
-                                                    "s so was terminated. Possible causes include one of the repos being too slow to access (could be a temporary issues with the hosting provider) or simply being too big."
+                                                    "s so was terminated. Possible causes include one of the repos being too slow to access (could be a temporary issue with the hosting provider) or simply being too big."
                                             });
 
                                             _eventLog.WriteEntry(string.Format(
