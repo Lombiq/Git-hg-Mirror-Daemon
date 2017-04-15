@@ -17,9 +17,11 @@ namespace GitHgMirror.Runner.Services
             // Setting the suffix for all bookmarks created corresponding to git branches (when importing from git to hg).
             " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix + 
             // Enabling the hggit extension.
-            " --config extensions.hggit=" + 
-            // Disabling the mercurial_keyring extension.
-            " --config extensions.mercurial_keyring=!";
+            " --config extensions.hggit=" +
+            // Disabling the mercurial_keyring extension since it will override auth data contained in repo URLs.
+            " --config extensions.mercurial_keyring=!" +
+            // Disabling the eol extension since it will unnecessarily warn of line ending issues.
+            " --config extensions.eol=!";
 
 
         public HgCommandExecutor(EventLog eventLog)
