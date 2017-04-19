@@ -27,8 +27,10 @@ namespace GitHgMirror.Runner.Services
         public void MirrorRepositories(MirroringConfiguration configuration, MirroringSettings settings)
         {
             var descriptor = GetMirroringDescriptor(configuration);
+            var loggedDescriptor = descriptor + " (" + configuration.Id.ToString() + ")";
 
-            Debug.WriteLine("Starting mirroring: " + descriptor);
+            Debug.WriteLine("Starting mirroring: " + loggedDescriptor);
+            _eventLog.WriteEntry("Starting mirroring: " + loggedDescriptor);
 
             var repositoryDirectoryName = GetCloneDirectoryName(configuration);
             // A subfolder per clone dir start letter:
@@ -247,7 +249,8 @@ namespace GitHgMirror.Runner.Services
                         break;
                 }
 
-                Debug.WriteLine("Finished mirroring: " + descriptor);
+                Debug.WriteLine("Finished mirroring: " + loggedDescriptor);
+                _eventLog.WriteEntry("Finished mirroring: " + loggedDescriptor);
             }
             catch (Exception ex) when (!ex.IsFatal())
             {
@@ -352,7 +355,8 @@ namespace GitHgMirror.Runner.Services
         public bool IsCloned(MirroringConfiguration configuration, MirroringSettings settings)
         {
             var repositoryDirectoryName = GetCloneDirectoryName(configuration);
-            var cloneDirectoryParentPath = Path.Combine(settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString()); // A subfolder per clone dir start letter
+            // A subfolder per clone dir start letter.
+            var cloneDirectoryParentPath = Path.Combine(settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString());
             var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
             // Also checking if the directory is empty. If yes, it was a failed attempt and really the repo is not cloned.
             return Directory.Exists(cloneDirectoryPath) && Directory.EnumerateFileSystemEntries(cloneDirectoryPath).Any();
@@ -398,7 +402,13 @@ namespace GitHgMirror.Runner.Services
 
         private static string GetCloneDirectoryName(MirroringConfiguration configuration)
         {
-            return GetMirroringDescriptor(configuration).GetHashCode().ToString();
+            // Including the ID so if a config is removed, then newly added then it won't be considered the same (this
+            // is necessary to fix issues when a re-clone is needed, like when git history was modified). But nevertheless
+            // the URLs should be taken care of too: if the user completely changes the config then it should be
+            // handled as new.
+            // Having the ID in the directory name also makes it sure that directories will be unique (no issue with
+            // the possibility of hash collision).
+            return configuration.Id.ToString() + "-" + GetMirroringDescriptor(configuration).GetHashCode().ToString();
         }
 
         private static string GetMirroringDescriptor(MirroringConfiguration configuration)
