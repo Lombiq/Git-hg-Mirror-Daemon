@@ -27,8 +27,10 @@ namespace GitHgMirror.Runner.Services
         public void MirrorRepositories(MirroringConfiguration configuration, MirroringSettings settings)
         {
             var descriptor = GetMirroringDescriptor(configuration);
+            var loggedDescriptor = descriptor + " (" + configuration.Id.ToString() + ")";
 
-            Debug.WriteLine("Starting mirroring: " + descriptor);
+            Debug.WriteLine("Starting mirroring: " + loggedDescriptor);
+            _eventLog.WriteEntry("Starting mirroring: " + loggedDescriptor);
 
             var repositoryDirectoryName = GetCloneDirectoryName(configuration);
             // A subfolder per clone dir start letter:
@@ -247,7 +249,8 @@ namespace GitHgMirror.Runner.Services
                         break;
                 }
 
-                Debug.WriteLine("Finished mirroring: " + descriptor);
+                Debug.WriteLine("Finished mirroring: " + loggedDescriptor);
+                _eventLog.WriteEntry("Finished mirroring: " + loggedDescriptor);
             }
             catch (Exception ex) when (!ex.IsFatal())
             {
