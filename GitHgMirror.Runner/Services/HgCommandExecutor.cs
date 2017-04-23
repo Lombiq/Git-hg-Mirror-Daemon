@@ -206,7 +206,7 @@ namespace GitHgMirror.Runner.Services
 
                 // Pushing a lot of bookmarks at once would result in a "RuntimeError: maximum recursion depth exceeded" 
                 // error.
-                var batchSize = 30;
+                var batchSize = 29;
                 var bookmarksBatch = bookmarks.Take(batchSize);
                 var skip = 0;
                 var bookmarkCount = bookmarks.Count();
@@ -220,7 +220,8 @@ namespace GitHgMirror.Runner.Services
                     if (bookmarksBatch.Any())
                     {
                         // Bitbucket throttles such requests so we need to slow down. Otherwise we'd get this error:
-                        // "remote: Push throttled (max allowable rate: 30 per 60 seconds)."
+                        // "remote: Push throttled (max allowable rate: 30 per 60 seconds)." However, this is wrong as
+                        // the actual limit is lower at 29.
                         Thread.Sleep(61000);
                     }
                 }
