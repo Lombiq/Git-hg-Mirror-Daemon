@@ -317,6 +317,9 @@ namespace GitHgMirror.Runner.Services
                         "A LibGit2Sharp operation failed " + (retryCount + 1) + " time(s) but will be re-tried." + errorDescriptor,
                         EventLogEntryType.Warning);
 
+                    // Letting temporary issues resolve themselves.
+                    Thread.Sleep(30000);
+
                     RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, operation, ++retryCount);
                 }
                 else
