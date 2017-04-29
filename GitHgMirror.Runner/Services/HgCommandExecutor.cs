@@ -109,8 +109,7 @@ namespace GitHgMirror.Runner.Services
                         "hg clone --noupdate --rev 0 " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath,
                         settings);
 
-                    CdDirectory(quotedCloneDirectoryPath);
-                    PullPerRevisionsHg(quotedHgCloneUrl, settings);
+                    PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
                 }
                 else throw;
             }
@@ -131,7 +130,7 @@ namespace GitHgMirror.Runner.Services
                     _eventLog.WriteEntry(
                         "Pulling from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
                         EventLogEntryType.Warning);
-                    PullPerRevisionsHg(quotedHgCloneUrl, settings);
+                    PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
                 }
                 else throw;
             }
@@ -234,11 +233,13 @@ namespace GitHgMirror.Runner.Services
         /// changeset is huge like this one: http://hg.openjdk.java.net/openjfx/9-dev/rt/rev/86d5cbe0c60f (~100MB, 
         /// 11000 files).
         /// </summary>
-        private void PullPerRevisionsHg(string quotedHgCloneUrl, MirroringSettings settings)
+        private void PullPerRevisionsHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath, MirroringSettings settings)
         {
-            var startRevision = RunHgCommandAndLogOutput("hg identify --rev tip --num", settings)
-                .Split(new[] { Environment.NewLine }, StringSplitOptions.None)[1];
-            var revision = int.Parse(startRevision) + 1;
+            CdDirectory(quotedCloneDirectoryPath);
+
+            var startRevision = int.Parse(RunHgCommandAndLogOutput("hg identify --rev tip --num", settings)
+                .Split(new[] { Environment.NewLine }, StringSplitOptions.None)[1]);
+            var revision = startRevision + 1;
             var finished = false;
             while (!finished)
             {
@@ -262,6 +263,14 @@ namespace GitHgMirror.Runner.Services
                         finished = true;
                     }
                     else throw;
+                }
+
+                // Let's try a normal pull every 100 revisions. If it succeeds then the mirroring can finish faster
+                // (otherwise it could even time out).
+                if (revision - startRevision >= 100)
+                {
+                    PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                    return;
                 }
 
                 revision++;
