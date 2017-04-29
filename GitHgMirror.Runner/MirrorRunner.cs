@@ -74,12 +74,23 @@ namespace GitHgMirror.Runner
 
                 // We only care if the page count increased; if it decreased then processing those queue items will just
                 // do nothing (sine they'll fetch empty pages).
-                if (newPageCount <= _pageCount) return;
+                if (newPageCount <= _pageCount)
+                {
+                    _eventLog.WriteEntry(
+                        "Checked page count whether to adjust it but this wasn't needed (current page count: " +
+                        _pageCount.ToString() + ", new page count: " + newPageCount.ToString() + ").");
+
+                    return;
+                }
 
                 for (int i = _pageCount; i < newPageCount; i++)
                 {
                     _mirrorQueue.Enqueue(i);
                 }
+
+                _eventLog.WriteEntry(
+                    "Adjusted page count: old page count was " + _pageCount.ToString() + ", new page count is " +
+                    newPageCount.ToString() + ".");
 
                 _pageCount = newPageCount;
             }
