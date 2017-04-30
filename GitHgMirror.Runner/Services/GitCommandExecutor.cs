@@ -134,7 +134,7 @@ namespace GitHgMirror.Runner.Services
                                     }
                                     catch (CommandException commandException)
                                     {
-                                        if (IsGitExceptionRealError(commandException) &&
+                                        if (commandException.IsGitExceptionRealError() &&
                                             // When trying to re-push a commit we'll get an error like below, but this 
                                             // isn't an issue:
                                             // ! [rejected]        b028f04f5092cb47db015dd7d9bfc2ad8cd8ce98 -> master (non-fast-forward)
@@ -225,7 +225,7 @@ namespace GitHgMirror.Runner.Services
                         {
                             RunCommandAndLogOutput("git fetch --tags \"origin\"");
                         }
-                        catch (CommandException commandException) when (!IsGitExceptionRealError(commandException))
+                        catch (CommandException commandException) when (!commandException.IsGitExceptionRealError())
                         {
                         } 
                     }
@@ -337,30 +337,6 @@ namespace GitHgMirror.Runner.Services
         public static string GetGitDirectoryPath(string cloneDirectoryPath)
         {
             return Path.Combine(cloneDirectoryPath, ".hg", "git");
-        }
-
-        /// <summary>
-        /// Git communicates some messages via the error stream, so checking them here.
-        /// </summary>
-        private static bool IsGitExceptionRealError(CommandException ex)
-        {
-            return
-                // If there is nothing to push git will return this message in the error stream.
-                !ex.Error.Contains("Everything up-to-date") &&
-                // A new branch was added.
-                !ex.Error.Contains("* [new branch]") &&
-                // Branches were deleted in git.
-                !ex.Error.Contains("[deleted]") &&
-                // A new tag was added.
-                !ex.Error.Contains("* [new tag]") &&
-                // The branch head was moved (shown during push).
-                !(ex.Error.Contains("..") && ex.Error.Contains(" -> ")) &&
-                // The branch head was moved (shown during fetch).
-                !(ex.Error.Contains("* branch") && ex.Error.Contains(" -> ")) &&
-                // Git GC is running.
-                !ex.Error.Contains("Auto packing the repository in background for optimum performance.") &&
-                // An existing tag was updated.
-                !ex.Error.Contains("[tag update]");
         }
     }
 }
