@@ -13,9 +13,9 @@ namespace GitHgMirror.Runner.Services
     internal class HgCommandExecutor : CommandExecutorBase
     {
         private const string GitBookmarkSuffix = "-git";
-        private const string HgGitConfig = 
+        private const string HgGitConfig =
             // Setting the suffix for all bookmarks created corresponding to git branches (when importing from git to hg).
-            " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix + 
+            " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix +
             // Enabling the hggit extension.
             " --config extensions.hggit=" +
             // Disabling the mercurial_keyring extension since it will override auth data contained in repo URLs.
@@ -97,21 +97,17 @@ namespace GitHgMirror.Runner.Services
                     "hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath,
                     settings);
             }
-            catch (CommandException ex)
+            catch (CommandException ex) when (ex.IsHgConnectionTerminatedError())
             {
-                if (ex.IsHgConnectionTerminatedError())
-                {
-                    _eventLog.WriteEntry(
-                        "Cloning from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
-                        EventLogEntryType.Warning);
+                _eventLog.WriteEntry(
+                    "Cloning from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
+                    EventLogEntryType.Warning);
 
-                    RunRemoteHgCommandAndLogOutput(
-                        "hg clone --noupdate --rev 0 " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath,
-                        settings);
+                RunRemoteHgCommandAndLogOutput(
+                    "hg clone --noupdate --rev 0 " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath,
+                    settings);
 
-                    PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
-                }
-                else throw;
+                PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
             }
         }
 
@@ -123,16 +119,13 @@ namespace GitHgMirror.Runner.Services
             {
                 RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl, settings);
             }
-            catch (CommandException ex)
+            catch (CommandException ex) when (ex.IsHgConnectionTerminatedError())
             {
-                if (ex.IsHgConnectionTerminatedError())
-                {
-                    _eventLog.WriteEntry(
-                        "Pulling from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
-                        EventLogEntryType.Warning);
-                    PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
-                }
-                else throw;
+                _eventLog.WriteEntry(
+                    "Pulling from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
+                    EventLogEntryType.Warning);
+
+                PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
             }
         }
 

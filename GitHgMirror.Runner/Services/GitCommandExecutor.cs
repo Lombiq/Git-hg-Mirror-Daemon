@@ -224,9 +224,8 @@ namespace GitHgMirror.Runner.Services
                         {
                             RunCommandAndLogOutput("git fetch --tags \"origin\"");
                         }
-                        catch (CommandException commandException)
+                        catch (CommandException commandException) when (!IsGitExceptionRealError(commandException))
                         {
-                            if (IsGitExceptionRealError(commandException)) throw;
                         } 
                     }
 

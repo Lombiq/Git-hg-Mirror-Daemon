@@ -324,10 +324,9 @@ namespace GitHgMirror.Runner.Services
                             throw new MirroringException(exceptionMessage, ex, directoryDeleteException);
                         }
                     }
-                    catch (Exception forcedCleanUpException)
+                    catch (Exception forcedCleanUpException) 
+                    when (!forcedCleanUpException.IsFatal() && !(forcedCleanUpException is MirroringException))
                     {
-                        if (forcedCleanUpException.IsFatal() || forcedCleanUpException is MirroringException) throw;
-
                         throw new MirroringException(
                             exceptionMessage + " Subsequently clean-up after the error failed as well, also the attempt to kill processes that were locking the mirror's folder and clearing all read-only files.",
                             ex,
