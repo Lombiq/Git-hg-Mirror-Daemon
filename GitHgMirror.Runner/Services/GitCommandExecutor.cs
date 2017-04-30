@@ -154,7 +154,7 @@ namespace GitHgMirror.Runner.Services
                                                 reRunGitPush = true;
 
                                                 // Waiting a bit so maybe the error will go away if it was temporary.
-                                                Thread.Sleep(10000);
+                                                Thread.Sleep(30000);
                                             }
                                             else throw;
                                         }
