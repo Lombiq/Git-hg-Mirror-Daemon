@@ -233,7 +233,9 @@ namespace GitHgMirror.Runner.Services
             var startRevision = int.Parse(RunHgCommandAndLogOutput("hg identify --rev tip --num", settings)
                 .Split(new[] { Environment.NewLine }, StringSplitOptions.None)[1]);
             var revision = startRevision + 1;
+
             var finished = false;
+            var pullRetryCount = 0;
             while (!finished)
             {
                 try
@@ -241,7 +243,19 @@ namespace GitHgMirror.Runner.Services
                     var output = RunRemoteHgCommandAndLogOutput(
                         "hg pull --rev " + revision + " " + quotedHgCloneUrl,
                         settings);
+
                     finished = output.Contains("no changes found");
+
+                    // Let's try a normal pull every 100 revisions. If it succeeds then the mirroring can finish faster
+                    // (otherwise it could even time out).
+                    if (!finished && revision - startRevision >= 100)
+                    {
+                        PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                        return;
+                    }
+
+                    revision++;
+                    pullRetryCount = 0;
                 }
                 catch (CommandException pullException)
                 {
@@ -255,18 +269,16 @@ namespace GitHgMirror.Runner.Services
                     {
                         finished = true;
                     }
+                    // If such a pull fails then we can't fall back more, have to retry.
+                    else if (pullException.IsHgConnectionTerminatedError() && pullRetryCount < 2)
+                    {
+                        pullRetryCount++;
+
+                        // Letting temporary issues resolve themselves.
+                        Thread.Sleep(30000);
+                    }
                     else throw;
                 }
-
-                // Let's try a normal pull every 100 revisions. If it succeeds then the mirroring can finish faster
-                // (otherwise it could even time out).
-                if (revision - startRevision >= 100)
-                {
-                    PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
-                    return;
-                }
-
-                revision++;
             }
         }
 
