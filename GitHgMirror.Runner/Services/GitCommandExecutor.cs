@@ -67,6 +67,8 @@ namespace GitHgMirror.Runner.Services
 
                 RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, (repository, remoteName) =>
                 {
+                    var pushCount = 0;
+
                     // Since we can only push a given commit if we also know its branch we need to iterate through them.
                     // This won't push tags but that will be taken care of next time with the above standard push logic.
                     foreach (var branch in repository.Branches)
@@ -131,6 +133,19 @@ namespace GitHgMirror.Runner.Services
                                             "git push " +
                                             gitCloneUri.ToGitUrl().EncloseInQuotes() + " "
                                             + sha + ":" + branchName + " --follow-tags");
+
+                                        pushCount++;
+
+                                        // Let's try a normal push every 300 commits. If it succeeds then the mirroring 
+                                        // can finish faster (otherwise it could even time out).
+                                        // Using a larger number than in hg revision by revision pulling because git
+                                        // commits can be repeated among branches, so the number of commits pushed can
+                                        // be lower than the number of push operations.
+                                        if (pushCount > 300)
+                                        {
+                                            PushToGit(gitCloneUri, cloneDirectoryPath);
+                                            return;
+                                        }
                                     }
                                     catch (CommandException commandException)
                                     {
