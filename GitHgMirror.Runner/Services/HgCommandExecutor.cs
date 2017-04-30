@@ -71,9 +71,9 @@ namespace GitHgMirror.Runner.Services
         public void CloneGit(Uri gitCloneUri, string quotedCloneDirectoryPath, MirroringSettings settings)
         {
             CdDirectory(quotedCloneDirectoryPath);
-            // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it
-            // in will fail with a "the connection was forcibly closed by remote host"-like error. This is why
-            // we start with cloning the git repo.
+            // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it in will 
+            // fail with a "the connection was forcibly closed by remote host"-like error. This is why we start with 
+            // cloning the git repo.
             RunGitRepoCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath, settings);
         }
 
@@ -259,12 +259,12 @@ namespace GitHgMirror.Runner.Services
                 }
                 catch (CommandException pullException)
                 {
-                    // This error happens when we try to go beyond existing revisions and it means we reached
-                    // the end of the repo history.
-                    // Maybe the hg identify command could be used to retrieve the latest revision number instead
-                    // (see: https://selenic.com/hg/help/identify) although it says "can't query remote revision 
-                    // number, branch, or tag" (and even if it could, what if new changes are being pushed?). So
-                    // using exceptions for now.
+                    // This error happens when we try to go beyond existing revisions and it means we reached the end 
+                    // of the repo history.
+                    // Maybe the hg identify command could be used to retrieve the latest revision number instead (see:
+                    // https://selenic.com/hg/help/identify) although it says "can't query remote revision number, 
+                    // branch, or tag" (and even if it could, what if new changes are being pushed?). So using exceptions 
+                    // for now.
                     if (pullException.Error.Contains("abort: unknown revision "))
                     {
                         finished = true;
@@ -317,9 +317,9 @@ namespace GitHgMirror.Runner.Services
                     return RunRemoteHgCommandAndLogOutput(hgCommand, settings, ++retryCount);
                 }
 
-                // Catching warning-level "bitbucket.org certificate with fingerprint .. not verified (check hostfingerprints 
-                // or web.cacerts config setting)" kind of errors that happen when mirroring happens accessing an insecure
-                // host.
+                // Catching warning-level "bitbucket.org certificate with fingerprint .. not verified (check
+                // hostfingerprints or web.cacerts config setting)" kind of errors that happen when mirroring happens 
+                // accessing an insecure host.
                 if (!ex.Error.Contains("not verified (check hostfingerprints or web.cacerts config setting)"))
                 {
                     throw;

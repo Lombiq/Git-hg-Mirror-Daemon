@@ -135,8 +135,8 @@ namespace GitHgMirror.Runner.Services
                                     catch (CommandException commandException)
                                     {
                                         if (IsGitExceptionRealError(commandException) &&
-                                            // When trying to re-push a commit we'll get an error like below, but this isn't
-                                            // an issue:
+                                            // When trying to re-push a commit we'll get an error like below, but this 
+                                            // isn't an issue:
                                             // ! [rejected]        b028f04f5092cb47db015dd7d9bfc2ad8cd8ce98 -> master (non-fast-forward)
                                             !commandException.Error.Contains(" ! [rejected]"))
                                         {
@@ -152,6 +152,7 @@ namespace GitHgMirror.Runner.Services
                                                     "This was try #" + tryCount + ", retrying.",
                                                     EventLogEntryType.Warning);
                                                 reRunGitPush = true;
+
                                                 // Waiting a bit so maybe the error will go away if it was temporary.
                                                 Thread.Sleep(10000);
                                             }
