@@ -27,7 +27,7 @@ namespace GitHgMirror.Runner.Services
         public void MirrorRepositories(MirroringConfiguration configuration, MirroringSettings settings)
         {
             var descriptor = GetMirroringDescriptor(configuration);
-            var loggedDescriptor = descriptor + " (" + configuration.Id.ToString() + ")";
+            var loggedDescriptor = descriptor + " (#" + configuration.Id.ToString() + ")";
 
             Debug.WriteLine("Starting mirroring: " + loggedDescriptor);
             _eventLog.WriteEntry("Starting mirroring: " + loggedDescriptor);
