@@ -13,9 +13,9 @@ namespace GitHgMirror.Runner.Services
     internal class HgCommandExecutor : CommandExecutorBase
     {
         private const string GitBookmarkSuffix = "-git";
-        private const string HgGitConfig = 
+        private const string HgGitConfig =
             // Setting the suffix for all bookmarks created corresponding to git branches (when importing from git to hg).
-            " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix + 
+            " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix +
             // Enabling the hggit extension.
             " --config extensions.hggit=" +
             // Disabling the mercurial_keyring extension since it will override auth data contained in repo URLs.
@@ -71,9 +71,9 @@ namespace GitHgMirror.Runner.Services
         public void CloneGit(Uri gitCloneUri, string quotedCloneDirectoryPath, MirroringSettings settings)
         {
             CdDirectory(quotedCloneDirectoryPath);
-            // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it
-            // in will fail with a "the connection was forcibly closed by remote host"-like error. This is why
-            // we start with cloning the git repo.
+            // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it in will 
+            // fail with a "the connection was forcibly closed by remote host"-like error. This is why we start with 
+            // cloning the git repo.
             RunGitRepoCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath, settings);
         }
 
@@ -97,21 +97,17 @@ namespace GitHgMirror.Runner.Services
                     "hg clone --noupdate " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath,
                     settings);
             }
-            catch (CommandException ex)
+            catch (CommandException ex) when (ex.IsHgConnectionTerminatedError())
             {
-                if (ex.IsHgConnectionTerminatedError())
-                {
-                    _eventLog.WriteEntry(
-                        "Cloning from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
-                        EventLogEntryType.Warning);
+                _eventLog.WriteEntry(
+                    "Cloning from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
+                    EventLogEntryType.Warning);
 
-                    RunRemoteHgCommandAndLogOutput(
-                        "hg clone --noupdate --rev 0 " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath,
-                        settings);
+                RunRemoteHgCommandAndLogOutput(
+                    "hg clone --noupdate --rev 0 " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath,
+                    settings);
 
-                    PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
-                }
-                else throw;
+                PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
             }
         }
 
@@ -123,16 +119,13 @@ namespace GitHgMirror.Runner.Services
             {
                 RunRemoteHgCommandAndLogOutput("hg pull " + quotedHgCloneUrl, settings);
             }
-            catch (CommandException ex)
+            catch (CommandException ex) when (ex.IsHgConnectionTerminatedError())
             {
-                if (ex.IsHgConnectionTerminatedError())
-                {
-                    _eventLog.WriteEntry(
-                        "Pulling from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
-                        EventLogEntryType.Warning);
-                    PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
-                }
-                else throw;
+                _eventLog.WriteEntry(
+                    "Pulling from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
+                    EventLogEntryType.Warning);
+
+                PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
             }
         }
 
@@ -240,7 +233,9 @@ namespace GitHgMirror.Runner.Services
             var startRevision = int.Parse(RunHgCommandAndLogOutput("hg identify --rev tip --num", settings)
                 .Split(new[] { Environment.NewLine }, StringSplitOptions.None)[1]);
             var revision = startRevision + 1;
+
             var finished = false;
+            var pullRetryCount = 0;
             while (!finished)
             {
                 try
@@ -248,32 +243,42 @@ namespace GitHgMirror.Runner.Services
                     var output = RunRemoteHgCommandAndLogOutput(
                         "hg pull --rev " + revision + " " + quotedHgCloneUrl,
                         settings);
+
                     finished = output.Contains("no changes found");
+
+                    // Let's try a normal pull every 100 revisions. If it succeeds then the mirroring can finish faster
+                    // (otherwise it could even time out).
+                    if (!finished && revision - startRevision >= 100)
+                    {
+                        PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                        return;
+                    }
+
+                    revision++;
+                    pullRetryCount = 0;
                 }
                 catch (CommandException pullException)
                 {
-                    // This error happens when we try to go beyond existing revisions and it means we reached
-                    // the end of the repo history.
-                    // Maybe the hg identify command could be used to retrieve the latest revision number instead
-                    // (see: https://selenic.com/hg/help/identify) although it says "can't query remote revision 
-                    // number, branch, or tag" (and even if it could, what if new changes are being pushed?). So
-                    // using exceptions for now.
+                    // This error happens when we try to go beyond existing revisions and it means we reached the end 
+                    // of the repo history.
+                    // Maybe the hg identify command could be used to retrieve the latest revision number instead (see:
+                    // https://selenic.com/hg/help/identify) although it says "can't query remote revision number, 
+                    // branch, or tag" (and even if it could, what if new changes are being pushed?). So using exceptions 
+                    // for now.
                     if (pullException.Error.Contains("abort: unknown revision "))
                     {
                         finished = true;
                     }
+                    // If such a pull fails then we can't fall back more, have to retry.
+                    else if (pullException.IsHgConnectionTerminatedError() && pullRetryCount < 2)
+                    {
+                        pullRetryCount++;
+
+                        // Letting temporary issues resolve themselves.
+                        Thread.Sleep(30000);
+                    }
                     else throw;
                 }
-
-                // Let's try a normal pull every 100 revisions. If it succeeds then the mirroring can finish faster
-                // (otherwise it could even time out).
-                if (revision - startRevision >= 100)
-                {
-                    PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
-                    return;
-                }
-
-                revision++;
             }
         }
 
@@ -312,9 +317,9 @@ namespace GitHgMirror.Runner.Services
                     return RunRemoteHgCommandAndLogOutput(hgCommand, settings, ++retryCount);
                 }
 
-                // Catching warning-level "bitbucket.org certificate with fingerprint .. not verified (check hostfingerprints 
-                // or web.cacerts config setting)" kind of errors that happen when mirroring happens accessing an insecure
-                // host.
+                // Catching warning-level "bitbucket.org certificate with fingerprint .. not verified (check
+                // hostfingerprints or web.cacerts config setting)" kind of errors that happen when mirroring happens 
+                // accessing an insecure host.
                 if (!ex.Error.Contains("not verified (check hostfingerprints or web.cacerts config setting)"))
                 {
                     throw;

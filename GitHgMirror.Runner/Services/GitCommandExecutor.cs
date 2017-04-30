@@ -67,6 +67,8 @@ namespace GitHgMirror.Runner.Services
 
                 RunGitOperationOnClonedRepo(gitCloneUri, cloneDirectoryPath, (repository, remoteName) =>
                 {
+                    var pushCount = 0;
+
                     // Since we can only push a given commit if we also know its branch we need to iterate through them.
                     // This won't push tags but that will be taken care of next time with the above standard push logic.
                     foreach (var branch in repository.Branches)
@@ -131,12 +133,25 @@ namespace GitHgMirror.Runner.Services
                                             "git push " +
                                             gitCloneUri.ToGitUrl().EncloseInQuotes() + " "
                                             + sha + ":" + branchName + " --follow-tags");
+
+                                        pushCount++;
+
+                                        // Let's try a normal push every 300 commits. If it succeeds then the mirroring 
+                                        // can finish faster (otherwise it could even time out).
+                                        // Using a larger number than in hg revision by revision pulling because git
+                                        // commits can be repeated among branches, so the number of commits pushed can
+                                        // be lower than the number of push operations.
+                                        if (pushCount > 300)
+                                        {
+                                            PushToGit(gitCloneUri, cloneDirectoryPath);
+                                            return;
+                                        }
                                     }
                                     catch (CommandException commandException)
                                     {
-                                        if (IsGitExceptionRealError(commandException) &&
-                                            // When trying to re-push a commit we'll get an error like below, but this isn't
-                                            // an issue:
+                                        if (commandException.IsGitExceptionRealError() &&
+                                            // When trying to re-push a commit we'll get an error like below, but this 
+                                            // isn't an issue:
                                             // ! [rejected]        b028f04f5092cb47db015dd7d9bfc2ad8cd8ce98 -> master (non-fast-forward)
                                             !commandException.Error.Contains(" ! [rejected]"))
                                         {
@@ -152,8 +167,9 @@ namespace GitHgMirror.Runner.Services
                                                     "This was try #" + tryCount + ", retrying.",
                                                     EventLogEntryType.Warning);
                                                 reRunGitPush = true;
+
                                                 // Waiting a bit so maybe the error will go away if it was temporary.
-                                                Thread.Sleep(10000);
+                                                Thread.Sleep(30000);
                                             }
                                             else throw;
                                         }
@@ -224,9 +240,8 @@ namespace GitHgMirror.Runner.Services
                         {
                             RunCommandAndLogOutput("git fetch --tags \"origin\"");
                         }
-                        catch (CommandException commandException)
+                        catch (CommandException commandException) when (!commandException.IsGitExceptionRealError())
                         {
-                            if (IsGitExceptionRealError(commandException)) throw;
                         } 
                     }
 
@@ -337,30 +352,6 @@ namespace GitHgMirror.Runner.Services
         public static string GetGitDirectoryPath(string cloneDirectoryPath)
         {
             return Path.Combine(cloneDirectoryPath, ".hg", "git");
-        }
-
-        /// <summary>
-        /// Git communicates some messages via the error stream, so checking them here.
-        /// </summary>
-        private static bool IsGitExceptionRealError(CommandException ex)
-        {
-            return
-                // If there is nothing to push git will return this message in the error stream.
-                !ex.Error.Contains("Everything up-to-date") &&
-                // A new branch was added.
-                !ex.Error.Contains("* [new branch]") &&
-                // Branches were deleted in git.
-                !ex.Error.Contains("[deleted]") &&
-                // A new tag was added.
-                !ex.Error.Contains("* [new tag]") &&
-                // The branch head was moved (shown during push).
-                !(ex.Error.Contains("..") && ex.Error.Contains(" -> ")) &&
-                // The branch head was moved (shown during fetch).
-                !(ex.Error.Contains("* branch") && ex.Error.Contains(" -> ")) &&
-                // Git GC is running.
-                !ex.Error.Contains("Auto packing the repository in background for optimum performance.") &&
-                // An existing tag was updated.
-                !ex.Error.Contains("[tag update]");
         }
     }
 }
