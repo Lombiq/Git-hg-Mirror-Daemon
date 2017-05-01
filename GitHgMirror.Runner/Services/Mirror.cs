@@ -301,6 +301,7 @@ namespace GitHgMirror.Runner.Services
                     if (continueWithRepoFolderDelete)
                     {
                         DeleteDirectoryIfExists(cloneDirectoryPath);
+                        RepositoryInfoFileHelper.DeleteFileIfExists(cloneDirectoryPath);
                     }
                 }
                 catch (Exception directoryDeleteException) when (!directoryDeleteException.IsFatal())
@@ -315,6 +316,7 @@ namespace GitHgMirror.Runner.Services
                             var killResult = DirectoryUtil.KillProcessesLockingFiles(cloneDirectoryPath);
 
                             DeleteDirectoryIfExists(cloneDirectoryPath);
+                            RepositoryInfoFileHelper.DeleteFileIfExists(cloneDirectoryPath);
 
                             exceptionMessage +=
                                 " While deleting the folder of the mirror initially failed, after trying to kill processes that were locking files in it and setting all files not to be read-only the folder could be successfully deleted. " +
