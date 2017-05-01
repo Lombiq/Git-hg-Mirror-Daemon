@@ -69,6 +69,11 @@ namespace GitHgMirror.Runner.Services
                 {
                     var pushCount = 0;
 
+                    var remoteReferences = Repository
+                        .ListRemoteReferences(gitCloneUri.ToGitUrl())
+                        .Select(reference => reference.TargetIdentifier)
+                        .ToArray();
+
                     // Since we can only push a given commit if we also know its branch we need to iterate through them.
                     // This won't push tags but that will be taken care of next time with the above standard push logic.
                     foreach (var branch in repository.Branches)
@@ -80,29 +85,56 @@ namespace GitHgMirror.Runner.Services
                         // This is super-slow as it iterates over every commit in every branch (and a commit can be in
                         // multiple branches), but will surely work.
 
+                        // To avoid re-pushing already pushed commits we try to start from an already existing remote
+                        // reference.
+                        var commitFilter = new CommitFilter
+                        {
+                            IncludeReachableFrom = branch,
+                            SortBy = CommitSortStrategies.Reverse
+                        };
+                        var commits = repository.Commits.QueryBy(commitFilter);
+                        var commitCount = commits.Count();
+
+                        if (remoteReferences.Any())
+                        {
+                            // Searching for the remote reference that filters out the most commits for this branch.
+                            var i = 0;
+                            while (commitCount > 0 && i < remoteReferences.Length)
+                            {
+                                // Since the filtering will be lazily evaluated the CommitFilter object needs to be
+                                // copied, otherwise the last one would take effect.
+                                var filteredCommitFilter = new CommitFilter
+                                {
+                                    IncludeReachableFrom = commitFilter.IncludeReachableFrom,
+                                    ExcludeReachableFrom = remoteReferences[i],
+                                    SortBy = commitFilter.SortBy
+                                };
+
+                                var filteredCommits = repository.Commits.QueryBy(filteredCommitFilter);
+                                var filteredCommitCount = filteredCommits.Count();
+
+                                if (filteredCommitCount < commitCount)
+                                {
+                                    commits = filteredCommits;
+                                    commitCount = filteredCommitCount;
+                                }
+
+                                i++;
+                            }
+                        }
+
                         // It's costly to iterate over the Commits collection but it could also potentially consume too 
                         // much memory to enumerate the whole collection once and keep it in memory. Thus we work in
                         // batches.
-
-                        var commits = repository.Commits.QueryBy(new CommitFilter { IncludeReachableFrom = branch });
-                        var commitCount = commits.Count();
                         var batchSize = 100;
-                        var currentBatchSkip = commitCount;
+                        var currentBatchSkip = 0;
                         var currentBatch = Enumerable.Empty<Commit>();
 
                         var firstCommitOfBranch = true;
 
                         do
                         {
-                            currentBatchSkip = currentBatchSkip - batchSize;
-                            if (currentBatchSkip < 0)
-                            {
-                                batchSize = Math.Abs(currentBatchSkip);
-                                currentBatchSkip = 0;
-                            }
-
-                            // We need to push the oldest commit first, so need to do a reverse.
-                            currentBatch = commits.Skip(currentBatchSkip).Take(batchSize).Reverse();
+                            currentBatch = commits.Skip(currentBatchSkip).Take(batchSize);
 
                             foreach (var commit in currentBatch)
                             {
@@ -161,8 +193,8 @@ namespace GitHgMirror.Runner.Services
                                             if (tryCount < 3)
                                             {
                                                 _eventLog.WriteEntry(
-                                                    "Pushing commit " + sha + " to the branch " + branch.FriendlyName + 
-                                                    " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + 
+                                                    "Pushing commit " + sha + " to the branch " + branch.FriendlyName +
+                                                    " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath +
                                                     ") failed with the following exception: " + commandException.ToString() +
                                                     "This was try #" + tryCount + ", retrying.",
                                                     EventLogEntryType.Warning);
@@ -173,7 +205,7 @@ namespace GitHgMirror.Runner.Services
                                             }
                                             else throw;
                                         }
-                                    }  
+                                    }
                                 } while (reRunGitPush);
 
 
@@ -181,7 +213,9 @@ namespace GitHgMirror.Runner.Services
                                     "Finished pushing commit " + sha + " to the branch " + branch.FriendlyName + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                                     EventLogEntryType.Information);
                             }
-                        } while (currentBatchSkip != 0);
+
+                            currentBatchSkip += batchSize;
+                        } while (currentBatchSkip < commitCount);
                     }
                 });
 
@@ -242,7 +276,7 @@ namespace GitHgMirror.Runner.Services
                         }
                         catch (CommandException commandException) when (!commandException.IsGitExceptionRealError())
                         {
-                        } 
+                        }
                     }
 
                     _eventLog.WriteEntry(
