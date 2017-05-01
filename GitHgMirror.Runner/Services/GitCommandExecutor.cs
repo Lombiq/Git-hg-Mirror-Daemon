@@ -69,6 +69,10 @@ namespace GitHgMirror.Runner.Services
                 {
                     var pushCount = 0;
 
+                    var remoteReferences = Repository
+                        .ListRemoteReferences(gitCloneUri.ToGitUrl())
+                        .ToDictionary(reference => reference.CanonicalName);
+
                     // Since we can only push a given commit if we also know its branch we need to iterate through them.
                     // This won't push tags but that will be taken care of next time with the above standard push logic.
                     foreach (var branch in repository.Branches)
@@ -79,7 +83,16 @@ namespace GitHgMirror.Runner.Services
                         // git directly.
                         // This is super-slow as it iterates over every commit in every branch (and a commit can be in
                         // multiple branches), but will surely work.
-                        
+
+                        // To avoid re-pushing already pushed commits we try to start from the already existing remote
+                        // reference.
+                        Reference matchingRemoteReference = null;
+                        var remoteHeadSha = string.Empty;
+                        if (remoteReferences.TryGetValue(branch.CanonicalName, out matchingRemoteReference))
+                        {
+                            remoteHeadSha = matchingRemoteReference.TargetIdentifier;
+                        }
+
                         var commits = repository.Commits.QueryBy(new CommitFilter
                         {
                             IncludeReachableFrom = branch,
@@ -99,6 +112,15 @@ namespace GitHgMirror.Runner.Services
                         do
                         {
                             currentBatch = commits.Skip(currentBatchSkip).Take(batchSize);
+
+                            // CommitFilter.ExcludeReachableFrom doesn't seem to work as expected, assigning the remote
+                            // reference to it will always yield no commits instead of the commits before that being
+                            // filtered out (when it's not throwing an AccessViolationException with "Attempted to read 
+                            // or write protected memory. This is often an indication that other memory is corrupt.").
+                            if (!string.IsNullOrEmpty(remoteHeadSha))
+                            {
+                                currentBatch = currentBatch.SkipWhile(commit => commit.Sha != remoteHeadSha).Skip(1);
+                            }
 
                             foreach (var commit in currentBatch)
                             {
