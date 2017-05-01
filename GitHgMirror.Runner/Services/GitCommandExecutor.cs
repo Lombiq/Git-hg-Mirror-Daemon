@@ -79,30 +79,26 @@ namespace GitHgMirror.Runner.Services
                         // git directly.
                         // This is super-slow as it iterates over every commit in every branch (and a commit can be in
                         // multiple branches), but will surely work.
+                        
+                        var commits = repository.Commits.QueryBy(new CommitFilter
+                        {
+                            IncludeReachableFrom = branch,
+                            SortBy = CommitSortStrategies.Topological | CommitSortStrategies.Reverse
+                        });
+                        var commitCount = commits.Count();
 
                         // It's costly to iterate over the Commits collection but it could also potentially consume too 
                         // much memory to enumerate the whole collection once and keep it in memory. Thus we work in
                         // batches.
-
-                        var commits = repository.Commits.QueryBy(new CommitFilter { IncludeReachableFrom = branch });
-                        var commitCount = commits.Count();
                         var batchSize = 100;
-                        var currentBatchSkip = commitCount;
+                        var currentBatchSkip = 0;
                         var currentBatch = Enumerable.Empty<Commit>();
 
                         var firstCommitOfBranch = true;
 
                         do
                         {
-                            currentBatchSkip = currentBatchSkip - batchSize;
-                            if (currentBatchSkip < 0)
-                            {
-                                batchSize = Math.Abs(currentBatchSkip);
-                                currentBatchSkip = 0;
-                            }
-
-                            // We need to push the oldest commit first, so need to do a reverse.
-                            currentBatch = commits.Skip(currentBatchSkip).Take(batchSize).Reverse();
+                            currentBatch = commits.Skip(currentBatchSkip).Take(batchSize);
 
                             foreach (var commit in currentBatch)
                             {
@@ -181,7 +177,9 @@ namespace GitHgMirror.Runner.Services
                                     "Finished pushing commit " + sha + " to the branch " + branch.FriendlyName + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                                     EventLogEntryType.Information);
                             }
-                        } while (currentBatchSkip != 0);
+
+                            currentBatchSkip += batchSize;
+                        } while (currentBatchSkip < commitCount);
                     }
                 });
 
