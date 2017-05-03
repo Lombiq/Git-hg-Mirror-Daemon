@@ -54,7 +54,8 @@ namespace GitHgMirror.Runner.Services
                 // These will be the messages of an exception thrown when a large push times out. So we'll re-try pushing
                 // commit by commit.
                 if (!ex.Message.Contains("Failed to write chunk footer: The operation timed out") &&
-                    !ex.Message.Contains("Failed to write chunk footer: The connection with the server was terminated abnormally"))
+                    !ex.Message.Contains("Failed to write chunk footer: The connection with the server was terminated abnormally") &&
+                    !ex.Message.Contains("Failed to receive response: The server returned an invalid or unrecognized response"))
                 {
                     throw;
                 }
