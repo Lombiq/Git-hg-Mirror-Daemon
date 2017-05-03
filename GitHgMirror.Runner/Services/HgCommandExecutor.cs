@@ -246,9 +246,9 @@ namespace GitHgMirror.Runner.Services
 
                     finished = output.Contains("no changes found");
 
-                    // Let's try a normal pull every 100 revisions. If it succeeds then the mirroring can finish faster
+                    // Let's try a normal pull every 300 revisions. If it succeeds then the mirroring can finish faster
                     // (otherwise it could even time out).
-                    if (!finished && revision - startRevision >= 100)
+                    if (!finished && revision - startRevision >= 300)
                     {
                         PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
                         return;

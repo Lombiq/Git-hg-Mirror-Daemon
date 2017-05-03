@@ -170,10 +170,10 @@ namespace GitHgMirror.Runner.Services
 
                                         // Let's try a normal push every 300 commits. If it succeeds then the mirroring 
                                         // can finish faster (otherwise it could even time out).
-                                        // Using a larger number than in hg revision by revision pulling because git
-                                        // commits can be repeated among branches, so the number of commits pushed can
-                                        // be lower than the number of push operations.
-                                        if (pushCount > 300)
+                                        // This may be a larger number than in hg revision by revision pulling because 
+                                        // git commits can be repeated among branches, so the number of commits pushed 
+                                        // can be lower than the number of push operations.
+                                        if (pushCount > 500)
                                         {
                                             PushToGit(gitCloneUri, cloneDirectoryPath);
                                             return;
