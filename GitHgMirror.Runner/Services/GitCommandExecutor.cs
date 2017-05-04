@@ -18,8 +18,10 @@ namespace GitHgMirror.Runner.Services
         }
 
 
-        public void PushToGit(Uri gitCloneUri, string cloneDirectoryPath)
+        public void PushToGit(Uri gitCloneUri, string cloneDirectoryPath, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
             if (!Directory.Exists(GetGitDirectoryPath(cloneDirectoryPath))) return;
 
@@ -37,6 +39,8 @@ namespace GitHgMirror.Runner.Services
                     // So can't use "+refs/*:refs/*" here, must iterate.
                     foreach (var reference in repository.Refs)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
                         // would be force push and completely overwrite the remote repo's content. This would always
                         // succeed no matter what is there but could wipe out changes made between the repo was fetched
@@ -51,6 +55,8 @@ namespace GitHgMirror.Runner.Services
             }
             catch (LibGit2SharpException ex)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // These will be the messages of an exception thrown when a large push times out. So we'll re-try pushing
                 // commit by commit.
                 if (!ex.Message.Contains("Failed to write chunk footer: The operation timed out") &&
@@ -79,6 +85,8 @@ namespace GitHgMirror.Runner.Services
                     // This won't push tags but that will be taken care of next time with the above standard push logic.
                     foreach (var branch in repository.Branches)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         // We can't use push by commit hash (as described on 
                         // http://stackoverflow.com/questions/3230074/git-pushing-specific-commit) with libgit2 because
                         // of lack of support (see: https://github.com/libgit2/libgit2/issues/3178). So we need to use
@@ -139,6 +147,8 @@ namespace GitHgMirror.Runner.Services
 
                             foreach (var commit in currentBatch)
                             {
+                                cancellationToken.ThrowIfCancellationRequested();
+
                                 var sha = commit.Sha;
 
                                 _eventLog.WriteEntry(
@@ -176,7 +186,7 @@ namespace GitHgMirror.Runner.Services
                                         // can be lower than the number of push operations.
                                         if (pushCount > 500)
                                         {
-                                            PushToGit(gitCloneUri, cloneDirectoryPath);
+                                            PushToGit(gitCloneUri, cloneDirectoryPath, cancellationToken);
                                             return;
                                         }
                                     }
@@ -226,8 +236,14 @@ namespace GitHgMirror.Runner.Services
             }
         }
 
-        public void FetchOrCloneFromGit(Uri gitCloneUri, string cloneDirectoryPath, bool useLibGit2Sharp)
+        public void FetchOrCloneFromGit(
+            Uri gitCloneUri, 
+            string cloneDirectoryPath, 
+            bool useLibGit2Sharp, 
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var gitDirectoryPath = GetGitDirectoryPath(cloneDirectoryPath);
             // The git directory won't exist if the hg repo is empty (gexport won't do anything).
             if (!Directory.Exists(gitDirectoryPath))

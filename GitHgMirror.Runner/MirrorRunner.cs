@@ -83,6 +83,8 @@ namespace GitHgMirror.Runner
                     return;
                 }
 
+                _cancellationTokenSource.Token.ThrowIfCancellationRequested();
+
                 for (int i = _pageCount; i < newPageCount; i++)
                 {
                     _mirrorQueue.Enqueue(i);
@@ -94,7 +96,7 @@ namespace GitHgMirror.Runner
 
                 _pageCount = newPageCount;
             }
-            catch (Exception ex) when (!ex.IsFatal())
+            catch (Exception ex) when (!ex.IsFatalOrCancellation())
             {
                 // Swallowing non-fatal exceptions like when the page count can't be retrieved.
                 _eventLog.WriteEntry(
@@ -144,7 +146,7 @@ namespace GitHgMirror.Runner
                                         // syncing and Tasks being blocked forever there is a timout for mirroring.
                                         // Such a kill timeout is not a nice solution but the hangs are unexplainable.
                                         var mirrorExecutionTask = 
-                                            Task.Run(() =>  mirror.MirrorRepositories(configuration, _settings));
+                                            Task.Run(() =>  mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token));
                                         var mirroringTimoutSeconds = 48 * 60 * 60; // 48 hours.
                                         if (mirrorExecutionTask.Wait(mirroringTimoutSeconds * 1000))
                                         {
@@ -193,7 +195,7 @@ namespace GitHgMirror.Runner
                                 }
                             }
                         }
-                        catch (Exception ex) when (!ex.IsFatal() && !(ex is OperationCanceledException))
+                        catch (Exception ex) when (!ex.IsFatalOrCancellation())
                         {
                             _eventLog.WriteEntry(
                                 "Unhandled exception while running mirrorings: " + ex.ToString(),

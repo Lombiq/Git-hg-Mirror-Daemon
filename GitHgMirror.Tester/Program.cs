@@ -41,7 +41,7 @@ namespace GitHgMirror.Tester
                 };
 
                 // Uncomment if you want to also test repo cleaning.
-                //new UntouchedRepositoriesCleaner(settings, eventLog).Clean();
+                //new UntouchedRepositoriesCleaner(settings, eventLog).Clean(new CancellationTokenSource().Token);
 
                 var runner = new MirrorRunner(settings, eventLog);
 

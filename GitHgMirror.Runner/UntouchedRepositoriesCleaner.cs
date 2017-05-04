@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using GitHgMirror.Runner.Helpers;
 using GitHgMirror.Runner.Services;
@@ -23,7 +24,7 @@ namespace GitHgMirror.Runner
         }
 
 
-        public void Clean()
+        public void Clean(CancellationToken cancellationToken)
         {
             _eventLog.WriteEntry("Starting cleaning untouched repositories.");
 
@@ -34,6 +35,8 @@ namespace GitHgMirror.Runner
                 {
                     foreach (var repositoryDirectory in Directory.EnumerateDirectories(letterDirectory))
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         if (RepositoryInfoFileHelper.GetLastUpdatedDateTimeUtc(repositoryDirectory) < DateTime.UtcNow.Subtract(new TimeSpan(24, 0, 0)) &&
                             !File.Exists(Mirror.GetRepositoryLockFilePath(repositoryDirectory)))
                         {
@@ -63,7 +66,7 @@ namespace GitHgMirror.Runner
 
                                 _eventLog.WriteEntry("Removed untouched repository folder: " + repositoryDirectory);
                             }
-                            catch (Exception ex) when (!ex.IsFatal())
+                            catch (Exception ex) when (!ex.IsFatalOrCancellation())
                             {
                                 _eventLog.WriteEntry(
                                     "Removing the untouched repository folder \"" + repositoryDirectory +
