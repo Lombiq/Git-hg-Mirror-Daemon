@@ -19,6 +19,7 @@ namespace GitHgMirror.Daemon
         private MirrorRunner _runner;
         private UntouchedRepositoriesCleaner _cleaner;
         private ManualResetEvent _waitHandle = new ManualResetEvent(false);
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
 
 
         public GitHgMirrorService()
@@ -56,7 +57,7 @@ namespace GitHgMirror.Daemon
             var cleanerTimer = new System.Timers.Timer(3600000 * 2); // Two hours
             cleanerTimer.Elapsed += (sender, e) =>
                 {
-                    _cleaner.Clean();
+                    _cleaner.Clean(_cancellationTokenSource.Token);
                 };
             cleanerTimer.Enabled = true;
         }
@@ -65,6 +66,7 @@ namespace GitHgMirror.Daemon
         {
             serviceEventLog.WriteEntry("GitHgMirrorDaemon stopped. Stopping mirroring.");
 
+            _cancellationTokenSource.Cancel();
             _runner.Stop();
             _waitHandle.Set();
 

@@ -10,6 +10,11 @@ using System.Threading.Tasks;
 
 namespace GitHgMirror.Runner.Services
 {
+    /// <remarks>
+    /// While it would be nice to have cancellation for "atomic" hg operations like clone, apart from that being non-
+    /// trivial to add to the current implementation they can also be risky, since such cancellations can corrupt a
+    /// repo.
+    /// </remarks>
     internal class HgCommandExecutor : CommandExecutorBase
     {
         private const string GitBookmarkSuffix = "-git";
@@ -30,46 +35,14 @@ namespace GitHgMirror.Runner.Services
         }
 
 
-        /// <summary>
-        /// Runs the specified command for a git repo in hg.
-        /// </summary>
-        /// <param name="gitCloneUri">The git clone URI.</param>
-        /// <param name="command">
-        /// The command, including an optional placeholder for the git URL in form of {url}, e.g.: "clone --noupdate {url}".
-        /// </param>
-        public void RunGitRepoCommand(Uri gitCloneUri, string command, MirroringSettings settings)
+        public void CloneGit(
+            Uri gitCloneUri, 
+            string quotedCloneDirectoryPath, 
+            MirroringSettings settings, 
+            CancellationToken cancellationToken)
         {
-            var gitUriBuilder = new UriBuilder(gitCloneUri);
-            var userName = gitUriBuilder.UserName;
-            var password = gitUriBuilder.Password;
-            gitUriBuilder.UserName = null;
-            gitUriBuilder.Password = null;
-            var gitUri = gitUriBuilder.Uri;
-            var quotedGitCloneUrl = gitUri.ToString().EncloseInQuotes();
-            command = command.Replace("{url}", quotedGitCloneUrl);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            if (!string.IsNullOrEmpty(userName))
-            {
-                RunRemoteHgCommandAndLogOutput(
-                    PrefixHgCommandWithHgGitConfig(
-                        "--config auth.rc.prefix=" +
-                        ("https://" + gitUri.Host).EncloseInQuotes() +
-                        " --config auth.rc.username=" +
-                        userName.EncloseInQuotes() +
-                        " --config auth.rc.password=" +
-                        password.EncloseInQuotes() +
-                        " " +
-                        command),
-                    settings);
-            }
-            else
-            {
-                RunRemoteHgCommandAndLogOutput(PrefixHgCommandWithHgGitConfig(command), settings);
-            }
-        }
-
-        public void CloneGit(Uri gitCloneUri, string quotedCloneDirectoryPath, MirroringSettings settings)
-        {
             CdDirectory(quotedCloneDirectoryPath);
             // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it in will 
             // fail with a "the connection was forcibly closed by remote host"-like error. This is why we start with 
@@ -77,20 +50,36 @@ namespace GitHgMirror.Runner.Services
             RunGitRepoCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath, settings);
         }
 
-        public void ImportHistoryFromGit(string quotedCloneDirectoryPath, MirroringSettings settings)
+        public void ImportHistoryFromGit(
+            string quotedCloneDirectoryPath, 
+            MirroringSettings settings, 
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             CdDirectory(quotedCloneDirectoryPath);
             RunHgCommandAndLogOutput(PrefixHgCommandWithHgGitConfig("gimport"), settings);
         }
 
-        public void ExportHistoryToGit(string quotedCloneDirectoryPath, MirroringSettings settings)
+        public void ExportHistoryToGit(
+            string quotedCloneDirectoryPath, 
+            MirroringSettings settings, 
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             CdDirectory(quotedCloneDirectoryPath);
             RunHgCommandAndLogOutput(PrefixHgCommandWithHgGitConfig("gexport"), settings);
         }
 
-        public void CloneHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath, MirroringSettings settings)
+        public void CloneHg(
+            string quotedHgCloneUrl, 
+            string quotedCloneDirectoryPath, 
+            MirroringSettings settings, 
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 RunRemoteHgCommandAndLogOutput(
@@ -107,12 +96,20 @@ namespace GitHgMirror.Runner.Services
                     "hg clone --noupdate --rev 0 " + quotedHgCloneUrl + " " + quotedCloneDirectoryPath,
                     settings);
 
-                PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
             }
         }
 
-        public void PullHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath, MirroringSettings settings)
+        public void PullHg(
+            string quotedHgCloneUrl, 
+            string quotedCloneDirectoryPath, 
+            MirroringSettings settings, 
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             CdDirectory(quotedCloneDirectoryPath);
 
             try
@@ -121,16 +118,23 @@ namespace GitHgMirror.Runner.Services
             }
             catch (CommandException ex) when (ex.IsHgConnectionTerminatedError())
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 _eventLog.WriteEntry(
                     "Pulling from the Mercurial repo " + quotedHgCloneUrl + " failed because the server terminated the connection. Re-trying by pulling revision by revision.",
                     EventLogEntryType.Warning);
 
-                PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                PullPerRevisionsHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
             }
         }
 
-        public void CreateOrUpdateBookmarksForBranches(string quotedCloneDirectoryPath, MirroringSettings settings)
+        public void CreateOrUpdateBookmarksForBranches(
+            string quotedCloneDirectoryPath, 
+            MirroringSettings settings, 
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             CdDirectory(quotedCloneDirectoryPath);
 
             // Adding bookmarks for all branches so they appear as proper git branches.
@@ -144,6 +148,8 @@ namespace GitHgMirror.Runner.Services
 
             foreach (var branch in branches)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Need to strip spaces from branch names, see:
                 // https://bitbucket.org/durin42/hg-git/issues/163/gexport-fails-on-bookmarks-with-spaces-in
                 var bookmark = branch.Replace(' ', '-');
@@ -174,8 +180,14 @@ namespace GitHgMirror.Runner.Services
             }
         }
 
-        public void PushWithBookmarks(string quotedHgCloneUrl, string quotedCloneDirectoryPath, MirroringSettings settings)
+        public void PushWithBookmarks(
+            string quotedHgCloneUrl, 
+            string quotedCloneDirectoryPath, 
+            MirroringSettings settings, 
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             CdDirectory(quotedCloneDirectoryPath);
 
             var bookmarksOutput = RunHgCommandAndLogOutput("hg bookmarks", settings);
@@ -204,6 +216,8 @@ namespace GitHgMirror.Runner.Services
                 var bookmarkCount = bookmarks.Count();
                 while (skip < bookmarkCount)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     RunRemoteHgCommandAndLogOutput(
                         "hg push --new-branch --force " + string.Join(" ", bookmarksBatch) + " " + quotedHgCloneUrl,
                         settings);
@@ -222,12 +236,56 @@ namespace GitHgMirror.Runner.Services
 
 
         /// <summary>
+        /// Runs the specified command for a git repo in hg.
+        /// </summary>
+        /// <param name="gitCloneUri">The git clone URI.</param>
+        /// <param name="command">
+        /// The command, including an optional placeholder for the git URL in form of {url}, e.g.: "clone --noupdate {url}".
+        /// </param>
+        private void RunGitRepoCommand(Uri gitCloneUri, string command, MirroringSettings settings)
+        {
+            var gitUriBuilder = new UriBuilder(gitCloneUri);
+            var userName = gitUriBuilder.UserName;
+            var password = gitUriBuilder.Password;
+            gitUriBuilder.UserName = null;
+            gitUriBuilder.Password = null;
+            var gitUri = gitUriBuilder.Uri;
+            var quotedGitCloneUrl = gitUri.ToString().EncloseInQuotes();
+            command = command.Replace("{url}", quotedGitCloneUrl);
+
+            if (!string.IsNullOrEmpty(userName))
+            {
+                RunRemoteHgCommandAndLogOutput(
+                    PrefixHgCommandWithHgGitConfig(
+                        "--config auth.rc.prefix=" +
+                        ("https://" + gitUri.Host).EncloseInQuotes() +
+                        " --config auth.rc.username=" +
+                        userName.EncloseInQuotes() +
+                        " --config auth.rc.password=" +
+                        password.EncloseInQuotes() +
+                        " " +
+                        command),
+                    settings);
+            }
+            else
+            {
+                RunRemoteHgCommandAndLogOutput(PrefixHgCommandWithHgGitConfig(command), settings);
+            }
+        }
+
+        /// <summary>
         /// Pulling chunks a repo history in chunks of revisions. This will be slow but surely work, even if one
         /// changeset is huge like this one: http://hg.openjdk.java.net/openjfx/9-dev/rt/rev/86d5cbe0c60f (~100MB, 
         /// 11000 files).
         /// </summary>
-        private void PullPerRevisionsHg(string quotedHgCloneUrl, string quotedCloneDirectoryPath, MirroringSettings settings)
+        private void PullPerRevisionsHg(
+            string quotedHgCloneUrl, 
+            string quotedCloneDirectoryPath, 
+            MirroringSettings settings, 
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             CdDirectory(quotedCloneDirectoryPath);
 
             var startRevision = int.Parse(RunHgCommandAndLogOutput("hg identify --rev tip --num", settings)
@@ -238,6 +296,8 @@ namespace GitHgMirror.Runner.Services
             var pullRetryCount = 0;
             while (!finished)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 try
                 {
                     var output = RunRemoteHgCommandAndLogOutput(
@@ -250,7 +310,7 @@ namespace GitHgMirror.Runner.Services
                     // (otherwise it could even time out).
                     if (!finished && revision - startRevision >= 300)
                     {
-                        PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                        PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
                         return;
                     }
 

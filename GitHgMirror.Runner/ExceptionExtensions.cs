@@ -20,5 +20,10 @@ namespace GitHgMirror.Runner
 
             return false;
         }
+
+        public static bool IsFatalOrCancellation(this Exception ex)
+        {
+            return ex.IsFatal() || ex is OperationCanceledException;
+        }
     }
 }

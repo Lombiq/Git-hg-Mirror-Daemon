@@ -24,7 +24,10 @@ namespace GitHgMirror.Runner.Services
         }
 
 
-        public void MirrorRepositories(MirroringConfiguration configuration, MirroringSettings settings)
+        public void MirrorRepositories(
+            MirroringConfiguration configuration, 
+            MirroringSettings settings, 
+            CancellationToken cancellationToken)
         {
             var descriptor = GetMirroringDescriptor(configuration);
             var loggedDescriptor = descriptor + " (#" + configuration.Id.ToString() + ")";
@@ -74,14 +77,16 @@ namespace GitHgMirror.Runner.Services
                 // even more messy to duplicate the logic in HgToGit.
                 var hgUrlIsGitUrl = configuration.HgCloneUri.Scheme == "git+https";
 
+                cancellationToken.ThrowIfCancellationRequested();
+
                 switch (configuration.Direction)
                 {
                     case MirroringDirection.GitToHg:
                         if (hgUrlIsGitUrl)
                         {
-                            RunGitCommandAndMarkException(() =>
-                                _gitCommandExecutor.FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, true));
-                            _gitCommandExecutor.PushToGit(configuration.HgCloneUri, cloneDirectoryPath);
+                            RunGitCommandAndMarkException(() => _gitCommandExecutor
+                                .FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, true, cancellationToken));
+                            _gitCommandExecutor.PushToGit(configuration.HgCloneUri, cloneDirectoryPath, cancellationToken);
                         }
                         else
                         {
@@ -89,73 +94,79 @@ namespace GitHgMirror.Runner.Services
                             {
                                 if (configuration.GitUrlIsHgUrl)
                                 {
-                                    _hgCommandExecutor.PullHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+                                    _hgCommandExecutor
+                                            .PullHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
                                 }
                                 else
                                 {
-                                    RunGitCommandAndMarkException(() =>
-                                        _gitCommandExecutor.FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, true));
-                                    _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings);
+                                    RunGitCommandAndMarkException(() => _gitCommandExecutor
+                                        .FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, true, cancellationToken));
+                                    _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings, cancellationToken);
                                 }
                             }
                             else
                             {
                                 if (configuration.GitUrlIsHgUrl)
                                 {
-                                    _hgCommandExecutor.CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+                                    _hgCommandExecutor
+                                        .CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
                                 }
                                 else
                                 {
-                                    _hgCommandExecutor.CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath, settings);
+                                    _hgCommandExecutor
+                                        .CloneGit(configuration.GitCloneUri, quotedCloneDirectoryPath, settings, cancellationToken);
                                 }
                             }
 
-                            _hgCommandExecutor.PushWithBookmarks(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                            _hgCommandExecutor
+                                .PushWithBookmarks(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
                         }
 
                         break;
                     case MirroringDirection.HgToGit:
                         if (isCloned)
                         {
-                            _hgCommandExecutor.PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                            _hgCommandExecutor.PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
                         }
                         else
                         {
-                            _hgCommandExecutor.CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                            _hgCommandExecutor.CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
                         }
 
                         if (configuration.GitUrlIsHgUrl)
                         {
-                            _hgCommandExecutor.PushWithBookmarks(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+                            _hgCommandExecutor
+                                .PushWithBookmarks(quotedGitCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
                         }
                         else
                         {
-                            _hgCommandExecutor.CreateOrUpdateBookmarksForBranches(quotedCloneDirectoryPath, settings);
-                            _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings);
+                            _hgCommandExecutor.CreateOrUpdateBookmarksForBranches(quotedCloneDirectoryPath, settings, cancellationToken);
+                            _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings, cancellationToken);
                             RunGitCommandAndMarkException(() =>
-                                _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath));
+                                _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath, cancellationToken));
                         }
 
                         break;
                     case MirroringDirection.TwoWay:
                         Action syncHgAndGitHistories = () =>
                             {
-                                _hgCommandExecutor.CreateOrUpdateBookmarksForBranches(quotedCloneDirectoryPath, settings);
-                                _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings);
+                                _hgCommandExecutor
+                                    .CreateOrUpdateBookmarksForBranches(quotedCloneDirectoryPath, settings, cancellationToken);
+                                _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings, cancellationToken);
 
                                 // This will clear all commits int he git repo that aren't in the git remote repo but 
                                 // add changes that were added to the git repo.
-                                RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, false));
-                                _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings);
+                                RunGitCommandAndMarkException(() => _gitCommandExecutor
+                                    .FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, false, cancellationToken));
+                                _hgCommandExecutor.ImportHistoryFromGit(quotedCloneDirectoryPath, settings, cancellationToken);
 
                                 // Updating bookmarks which may have shifted after importing from git. This way the
                                 // export to git will create a git repo with history identical to the hg repo.
-                                _hgCommandExecutor.CreateOrUpdateBookmarksForBranches(quotedCloneDirectoryPath, settings);
-                                _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings);
+                                _hgCommandExecutor.CreateOrUpdateBookmarksForBranches(quotedCloneDirectoryPath, settings, cancellationToken);
+                                _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings, cancellationToken);
 
                                 RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath));
+                                    _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath, cancellationToken));
                             };
 
                         if (hgUrlIsGitUrl)
@@ -172,19 +183,19 @@ namespace GitHgMirror.Runner.Services
                             var secondToFirstClonePath = Path.Combine(gitDirectoryPath, "secondToFirst");
                             Action pullSecondPushToFirst = () =>
                             {
-                                RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.FetchOrCloneFromGit(configuration.HgCloneUri, secondToFirstClonePath, true));
-                                RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.PushToGit(configuration.GitCloneUri, secondToFirstClonePath));
+                                RunGitCommandAndMarkException(() => _gitCommandExecutor
+                                    .FetchOrCloneFromGit(configuration.HgCloneUri, secondToFirstClonePath, true, cancellationToken));
+                                RunGitCommandAndMarkException(() => _gitCommandExecutor
+                                    .PushToGit(configuration.GitCloneUri, secondToFirstClonePath, cancellationToken));
                             };
 
                             var firstToSecondClonePath = Path.Combine(gitDirectoryPath, "firstToSecond");
-                            RunGitCommandAndMarkException(() =>
-                                _gitCommandExecutor.FetchOrCloneFromGit(configuration.GitCloneUri, firstToSecondClonePath, true));
+                            RunGitCommandAndMarkException(() => _gitCommandExecutor
+                                .FetchOrCloneFromGit(configuration.GitCloneUri, firstToSecondClonePath, true, cancellationToken));
                             try
                             {
-                                RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.PushToGit(configuration.HgCloneUri, firstToSecondClonePath));
+                                RunGitCommandAndMarkException(() => _gitCommandExecutor
+                                    .PushToGit(configuration.HgCloneUri, firstToSecondClonePath, cancellationToken));
 
                                 pullSecondPushToFirst();
                             }
@@ -195,10 +206,10 @@ namespace GitHgMirror.Runner.Services
                                 // This exception can happen when the second repo contains changes not present in the
                                 // first one. Then we need to update the first repo with the second's changes and pull-
                                 // push again.
-                                RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.FetchOrCloneFromGit(configuration.GitCloneUri, firstToSecondClonePath, true));
-                                RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.PushToGit(configuration.HgCloneUri, firstToSecondClonePath));
+                                RunGitCommandAndMarkException(() => _gitCommandExecutor
+                                    .FetchOrCloneFromGit(configuration.GitCloneUri, firstToSecondClonePath, true, cancellationToken));
+                                RunGitCommandAndMarkException(() => _gitCommandExecutor
+                                    .PushToGit(configuration.HgCloneUri, firstToSecondClonePath, cancellationToken));
                             }
 
                         }
@@ -207,11 +218,12 @@ namespace GitHgMirror.Runner.Services
                             if (isCloned)
                             {
 
-                                _hgCommandExecutor.PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                                _hgCommandExecutor.PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
 
                                 if (configuration.GitUrlIsHgUrl)
                                 {
-                                    _hgCommandExecutor.PullHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+                                    _hgCommandExecutor
+                                        .PullHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
                                 }
                                 else
                                 {
@@ -222,8 +234,10 @@ namespace GitHgMirror.Runner.Services
                             {
                                 if (configuration.GitUrlIsHgUrl)
                                 {
-                                    _hgCommandExecutor.CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
-                                    _hgCommandExecutor.PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                                    _hgCommandExecutor
+                                        .CloneHg(quotedGitCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
+                                    _hgCommandExecutor
+                                        .PullHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
                                 }
                                 else
                                 {
@@ -231,18 +245,21 @@ namespace GitHgMirror.Runner.Services
                                     // pulling from the hg repo would yield a "repository unrelated" error, even if the git
                                     // repo was created from the hg repo. For an explanation see: 
                                     // http://stackoverflow.com/questions/17240852/hg-git-clone-from-github-gives-abort-repository-is-unrelated
-                                    _hgCommandExecutor.CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                                    _hgCommandExecutor
+                                        .CloneHg(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
 
                                     syncHgAndGitHistories();
                                 }
                             }
 
 
-                            _hgCommandExecutor.PushWithBookmarks(quotedHgCloneUrl, quotedCloneDirectoryPath, settings);
+                            _hgCommandExecutor
+                                .PushWithBookmarks(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
 
                             if (configuration.GitUrlIsHgUrl)
                             {
-                                _hgCommandExecutor.PushWithBookmarks(quotedGitCloneUrl, quotedCloneDirectoryPath, settings);
+                                _hgCommandExecutor
+                                    .PushWithBookmarks(quotedGitCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
                             }
                         }
 
@@ -252,7 +269,7 @@ namespace GitHgMirror.Runner.Services
                 Debug.WriteLine("Finished mirroring: " + loggedDescriptor);
                 _eventLog.WriteEntry("Finished mirroring: " + loggedDescriptor);
             }
-            catch (Exception ex) when (!ex.IsFatal())
+            catch (Exception ex) when (!ex.IsFatalOrCancellation())
             {
                 // We should dispose the command runners so the folder is not locked by the command line.
                 Dispose();
@@ -288,7 +305,7 @@ namespace GitHgMirror.Runner.Services
                             exceptionMessage += " Thus just the git folder was removed.";
                             continueWithRepoFolderDelete = false;
                         }
-                        catch (Exception gitDirectoryDeleteException) when (!gitDirectoryDeleteException.IsFatal())
+                        catch (Exception gitDirectoryDeleteException) when (!gitDirectoryDeleteException.IsFatalOrCancellation())
                         {
                             exceptionMessage +=
                                 " While the removal of just the git folder was attempted it failed with the following exception, thus the deletion of the whole repository folder will be attempted: " +
@@ -304,7 +321,7 @@ namespace GitHgMirror.Runner.Services
                         RepositoryInfoFileHelper.DeleteFileIfExists(cloneDirectoryPath);
                     }
                 }
-                catch (Exception directoryDeleteException) when (!directoryDeleteException.IsFatal())
+                catch (Exception directoryDeleteException) when (!directoryDeleteException.IsFatalOrCancellation())
                 {
                     try
                     {
@@ -327,7 +344,7 @@ namespace GitHgMirror.Runner.Services
                         }
                     }
                     catch (Exception forcedCleanUpException) 
-                    when (!forcedCleanUpException.IsFatal() && !(forcedCleanUpException is MirroringException))
+                    when (!forcedCleanUpException.IsFatalOrCancellation() && !(forcedCleanUpException is MirroringException))
                     {
                         throw new MirroringException(
                             exceptionMessage + " Subsequently clean-up after the error failed as well, also the attempt to kill processes that were locking the mirror's folder and clearing all read-only files.",
@@ -382,7 +399,7 @@ namespace GitHgMirror.Runner.Services
             {
                 commandRunner();
             }
-            catch (Exception ex) when (!ex.IsFatal())
+            catch (Exception ex) when (!ex.IsFatalOrCancellation())
             {
                 ex.Data["IsGitException"] = true;
 
