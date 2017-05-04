@@ -197,9 +197,12 @@ namespace GitHgMirror.Runner
                         }
                         catch (Exception ex) when (!ex.IsFatalOrCancellation())
                         {
-                            _eventLog.WriteEntry(
-                                "Unhandled exception while running mirrorings: " + ex.ToString(),
-                                EventLogEntryType.Error);
+                            if ((ex as AggregateException)?.InnerException.IsFatalOrCancellation() == false)
+                            {
+                                _eventLog.WriteEntry(
+                                    "Unhandled exception while running mirrorings: " + ex.ToString(),
+                                    EventLogEntryType.Error); 
+                            }
                         }
 
                         _mirrorQueue.Enqueue(pageNum);
