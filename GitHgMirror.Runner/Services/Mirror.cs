@@ -43,6 +43,31 @@ namespace GitHgMirror.Runner.Services
 
             try
             {
+                if (File.Exists(repositoryLockFilePath))
+                {
+                    var logEntryStart = 
+                        "An existing lock was found for the mirroring configuration " + loggedDescriptor + ". ";
+                    var lastUpdatedTimeUtc = RepositoryInfoFileHelper.GetLastUpdatedDateTimeUtc(cloneDirectoryPath);
+
+                    if (lastUpdatedTimeUtc >= DateTime.UtcNow.AddSeconds(-settings.MirroringTimoutSeconds))
+                    {
+                        _eventLog.WriteEntry(
+                            logEntryStart +
+                            "This can mean that the number of configurations was reduced and thus while a mirroring was running a new process for the same repositories was started. We'll let the initial process finish.");
+
+                        return; 
+                    }
+                    else
+                    {
+                        _eventLog.WriteEntry(
+                            logEntryStart +
+                            "Additionally the directory was last touched at " + lastUpdatedTimeUtc.ToString() +
+                            " UTC which is older than the allowed mirroring timeout (" + settings.MirroringTimoutSeconds +
+                            "s). Thus the lock is considered abandoned and mirroring will continue.",
+                            EventLogEntryType.Warning);
+                    }
+                }
+
                 if (configuration.HgCloneUri.Scheme.Equals("ssh", StringComparison.InvariantCultureIgnoreCase) ||
                     configuration.GitCloneUri.Scheme.Equals("ssh", StringComparison.InvariantCultureIgnoreCase))
                 {
