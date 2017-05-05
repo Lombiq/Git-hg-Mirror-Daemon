@@ -20,24 +20,20 @@ namespace GitHgMirror.Runner
         /// The maximum number of parallel tasks used to run repo synchronization. This can be higher with the
         /// performance of the server increasing, but keep in mind that syncing also generates network traffic.
         /// </summary>
-        public int MaxDegreeOfParallelism { get; set; }
+        public int MaxDegreeOfParallelism { get; set; } = 10;
 
         /// <summary>
         /// The amount of sync runs processed in one batch (executed in one task).
         /// </summary>
-        public int BatchSize { get; set; }
+        public int BatchSize { get; set; } = 50;
 
-        public int SecondsBetweenConfigurationCountChecks { get; set; }
+        public int SecondsBetweenConfigurationCountChecks { get; set; } = 60;
 
         public MercurialSettings MercurialSettings { get; set; }
 
 
         public MirroringSettings()
         {
-            MaxDegreeOfParallelism = 10;
-            BatchSize = 50;
-            SecondsBetweenConfigurationCountChecks = 60;
-
             MercurialSettings = new MercurialSettings();
         }
     }
