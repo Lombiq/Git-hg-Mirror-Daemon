@@ -29,6 +29,8 @@ namespace GitHgMirror.Runner
 
         public int SecondsBetweenConfigurationCountChecks { get; set; } = 60;
 
+        public int MirroringTimoutSeconds { get; set; } = 48 * 60 * 60; // 48 hours.
+
         public MercurialSettings MercurialSettings { get; set; }
 
 
