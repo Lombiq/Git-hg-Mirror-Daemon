@@ -8,7 +8,14 @@ namespace GitHgMirror.Runner
 {
     public class MirroringSettings
     {
+        /// <summary>
+        /// The URL of the web API endpoint to fetch mirroring configurations from.
+        /// </summary>
         public Uri ApiEndpointUrl { get; set; }
+
+        /// <summary>
+        /// Password of the web API endpoint to fetch mirroring configurations from.
+        /// </summary>
         public string ApiPassword { get; set; }
 
         /// <summary>
@@ -20,24 +27,29 @@ namespace GitHgMirror.Runner
         /// The maximum number of parallel tasks used to run repo synchronization. This can be higher with the
         /// performance of the server increasing, but keep in mind that syncing also generates network traffic.
         /// </summary>
-        public int MaxDegreeOfParallelism { get; set; }
+        public int MaxDegreeOfParallelism { get; set; } = 10;
 
         /// <summary>
         /// The amount of sync runs processed in one batch (executed in one task).
         /// </summary>
-        public int BatchSize { get; set; }
+        public int BatchSize { get; set; } = 50;
 
-        public int SecondsBetweenConfigurationCountChecks { get; set; }
+        /// <summary>
+        /// The time in seconds on how frequent the number of mirroring configurations will be checked and thus newly 
+        /// added configs discovered.
+        /// </summary>
+        public int SecondsBetweenConfigurationCountChecks { get; set; } = 60;
+
+        /// <summary>
+        /// The time in seconds after which a mirroring will be forcefully terminated if it doesn't complete.
+        /// </summary>
+        public int MirroringTimoutSeconds { get; set; } = 48 * 60 * 60; // 48 hours.
 
         public MercurialSettings MercurialSettings { get; set; }
 
 
         public MirroringSettings()
         {
-            MaxDegreeOfParallelism = 10;
-            BatchSize = 50;
-            SecondsBetweenConfigurationCountChecks = 60;
-
             MercurialSettings = new MercurialSettings();
         }
     }

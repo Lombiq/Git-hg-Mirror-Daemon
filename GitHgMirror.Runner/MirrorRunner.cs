@@ -147,8 +147,7 @@ namespace GitHgMirror.Runner
                                         // Such a kill timeout is not a nice solution but the hangs are unexplainable.
                                         var mirrorExecutionTask = 
                                             Task.Run(() =>  mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token));
-                                        var mirroringTimoutSeconds = 48 * 60 * 60; // 48 hours.
-                                        if (mirrorExecutionTask.Wait(mirroringTimoutSeconds * 1000))
+                                        if (mirrorExecutionTask.Wait(_settings.MirroringTimoutSeconds * 1000))
                                         {
                                             _apiService.Post("Report", new MirroringStatusReport
                                             {
@@ -163,13 +162,13 @@ namespace GitHgMirror.Runner
                                                 ConfigurationId = configuration.Id,
                                                 Status = MirroringStatus.Failed,
                                                 Message = 
-                                                    "Mirroring didn't finish after " + mirroringTimoutSeconds +
+                                                    "Mirroring didn't finish after " + _settings.MirroringTimoutSeconds +
                                                     "s so was terminated. Possible causes include one of the repos being too slow to access (could be a temporary issue with the hosting provider) or simply being too big."
                                             });
 
                                             _eventLog.WriteEntry(string.Format(
                                                 "Mirroring the hg repository {0} and git repository {1} in the direction {2} has hung and was forcefully terminated after {3}s.",
-                                                configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, mirroringTimoutSeconds),
+                                                configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, _settings.MirroringTimoutSeconds),
                                                 EventLogEntryType.Error);
                                         }
                                     }
