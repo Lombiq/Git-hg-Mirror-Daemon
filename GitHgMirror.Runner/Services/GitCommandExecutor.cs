@@ -110,22 +110,27 @@ namespace GitHgMirror.Runner.Services
                             var i = 0;
                             while (commitCount > 0 && i < remoteReferences.Length)
                             {
-                                // Since the filtering will be lazily evaluated the CommitFilter object needs to be
-                                // copied, otherwise the last one would take effect.
-                                var filteredCommitFilter = new CommitFilter
+                                // If both IncludeReachableFrom and ExcludeReachableFrom is the same then all commits
+                                // are filtered out.
+                                if (remoteReferences[i] != branch.CanonicalName)
                                 {
-                                    IncludeReachableFrom = commitFilter.IncludeReachableFrom,
-                                    ExcludeReachableFrom = remoteReferences[i],
-                                    SortBy = commitFilter.SortBy
-                                };
+                                    // Since the filtering will be lazily evaluated the CommitFilter object needs to be
+                                    // copied, otherwise the last one would take effect.
+                                    var filteredCommitFilter = new CommitFilter
+                                    {
+                                        IncludeReachableFrom = commitFilter.IncludeReachableFrom,
+                                        ExcludeReachableFrom = remoteReferences[i],
+                                        SortBy = commitFilter.SortBy
+                                    };
 
-                                var filteredCommits = repository.Commits.QueryBy(filteredCommitFilter);
-                                var filteredCommitCount = filteredCommits.Count();
+                                    var filteredCommits = repository.Commits.QueryBy(filteredCommitFilter);
+                                    var filteredCommitCount = filteredCommits.Count();
 
-                                if (filteredCommitCount < commitCount)
-                                {
-                                    commits = filteredCommits;
-                                    commitCount = filteredCommitCount;
+                                    if (filteredCommitCount < commitCount)
+                                    {
+                                        commits = filteredCommits;
+                                        commitCount = filteredCommitCount;
+                                    } 
                                 }
 
                                 i++;
