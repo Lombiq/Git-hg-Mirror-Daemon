@@ -9,7 +9,7 @@ namespace GitHgMirror.Daemon
     public static class Constants
     {
         /// <summary>
-        /// Configuation key for the API endpoint URL used to access the GitHgMirror API when fetching mirroring 
+        /// Configuration key for the API endpoint URL used to access the GitHgMirror API when fetching mirroring 
         /// configurations.
         /// </summary>
         public static string ApiEndpointUrl = "GitHgMirror.Daemon.ApiEndpointUrl";
