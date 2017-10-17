@@ -153,6 +153,15 @@ namespace GitHgMirror.Runner.Services
                 // Need to strip spaces from branch names, see:
                 // https://bitbucket.org/durin42/hg-git/issues/163/gexport-fails-on-bookmarks-with-spaces-in
                 var bookmark = branch.Replace(' ', '-');
+
+                // Need to strip multiple slashes from branch names, see:
+                // https://bitbucket.org/durin42/hg-git/issues/225/gexport-fails-on-bookmarks-with-multiple
+                if (bookmark.Count(character => character == '/') > 1)
+                {
+                    var firstSlashIndex = bookmark.IndexOf('/');
+                    bookmark = bookmark.Substring(0, firstSlashIndex) + bookmark.Substring(firstSlashIndex).Replace('/', '-');
+                }
+
                 if (branch == "default") bookmark = "master" + GitBookmarkSuffix;
                 else bookmark = bookmark + GitBookmarkSuffix;
 

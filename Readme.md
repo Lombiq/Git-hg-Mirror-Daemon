@@ -27,11 +27,16 @@ This is needed on the server as well as locally if you want to test mirroring.
 ## Installation on the server
 
 1. Set up Mercurial and Git as described above.
-2. Copy the service exe and its dependencies (basically the whole Release bin folder) onto the server in a desired location (e.g. C:\GitHgMirror\GitHgMirrorDaemon).
-3. Configure the service in the *GitHgMirror.Daemon.exe.config* file (for documentation on these take a look at the `GitHgMirror.Daemon.Constats` class), at least set a custom API password. This should be the same as what's configured in the frontend component. If you're updating the service on an already running server then make sure not to overwrite the config file to keep the settings.
+2. Copy the service exe and its dependencies (basically the whole Release bin folder) onto the server in a desired location (e.g. *C:\GitHgMirror\GitHgMirrorDaemon*).
+3. Configure the service in the *GitHgMirror.Daemon.exe.config* file (for documentation on these take a look at the `GitHgMirror.Daemon.Constants` class), at least set a custom API password. This should be the same as what's configured in the frontend component. If you're updating the service on an already running server then make sure not to overwrite the config file to keep the settings.
 4. Unless you want Windows Defender to check every repository for viruses exclude the repository directory (e.g. _C:\GitHgMirror\Repositories_) and the _GitHgMirror.Daemon.exe_, _hg.exe_ and _git.exe_ processes from scanning.
-6. Run the exe as administrator. This will install the service (running it again uninstalls it). Verify if the installation was successful by checking Services.
-7. Set up the service to run as the local user from under Properties/Log On. This makes it possible for the service to access the full SSL certificate store (thus preventing e.g. Let's Encrypt certificates being mistakenly flagged as invalid) and use the same settings what you see in TortoiseHg (though that shouldn't be necessary unless you're testing configs).
+5. Run the exe as administrator. This will install the service (running it again uninstalls it). Verify if the installation was successful by checking Services.
+6. Set up the service to run as the local user from under Properties/Log On. This makes it possible for the service to access the full SSL certificate store (thus preventing e.g. Let's Encrypt certificates being mistakenly flagged as invalid) and use the same settings what you see in TortoiseHg (though that shouldn't be necessary unless you're testing configs).
+7. Configure the following section in mercurial.ini:
+
+    [hostfingerprints]
+    riverbankcomputing.com = 55:37:0F:68:9D:76:61:32:A2:87:EE:67:5B:66:AD:9D:53:7F:77:03
+
 8. The service is set to automatic start, i.e. it will start with Windows. The first time however it should be manually started from Services.
 
 
@@ -56,8 +61,8 @@ If you get `EOF occurred in violation of protocol (_ssl.c:581)` or similar error
 
 There is re-try logic in place specifically for such errors so while these make syncing slower they shouldn't cause syncing to fail (within certain bounds: if there are too many retries needed then yes). Nevertheless if you can, update Mercurial.
 
-### Finding out which repo a hg.exe works on
-There will be a hg.exe (Mercurial command line) instance started for each mirroring operation. If you want to find out which repo a hg.exe instance works on (because e.g. it hogs the CPU for hours) then you can find out with [Process Explorer](https://technet.microsoft.com/en-us/sysinternals/bb896653.aspx): open the properties of the process in question and there under the Image tab you'll see the command line parameters it was started with. This will tell you which repo it processes.
+### Finding out which repo an hg.exe process works on
+There will be an *hg.exe* (Mercurial command line) instance started for each mirroring operation. If you want to find out which repo a *hg.exe* instance works on (because e.g. it hogs the CPU for hours) then you can find out with [Process Explorer](https://technet.microsoft.com/en-us/sysinternals/bb896653.aspx): open the properties of the process in question and there under the Image tab you'll see the command line parameters it was started with. This will tell you which repo it processes.
 
 
 ## Local testing

@@ -45,13 +45,7 @@ namespace GitHgMirror.Runner
         /// </summary>
         public int MirroringTimoutSeconds { get; set; } = 48 * 60 * 60; // 48 hours.
 
-        public MercurialSettings MercurialSettings { get; set; }
-
-
-        public MirroringSettings()
-        {
-            MercurialSettings = new MercurialSettings();
-        }
+        public MercurialSettings MercurialSettings { get; set; } = new MercurialSettings();
     }
 
 
