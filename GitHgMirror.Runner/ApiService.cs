@@ -54,7 +54,7 @@ namespace GitHgMirror.Runner
                 }
                 catch (WebException ex)
                 {
-                    throw new WebException("The web operation for the url " + url + " failed with the following erorr: " + ex.Message, ex);
+                    throw new WebException("The web operation for the url " + url + " failed with the following error: " + ex.Message, ex);
                 }
             }
         }

@@ -50,7 +50,7 @@ namespace GitHgMirror.Runner
                 CreateNewMirrorTask();
             }
 
-            // Mirroring wil actually start once the page count was adjusted the first time. Note that startup time will
+            // Mirroring will actually start once the page count was adjusted the first time. Note that startup time will
             // increase with the increase of the number mirroring configurations. However this is close to being
             // negligible for unless the amount of pages is big (it takes <1ms with ~100 pages).
             // Using a queue is much more reliable than utilizing QueuedTaskScheduler with as many tasks as pages (that
