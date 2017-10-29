@@ -73,7 +73,8 @@ namespace GitHgMirror.Runner
                 var newPageCount = (int)Math.Ceiling(_apiService.Get<int>("Count") / (double)_settings.BatchSize);
 
                 // We only care if the page count increased; if it decreased then processing those queue items will just
-                // do nothing (sine they'll fetch empty pages).
+                // do nothing (sine they'll fetch empty pages). Removing queue items based on their value would need a
+                // lock on the whole queue, thus let's avoid that.
                 if (newPageCount <= _pageCount)
                 {
                     _eventLog.WriteEntry(
@@ -118,102 +119,136 @@ namespace GitHgMirror.Runner
                     {
                         _eventLog.WriteEntry("Starting processing page " + pageNum + ".");
 
-                        try
+                        if (pageNum < _pageCount)
                         {
-                            var skip = pageNum * _settings.BatchSize;
-                            var configurations = _apiService.Get<List<MirroringConfiguration>>("?skip=" + skip + "&take=" + _settings.BatchSize);
-
-                            _eventLog.WriteEntry(
-                                "Page " + pageNum + " has " + configurations.Count + 
-                                " mirroring configurations. Starting mirrorings.");
-
-                            for (int c = 0; c < configurations.Count; c++)
+                            try
                             {
-                                using (var mirror = new Mirror(_eventLog))
+                                var skip = pageNum * _settings.BatchSize;
+                                var configurations = _apiService
+                                    .Get<List<MirroringConfiguration>>("?skip=" + skip + "&take=" + _settings.BatchSize);
+
+                                _eventLog.WriteEntry(
+                                    "Page " + pageNum + " has " + configurations.Count +
+                                    " mirroring configurations. Starting mirrorings.");
+
+                                for (int c = 0; c < configurations.Count; c++)
                                 {
-                                    _cancellationTokenSource.Token.ThrowIfCancellationRequested();
-
-                                    var configuration = configurations[c];
-
-                                    if (!mirror.IsCloned(configuration, _settings))
+                                    using (var mirror = new Mirror(_eventLog))
                                     {
-                                        _apiService.Post("Report", new MirroringStatusReport
-                                        {
-                                            ConfigurationId = configuration.Id,
-                                            Status = MirroringStatus.Cloning
-                                        });
-                                    }
+                                        _cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
-                                    try
-                                    {
-                                        Debug.WriteLine("Mirroring page " + pageNum + ": " + configuration);
-                                        _eventLog.WriteEntry(
-                                            "Starting to execute mirroring \"" + configuration + "\" on page " + pageNum + ".");
+                                        var configuration = configurations[c];
 
-                                        // Hg and git push commands randomly hang without any apparent reason (when just
-                                        // pushing small payloads). To prevent such a hang causing repositories stop
-                                        // syncing and Tasks being blocked forever there is a timeout for mirroring.
-                                        // Such a kill timeout is not a nice solution but the hangs are unexplainable.
-                                        var mirrorExecutionTask = 
-                                            Task.Run(() =>  mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token));
-                                        if (mirrorExecutionTask.Wait(_settings.MirroringTimoutSeconds * 1000))
+                                        if (!mirror.IsCloned(configuration, _settings))
                                         {
                                             _apiService.Post("Report", new MirroringStatusReport
                                             {
                                                 ConfigurationId = configuration.Id,
-                                                Status = MirroringStatus.Syncing
+                                                Status = MirroringStatus.Cloning
                                             });
                                         }
-                                        else
+
+                                        try
                                         {
+                                            Debug.WriteLine("Mirroring page " + pageNum + ": " + configuration);
+                                            _eventLog.WriteEntry(
+                                                "Starting to execute mirroring \"" + configuration + "\" on page " + pageNum + ".");
+
+                                            // Hg and git push commands randomly hang without any apparent reason (when 
+                                            // just pushing small payloads). To prevent such a hang causing repositories 
+                                            // stop syncing and Tasks being blocked forever there is a timeout for mirroring.
+                                            // Such a kill timeout is not a nice solution but the hangs are unexplainable.
+                                            var mirrorExecutionTask =
+                                                Task.Run(() => mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token));
+                                            if (mirrorExecutionTask.Wait(_settings.MirroringTimoutSeconds * 1000))
+                                            {
+                                                _apiService.Post("Report", new MirroringStatusReport
+                                                {
+                                                    ConfigurationId = configuration.Id,
+                                                    Status = MirroringStatus.Syncing
+                                                });
+                                            }
+                                            else
+                                            {
+                                                _apiService.Post("Report", new MirroringStatusReport
+                                                {
+                                                    ConfigurationId = configuration.Id,
+                                                    Status = MirroringStatus.Failed,
+                                                    Message =
+                                                        "Mirroring didn't finish after " + _settings.MirroringTimoutSeconds +
+                                                        "s so was terminated. Possible causes include one of the repos being too slow to access (could be a temporary issue with the hosting provider) or simply being too big."
+                                                });
+
+                                                _eventLog.WriteEntry(string.Format(
+                                                    "Mirroring the hg repository {0} and git repository {1} in the direction {2} has hung and was forcefully terminated after {3}s.",
+                                                    configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, _settings.MirroringTimoutSeconds),
+                                                    EventLogEntryType.Error);
+                                            }
+                                        }
+                                        catch (AggregateException ex)
+                                        {
+                                            var mirroringException = ex.InnerException as MirroringException;
+
+                                            if (mirroringException == null) throw;
+
+                                            _eventLog.WriteEntry(string.Format(
+                                                "An exception occurred while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
+                                                Environment.NewLine + "Exception: {3}",
+                                                configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, mirroringException),
+                                                EventLogEntryType.Error);
+
                                             _apiService.Post("Report", new MirroringStatusReport
                                             {
                                                 ConfigurationId = configuration.Id,
                                                 Status = MirroringStatus.Failed,
-                                                Message = 
-                                                    "Mirroring didn't finish after " + _settings.MirroringTimoutSeconds +
-                                                    "s so was terminated. Possible causes include one of the repos being too slow to access (could be a temporary issue with the hosting provider) or simply being too big."
+                                                Message = mirroringException.InnerException.Message
                                             });
-
-                                            _eventLog.WriteEntry(string.Format(
-                                                "Mirroring the hg repository {0} and git repository {1} in the direction {2} has hung and was forcefully terminated after {3}s.",
-                                                configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, _settings.MirroringTimoutSeconds),
-                                                EventLogEntryType.Error);
                                         }
+
+                                        _eventLog.WriteEntry(
+                                            "Finished executing mirroring \"" + configuration + "\" on page " + pageNum + ".");
                                     }
-                                    catch (AggregateException ex)
-                                    {
-                                        var mirroringException = ex.InnerException as MirroringException;
+                                }
 
-                                        if (mirroringException == null) throw;
-
-                                        _eventLog.WriteEntry(string.Format(
-                                            "An exception occurred while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
-                                            Environment.NewLine + "Exception: {3}",
-                                            configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, mirroringException),
-                                            EventLogEntryType.Error);
-
-                                        _apiService.Post("Report", new MirroringStatusReport
-                                        {
-                                            ConfigurationId = configuration.Id,
-                                            Status = MirroringStatus.Failed,
-                                            Message = mirroringException.InnerException.Message
-                                        });
-                                    }
+                                if (!configurations.Any())
+                                {
+                                    // Waiting only half of the count check time to not to wait excessively. This way
+                                    // there is a good chance that the next such execution will be skipped completely,
+                                    // due to the page count being adjusted in the meantime.
+                                    var waitMilliseconds = _settings.SecondsBetweenConfigurationCountChecks / 2 * 1000;
 
                                     _eventLog.WriteEntry(
-                                        "Finished executing mirroring \"" + configuration + "\" on page " + pageNum + ".");
+                                        "Page " + pageNum + " didn't contain any mirroring configurations, though it should have. Waiting " +
+                                        waitMilliseconds.ToString() + "ms.");
+
+                                    // If there is no configuration on this page then that's due to some obscure issue: 
+                                    // this shouldn't happen because empty pages can only exist if mirroring configs 
+                                    // were removed, but then this whole block should be skipped (that is, if the page
+                                    // count was since updated, which is done every minute).
+                                    // However we've seen the page fetch request succeed with an empty result even when 
+                                    // responding with HTTP 500...
+                                    await Task.Delay(waitMilliseconds);
+                                }
+                            }
+                            catch (Exception ex) when (!ex.IsFatalOrCancellation())
+                            {
+                                if ((ex as AggregateException)?.InnerException.IsFatalOrCancellation() == false)
+                                {
+                                    var waitMilliseconds = 30000;
+
+                                    _eventLog.WriteEntry(
+                                        "Unhandled exception while running mirrorings: " + ex.ToString() +
+                                        " Waiting " + waitMilliseconds + "ms before trying the next page in this Task.",
+                                        EventLogEntryType.Error);
+
+                                    await Task.Delay(waitMilliseconds);
                                 }
                             }
                         }
-                        catch (Exception ex) when (!ex.IsFatalOrCancellation())
+                        else
                         {
-                            if ((ex as AggregateException)?.InnerException.IsFatalOrCancellation() == false)
-                            {
-                                _eventLog.WriteEntry(
-                                    "Unhandled exception while running mirrorings: " + ex.ToString(),
-                                    EventLogEntryType.Error); 
-                            }
+                            _eventLog.WriteEntry(
+                                "Page " + pageNum + " is an empty page (due to configs having been removed). Nothing to do.");
                         }
 
                         _eventLog.WriteEntry("Finished processing page " + pageNum + ".");
