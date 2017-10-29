@@ -109,7 +109,7 @@ namespace GitHgMirror.Runner
         {
             _mirrorTasks.Add(Task.Run(async () =>
             {
-                // Checking for new queue items until cancelled.
+                // Checking for new queue items until canceled.
                 while (!_cancellationTokenSource.IsCancellationRequested)
                 {
                     int pageNum;
@@ -143,7 +143,7 @@ namespace GitHgMirror.Runner
 
                                         // Hg and git push command randomly hang without any apparent reason (when just
                                         // pushing small payloads). To prevent such a hang causing repositories stop
-                                        // syncing and Tasks being blocked forever there is a timout for mirroring.
+                                        // syncing and Tasks being blocked forever there is a timeout for mirroring.
                                         // Such a kill timeout is not a nice solution but the hangs are unexplainable.
                                         var mirrorExecutionTask = 
                                             Task.Run(() =>  mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token));
@@ -179,7 +179,7 @@ namespace GitHgMirror.Runner
                                         if (mirroringException == null) throw;
 
                                         _eventLog.WriteEntry(string.Format(
-                                            "An exception occured while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
+                                            "An exception occurred while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
                                             Environment.NewLine + "Exception: {3}",
                                             configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, mirroringException),
                                             EventLogEntryType.Error);
