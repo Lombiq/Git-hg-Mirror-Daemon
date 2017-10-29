@@ -116,10 +116,16 @@ namespace GitHgMirror.Runner
 
                     if (_mirrorQueue.TryDequeue(out pageNum))
                     {
+                        _eventLog.WriteEntry("Starting processing page " + pageNum + ".");
+
                         try
                         {
                             var skip = pageNum * _settings.BatchSize;
                             var configurations = _apiService.Get<List<MirroringConfiguration>>("?skip=" + skip + "&take=" + _settings.BatchSize);
+
+                            _eventLog.WriteEntry(
+                                "Page " + pageNum + " has " + configurations.Count + 
+                                " mirroring configurations. Starting mirrorings.");
 
                             for (int c = 0; c < configurations.Count; c++)
                             {
@@ -141,8 +147,10 @@ namespace GitHgMirror.Runner
                                     try
                                     {
                                         Debug.WriteLine("Mirroring page " + pageNum + ": " + configuration);
+                                        _eventLog.WriteEntry(
+                                            "Starting to execute mirroring \"" + configuration + "\" on page " + pageNum + ".");
 
-                                        // Hg and git push command randomly hang without any apparent reason (when just
+                                        // Hg and git push commands randomly hang without any apparent reason (when just
                                         // pushing small payloads). To prevent such a hang causing repositories stop
                                         // syncing and Tasks being blocked forever there is a timeout for mirroring.
                                         // Such a kill timeout is not a nice solution but the hangs are unexplainable.
@@ -192,6 +200,9 @@ namespace GitHgMirror.Runner
                                             Message = mirroringException.InnerException.Message
                                         });
                                     }
+
+                                    _eventLog.WriteEntry(
+                                        "Finished executing mirroring \"" + configuration + "\" on page " + pageNum + ".");
                                 }
                             }
                         }
@@ -204,6 +215,8 @@ namespace GitHgMirror.Runner
                                     EventLogEntryType.Error); 
                             }
                         }
+
+                        _eventLog.WriteEntry("Finished processing page " + pageNum + ".");
 
                         _mirrorQueue.Enqueue(pageNum);
                     }
