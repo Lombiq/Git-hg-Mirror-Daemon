@@ -70,7 +70,7 @@ namespace GitHgMirror.Runner
         {
             try
             {
-                var newPageCount = FetchConfigurationPageCount();
+                var newPageCount = (int)Math.Ceiling(_apiService.Get<int>("Count") / (double)_settings.BatchSize);
 
                 // We only care if the page count increased; if it decreased then processing those queue items will just
                 // do nothing (sine they'll fetch empty pages).
@@ -118,7 +118,8 @@ namespace GitHgMirror.Runner
                     {
                         try
                         {
-                            var configurations = FetchConfigurations(pageNum);
+                            var skip = pageNum * _settings.BatchSize;
+                            var configurations = _apiService.Get<List<MirroringConfiguration>>("?skip=" + skip + "&take=" + _settings.BatchSize);
 
                             for (int c = 0; c < configurations.Count; c++)
                             {
@@ -214,20 +215,6 @@ namespace GitHgMirror.Runner
                 }
 
             }, _cancellationTokenSource.Token));
-        }
-
-        private int FetchConfigurationPageCount()
-        {
-            return (int)Math.Ceiling(_apiService.Get<int>("Count") / (double)_settings.BatchSize);
-        }
-
-        /// <summary>
-        /// Page is zero-indexed.
-        /// </summary>
-        private List<MirroringConfiguration> FetchConfigurations(int page)
-        {
-            var skip = page * _settings.BatchSize;
-            return _apiService.Get<List<MirroringConfiguration>>("?skip=" + skip + "&take=" + _settings.BatchSize);
         }
     }
 }
