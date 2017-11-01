@@ -79,7 +79,7 @@ You can configure some settings in `GitHgMirror.Tester.Program`. If you want to 
             GitCloneUri = new Uri("git+https://github.com/path-to-git-repo.git"),
             HgCloneUri = new Uri("https://LombiqBot:password@bitbucket.org/path-to-hg-repo")
         };
-        mirror.MirrorRepositories(configuration, _settings);
+        mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token);
     }
 
 Of course make sure not to commit such tests (at least not to the dev branch).
