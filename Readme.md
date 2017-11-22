@@ -31,7 +31,7 @@ This is needed on the server as well as locally if you want to test mirroring.
 3. Configure the service in the *GitHgMirror.Daemon.exe.config* file (for documentation on these take a look at the `GitHgMirror.Daemon.Constants` class), at least set a custom API password. This should be the same as what's configured in the frontend component. If you're updating the service on an already running server then make sure not to overwrite the config file to keep the settings.
 4. Unless you want Windows Defender to check every repository for viruses exclude the repository directory (e.g. _C:\GitHgMirror\Repositories_) and the _GitHgMirror.Daemon.exe_, _hg.exe_ and _git.exe_ processes from scanning.
 5. Run the exe as administrator. This will install the service (running it again uninstalls it). Verify if the installation was successful by checking Services.
-6. Set up the service to run as the local user from under Properties/Log On. This makes it possible for the service to access the full SSL certificate store (thus preventing e.g. Let's Encrypt certificates being mistakenly flagged as invalid) and use the same settings what you see in TortoiseHg (though that shouldn't be necessary unless you're testing configs).
+6. Set up the service to run as the local user from under Properties/Log On. This makes it possible for the service to access the full SSL certificate store (thus preventing e.g. Let's Encrypt certificates being mistakenly flagged as invalid) and use the same settings what you see in TortoiseHg (though that shouldn't be necessary unless you're testing configs or want to configure host fingerprints as in the next step).
 7. Configure the following section in mercurial.ini:
 
     [hostfingerprints]
@@ -79,7 +79,7 @@ You can configure some settings in `GitHgMirror.Tester.Program`. If you want to 
             GitCloneUri = new Uri("git+https://github.com/path-to-git-repo.git"),
             HgCloneUri = new Uri("https://LombiqBot:password@bitbucket.org/path-to-hg-repo")
         };
-        mirror.MirrorRepositories(configuration, _settings);
+        mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token);
     }
 
 Of course make sure not to commit such tests (at least not to the dev branch).
