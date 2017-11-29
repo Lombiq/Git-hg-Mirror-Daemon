@@ -41,7 +41,7 @@ namespace GitHgMirror.Runner.Services
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
+                        // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName as the refspec here
                         // would be force push and completely overwrite the remote repo's content. This would always
                         // succeed no matter what is there but could wipe out changes made between the repo was fetched
                         // and pushed.
