@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using LibGit2Sharp;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using LibGit2Sharp;
 
 namespace GitHgMirror.Runner.Services
 {
@@ -67,7 +64,7 @@ namespace GitHgMirror.Runner.Services
                 }
 
                 _eventLog.WriteEntry(
-                    "Pushing to the follwing git repo timed out even after retries: " + gitCloneUri + " (" + cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
+                    "Pushing to the following git repo timed out even after retries: " + gitCloneUri + " (" + cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
                     EventLogEntryType.Warning);
 
                 CdDirectory(GetGitDirectoryPath(cloneDirectoryPath).EncloseInQuotes());
