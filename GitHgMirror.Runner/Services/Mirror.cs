@@ -179,7 +179,7 @@ namespace GitHgMirror.Runner.Services
                                     .CreateOrUpdateBookmarksForBranches(quotedCloneDirectoryPath, settings, cancellationToken);
                                 _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings, cancellationToken);
 
-                                // This will clear all commits int he git repo that aren't in the git remote repo but 
+                                // This will clear all commits in the git repo that aren't in the git remote repo but 
                                 // add changes that were added to the git repo.
                                 RunGitCommandAndMarkException(() => _gitCommandExecutor
                                     .FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, false, cancellationToken));
