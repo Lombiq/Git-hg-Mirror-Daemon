@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using GitHgMirror.Runner;
+using System;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
+using System.Reflection;
 using System.Threading;
-using System.Threading.Tasks;
-using GitHgMirror.Runner;
 
 namespace GitHgMirror.Tester
 {
@@ -16,12 +13,28 @@ namespace GitHgMirror.Tester
 
         static void Main(string[] args)
         {
-            if (!EventLog.Exists("Git-hg Mirror Daemon"))
+            // If true then a unique event log will be used for all copies of this executable. This helps if you want
+            // to run the app in multiple instances from source and not let the events show up across copies.
+            var useUniqueEventlog = true;
+
+            var eventLogName = "Git-hg Mirror Daemon";
+            var eventSourceName = "GitHgMirror.Tester";
+
+            if (useUniqueEventlog)
             {
-                EventLog.CreateEventSource(new EventSourceCreationData("GitHgMirror.Tester", "Git-hg Mirror Daemon")); 
+                var suffix = "-" + Assembly.GetExecutingAssembly().Location.GetHashCode();
+                // "Only the first eight characters of a custom log name are significant" so we need to make the name
+                // unique withing 8 characters.
+                eventLogName = "GHM" + suffix;
+                eventSourceName += suffix;
             }
 
-            using (var eventLog = new EventLog("Git-hg Mirror Daemon", ".", "GitHgMirror.Tester"))
+            if (!EventLog.Exists(eventLogName))
+            {
+                EventLog.CreateEventSource(new EventSourceCreationData(eventSourceName, eventLogName));
+            }
+
+            using (var eventLog = new EventLog(eventLogName, ".", eventSourceName))
             {
                 eventLog.EnableRaisingEvents = true;
 
