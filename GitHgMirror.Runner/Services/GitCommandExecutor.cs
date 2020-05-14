@@ -127,7 +127,7 @@ namespace GitHgMirror.Runner.Services
                                     {
                                         commits = filteredCommits;
                                         commitCount = filteredCommitCount;
-                                    } 
+                                    }
                                 }
 
                                 i++;
@@ -239,9 +239,9 @@ namespace GitHgMirror.Runner.Services
         }
 
         public void FetchOrCloneFromGit(
-            Uri gitCloneUri, 
-            string cloneDirectoryPath, 
-            bool useLibGit2Sharp, 
+            Uri gitCloneUri,
+            string cloneDirectoryPath,
+            bool useLibGit2Sharp,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
