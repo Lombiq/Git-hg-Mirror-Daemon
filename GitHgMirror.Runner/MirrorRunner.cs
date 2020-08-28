@@ -101,7 +101,7 @@ namespace GitHgMirror.Runner
             {
                 // Swallowing non-fatal exceptions like when the page count can't be retrieved.
                 _eventLog.WriteEntry(
-                    "Adjusting page counts failed and will be re-tried next time. Exception: " + ex, 
+                    "Adjusting page counts failed and will be re-tried next time. Exception: " + ex,
                     EventLogEntryType.Error);
             }
         }

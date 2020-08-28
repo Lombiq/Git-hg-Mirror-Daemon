@@ -42,6 +42,9 @@ This is needed on the server as well as locally if you want to test mirroring.
 
 ## Troubleshooting
 
+### Troubleshooting Mercurial errors
+You can enable debug settings for Mercurial via `MirroringSettings.MercurialSettings` to help troubleshoot issues with e.g. the debug output.
+
 ### Logging
 The service writes log messages to the Windows event log. You can view the entries in the Windows Event Viewer under "Applications and Services Logs" in the log "Git-hg Mirror Daemon".
 

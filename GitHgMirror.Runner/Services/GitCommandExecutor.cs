@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using LibGit2Sharp;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using LibGit2Sharp;
 
 namespace GitHgMirror.Runner.Services
 {
@@ -41,7 +38,7 @@ namespace GitHgMirror.Runner.Services
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName  as the refspec here
+                        // Having "+" + reference.CanonicalName + ":" + reference.CanonicalName as the refspec here
                         // would be force push and completely overwrite the remote repo's content. This would always
                         // succeed no matter what is there but could wipe out changes made between the repo was fetched
                         // and pushed.
@@ -67,7 +64,7 @@ namespace GitHgMirror.Runner.Services
                 }
 
                 _eventLog.WriteEntry(
-                    "Pushing to the follwing git repo timed out even after retries: " + gitCloneUri + " (" + cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
+                    "Pushing to the following git repo timed out even after retries: " + gitCloneUri + " (" + cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
                     EventLogEntryType.Warning);
 
                 CdDirectory(GetGitDirectoryPath(cloneDirectoryPath).EncloseInQuotes());
@@ -130,7 +127,7 @@ namespace GitHgMirror.Runner.Services
                                     {
                                         commits = filteredCommits;
                                         commitCount = filteredCommitCount;
-                                    } 
+                                    }
                                 }
 
                                 i++;
@@ -242,9 +239,9 @@ namespace GitHgMirror.Runner.Services
         }
 
         public void FetchOrCloneFromGit(
-            Uri gitCloneUri, 
-            string cloneDirectoryPath, 
-            bool useLibGit2Sharp, 
+            Uri gitCloneUri,
+            string cloneDirectoryPath,
+            bool useLibGit2Sharp,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
