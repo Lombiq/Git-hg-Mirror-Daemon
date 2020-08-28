@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GitHgMirror.Runner
+﻿namespace GitHgMirror.Runner
 {
     public static class CommandExceptionExtensions
     {
@@ -21,9 +15,10 @@ namespace GitHgMirror.Runner
         {
             var error = ex.Error;
 
-            return 
+            return
                 error.Contains("abort: stream ended unexpectedly (got ") ||
-                error.Contains("abort: connection ended unexpectedly");
+                error.Contains("abort: connection ended unexpectedly") ||
+                error.Contains("abort: error: A connection attempt failed because the connected party did not properly respond");
         }
 
         /// <summary>
