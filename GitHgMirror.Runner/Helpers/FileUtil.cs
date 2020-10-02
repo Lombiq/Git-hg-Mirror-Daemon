@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GitHgMirror.Runner.Helpers
 {
@@ -79,26 +76,23 @@ namespace GitHgMirror.Runner.Helpers
         /// </summary>
         /// <param name="path">Path of the file.</param>
         /// <returns>Processes locking the file</returns>
-        /// <remarks>See also:
-        /// http://msdn.microsoft.com/en-us/library/windows/desktop/aa373661(v=vs.85).aspx
-        /// http://wyupdate.googlecode.com/svn-history/r401/trunk/frmFilesInUse.cs (no copyright in code at time of viewing)
-        /// 
+        /// <remarks>
+        /// See also: http://msdn.microsoft.com/en-us/library/windows/desktop/aa373661(v=vs.85).aspx
+        /// http://wyupdate.googlecode.com/svn-history/r401/trunk/frmFilesInUse.cs (no copyright in code at time of
+        /// viewing)
         /// </remarks>
         static public List<Process> WhoIsLocking(string path)
         {
-            uint handle;
             string key = Guid.NewGuid().ToString();
             List<Process> processes = new List<Process>();
 
-            int res = RmStartSession(out handle, 0, key);
+            int res = RmStartSession(out uint handle, 0, key);
             if (res != 0) throw new Exception("Could not begin restart session.  Unable to determine file locker.");
 
             try
             {
                 const int ERROR_MORE_DATA = 234;
-                uint pnProcInfoNeeded = 0,
-                     pnProcInfo = 0,
-                     lpdwRebootReasons = RmRebootReasonNone;
+                uint pnProcInfo = 0, lpdwRebootReasons = RmRebootReasonNone;
 
                 string[] resources = new string[] { path }; // Just checking on one resource.
 
@@ -109,7 +103,7 @@ namespace GitHgMirror.Runner.Helpers
                 //Note: there's a race condition here -- the first call to RmGetList() returns
                 //      the total number of process. However, when we call RmGetList() again to get
                 //      the actual processes this number may have increased.
-                res = RmGetList(handle, out pnProcInfoNeeded, ref pnProcInfo, null, ref lpdwRebootReasons);
+                res = RmGetList(handle, out uint pnProcInfoNeeded, ref pnProcInfo, null, ref lpdwRebootReasons);
 
                 if (res == ERROR_MORE_DATA)
                 {
