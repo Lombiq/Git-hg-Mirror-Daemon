@@ -1,10 +1,10 @@
-﻿namespace GitHgMirror.CommonTypes
+namespace GitHgMirror.CommonTypes
 {
     public enum MirroringDirection
     {
         GitToHg,
         HgToGit,
-        TwoWay
+        TwoWay,
     }
 
     public enum MirroringStatus
@@ -13,6 +13,6 @@
         Cloning,
         Syncing,
         Failed,
-        Disabled
+        Disabled,
     }
 }

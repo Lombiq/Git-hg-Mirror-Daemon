@@ -6,6 +6,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject>GitHgMirror.Daemon.Program</StartupObject>
+    <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System.Configuration" />

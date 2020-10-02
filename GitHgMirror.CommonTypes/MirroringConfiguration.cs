@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GitHgMirror.CommonTypes
 {
@@ -17,13 +13,10 @@ namespace GitHgMirror.CommonTypes
         public MirroringDirection Direction { get; set; }
 
 
-        public override string ToString()
-        {
-            return
-                Id + " " +
-                HgCloneUri.ToString() + " - " +
-                GitCloneUri.ToString() + " " +
-                Direction.ToString();
-        }
+        public override string ToString() =>
+            Id + " " +
+            HgCloneUri + " - " +
+            GitCloneUri + " " +
+            Direction.ToString();
     }
 }

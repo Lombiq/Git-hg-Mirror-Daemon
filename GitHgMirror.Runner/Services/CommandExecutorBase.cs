@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GitHgMirror.Runner.Services
 {
@@ -14,17 +10,23 @@ namespace GitHgMirror.Runner.Services
         protected readonly CommandRunner _commandRunner = new CommandRunner();
 
 
-        protected CommandExecutorBase(EventLog eventLog)
+        protected CommandExecutorBase(EventLog eventLog) => _eventLog = eventLog;
+
+
+        public void Dispose()
         {
-            _eventLog = eventLog;
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
 
-        public virtual void Dispose()
+        protected virtual void Dispose(bool disposing)
         {
-            _commandRunner.Dispose();
+            if (disposing)
+            {
+                _commandRunner.Dispose();
+            }
         }
-
 
         protected string RunCommandAndLogOutput(string command)
         {
@@ -33,7 +35,7 @@ namespace GitHgMirror.Runner.Services
             Debug.WriteLine(output);
 
             // A string written to the event log cannot exceed supposedly 32766, actually fewer characters (Yes! There
-            // will be a Win32Exception thrown otherwise.) so going with the magic number of 31878 here, see: 
+            // will be a Win32Exception thrown otherwise.) so going with the magic number of 31878 here, see:
             // https://social.msdn.microsoft.com/Forums/en-US/b7d8e3c6-3607-4a5c-aca2-f828000d25be/not-able-to-write-log-messages-in-event-log-on-windows-2008-server?forum=netfx64bit
             if (output.Length > 31878)
             {
@@ -44,14 +46,14 @@ namespace GitHgMirror.Runner.Services
 
                 _eventLog.WriteEntry(output.Substring(0, 31878 - truncatedMessage.Length) + truncatedMessage);
             }
-            else _eventLog.WriteEntry(output);
+            else
+            {
+                _eventLog.WriteEntry(output);
+            }
 
             return output;
         }
 
-        protected void CdDirectory(string directoryPath)
-        {
-            RunCommandAndLogOutput("cd " + directoryPath);
-        }
+        protected void CdDirectory(string directoryPath) => RunCommandAndLogOutput("cd " + directoryPath);
     }
 }

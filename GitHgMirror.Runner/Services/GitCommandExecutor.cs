@@ -1,5 +1,6 @@
-﻿using LibGit2Sharp;
+using LibGit2Sharp;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -64,7 +65,8 @@ namespace GitHgMirror.Runner.Services
                 }
 
                 _eventLog.WriteEntry(
-                    "Pushing to the following git repo timed out even after retries: " + gitCloneUri + " (" + cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
+                    "Pushing to the following git repo timed out even after retries: " + gitCloneUri + " (" +
+                    cloneDirectoryPath + "). This can mean that the push was simply too large. Trying pushing again, commit by commit.",
                     EventLogEntryType.Warning);
 
                 CdDirectory(GetGitDirectoryPath(cloneDirectoryPath).EncloseInQuotes());
@@ -84,7 +86,7 @@ namespace GitHgMirror.Runner.Services
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        // We can't use push by commit hash (as described on 
+                        // We can't use push by commit hash (as described on
                         // http://stackoverflow.com/questions/3230074/git-pushing-specific-commit) with libgit2 because
                         // of lack of support (see: https://github.com/libgit2/libgit2/issues/3178). So we need to use
                         // git directly.
@@ -96,7 +98,7 @@ namespace GitHgMirror.Runner.Services
                         var commitFilter = new CommitFilter
                         {
                             IncludeReachableFrom = branch,
-                            SortBy = CommitSortStrategies.Reverse
+                            SortBy = CommitSortStrategies.Reverse,
                         };
                         var commits = repository.Commits.QueryBy(commitFilter);
                         var commitCount = commits.Count();
@@ -117,7 +119,7 @@ namespace GitHgMirror.Runner.Services
                                     {
                                         IncludeReachableFrom = commitFilter.IncludeReachableFrom,
                                         ExcludeReachableFrom = remoteReferences[i],
-                                        SortBy = commitFilter.SortBy
+                                        SortBy = commitFilter.SortBy,
                                     };
 
                                     var filteredCommits = repository.Commits.QueryBy(filteredCommitFilter);
@@ -134,14 +136,12 @@ namespace GitHgMirror.Runner.Services
                             }
                         }
 
-                        // It's costly to iterate over the Commits collection but it could also potentially consume too 
+                        // It's costly to iterate over the Commits collection but it could also potentially consume too
                         // much memory to enumerate the whole collection once and keep it in memory. Thus we work in
                         // batches.
-                        var batchSize = 100;
+                        const int batchSize = 100;
                         var currentBatchSkip = 0;
-                        var currentBatch = Enumerable.Empty<Commit>();
-
-                        var firstCommitOfBranch = true;
+                        IEnumerable<Commit> currentBatch;
 
                         do
                         {
@@ -168,10 +168,7 @@ namespace GitHgMirror.Runner.Services
                                         tryCount++;
                                         reRunGitPush = false;
 
-                                        // The first commit for a new remote branch should use the "refs/heads/" prefix, 
-                                        // others just the branch name.
-                                        var branchName = branch.FriendlyName;
-                                        if (firstCommitOfBranch) branchName = "refs/heads/" + branchName;
+                                        var branchName = "refs/heads/" + branch.FriendlyName;
 
                                         // The --mirror switch can't be used with refspec push.
                                         RunCommandAndLogOutput(
@@ -181,10 +178,10 @@ namespace GitHgMirror.Runner.Services
 
                                         pushCount++;
 
-                                        // Let's try a normal push every 300 commits. If it succeeds then the mirroring 
+                                        // Let's try a normal push every 300 commits. If it succeeds then the mirroring
                                         // can finish faster (otherwise it could even time out).
-                                        // This may be a larger number than in hg revision by revision pulling because 
-                                        // git commits can be repeated among branches, so the number of commits pushed 
+                                        // This may be a larger number than in hg revision by revision pulling because
+                                        // git commits can be repeated among branches, so the number of commits pushed
                                         // can be lower than the number of push operations.
                                         if (pushCount > 500)
                                         {
@@ -195,7 +192,7 @@ namespace GitHgMirror.Runner.Services
                                     catch (CommandException commandException)
                                     {
                                         if (commandException.IsGitExceptionRealError() &&
-                                            // When trying to re-push a commit we'll get an error like below, but this 
+                                            // When trying to re-push a commit we'll get an error like below, but this
                                             // isn't an issue:
                                             // ! [rejected]        b028f04f5092cb47db015dd7d9bfc2ad8cd8ce98 -> master (non-fast-forward)
                                             !commandException.Error.Contains(" ! [rejected]"))
@@ -208,7 +205,7 @@ namespace GitHgMirror.Runner.Services
                                                 _eventLog.WriteEntry(
                                                     "Pushing commit " + sha + " to the branch " + branch.FriendlyName +
                                                     " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath +
-                                                    ") failed with the following exception: " + commandException.ToString() +
+                                                    ") failed with the following exception: " + commandException +
                                                     "This was try #" + tryCount + ", retrying.",
                                                     EventLogEntryType.Warning);
                                                 reRunGitPush = true;
@@ -216,19 +213,25 @@ namespace GitHgMirror.Runner.Services
                                                 // Waiting a bit so maybe the error will go away if it was temporary.
                                                 Thread.Sleep(30000);
                                             }
-                                            else throw;
+                                            else
+                                            {
+                                                throw;
+                                            }
                                         }
                                     }
-                                } while (reRunGitPush);
+                                }
+                                while (reRunGitPush);
 
 
                                 _eventLog.WriteEntry(
-                                    "Finished pushing commit " + sha + " to the branch " + branch.FriendlyName + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
+                                    "Finished pushing commit " + sha + " to the branch " + branch.FriendlyName +
+                                    " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                                     EventLogEntryType.Information);
                             }
 
                             currentBatchSkip += batchSize;
-                        } while (currentBatchSkip < commitCount);
+                        }
+                        while (currentBatchSkip < commitCount);
                     }
                 });
 
@@ -275,9 +278,9 @@ namespace GitHgMirror.Runner.Services
                     // hg-git from a git repo. The git.exe version will work for two-way mirrors...
                     if (useLibGit2Sharp)
                     {
-                        // We can't just use the +refs/*:refs/* refspec since on GitHub PRs have their own specials refs 
-                        // as refs/pull/[ID]/head and refs/pull/[ID]/merge refs. Pushing a latter ref merges the PR, what
-                        // of course we don't want. So we need to filter just the interesting refs.
+                        // We can't just use the +refs/*:refs/* refspec since on GitHub PRs have their own specials
+                        // refs as refs/pull/[ID]/head and refs/pull/[ID]/merge refs. Pushing a latter ref merges the
+                        // PR, what of course we don't want. So we need to filter just the interesting refs.
                         // Also we really shouldn't fetch and push other namespaces like meta/config either, see:
                         // https://groups.google.com/forum/#!topic/repo-discuss/zpqpPpHAwSM
                         Commands.Fetch(repository, remoteName, new[] { "+refs/heads/*:refs/heads/*" }, null, null);
@@ -295,6 +298,7 @@ namespace GitHgMirror.Runner.Services
                         }
                         catch (CommandException commandException) when (!commandException.IsGitExceptionRealError())
                         {
+                            // Ignoring false alarms.
                         }
                     }
 
@@ -306,46 +310,42 @@ namespace GitHgMirror.Runner.Services
         }
 
 
-        private void RunGitOperationOnClonedRepo(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository, string> operation)
-        {
+        private void RunGitOperationOnClonedRepo(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository, string> operation) =>
             RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, () =>
             {
-                using (var repository = new Repository(GetGitDirectoryPath(cloneDirectoryPath)))
+                using var repository = new Repository(GetGitDirectoryPath(cloneDirectoryPath));
+                // Keeping a configured remote for each repo URL the repository is synced with. This is necessary
+                // because some LibGit2Sharp operations need one, can't operate with just a clone URL.
+
+                var remoteName = "origin";
+                var gitUrl = gitCloneUri.ToGitUrl();
+
+                if (repository.Network.Remotes["origin"] == null)
                 {
-                    // Keeping a configured remote for each repo URL the repository is synced with. This is necessary
-                    // because some LibGit2Sharp operations need one, can't operate with just a clone URL.
+                    repository.AddMirrorRemote("origin", gitUrl);
+                }
+                else
+                {
+                    var existingOtherRemote = repository.Network.Remotes
+                        .SingleOrDefault(remote => remote.Url == gitUrl);
 
-                    var remoteName = "origin";
-                    var gitUrl = gitCloneUri.ToGitUrl();
-
-                    if (repository.Network.Remotes["origin"] == null)
+                    if (existingOtherRemote != null)
                     {
-                        repository.AddMirrorRemote("origin", gitUrl);
+                        remoteName = existingOtherRemote.Name;
                     }
                     else
                     {
-                        var existingOtherRemote = repository.Network.Remotes
-                            .SingleOrDefault(remote => remote.Url == gitUrl);
-
-                        if (existingOtherRemote != null)
-                        {
-                            remoteName = existingOtherRemote.Name;
-                        }
-                        else
-                        {
-                            remoteName = "remote" + repository.Network.Remotes.Count();
-                            repository.AddMirrorRemote(remoteName, gitUrl);
-                        }
+                        remoteName = "remote" + repository.Network.Remotes.Count();
+                        repository.AddMirrorRemote(remoteName, gitUrl);
                     }
-
-
-                    operation(repository, remoteName);
                 }
+
+
+                operation(repository, remoteName);
             });
-        }
 
         /// <summary>
-        /// Since somehow LibGit2Sharp routinely fails with "Failed to receive response: The server returned an invalid 
+        /// Since somehow LibGit2Sharp routinely fails with "Failed to receive response: The server returned an invalid
         /// or unrecognized response" we re-try operations here.
         /// </summary>
         private void RunLibGit2SharpOperationWithRetry(
@@ -361,19 +361,22 @@ namespace GitHgMirror.Runner.Services
             catch (LibGit2SharpException ex)
             {
                 // We won't re-try these as these errors are most possibly not transient ones.
+                // It's readable.
+#pragma warning disable S1067 // Expressions should not be too complex
                 if (ex.Message.Contains("Request failed with status code: 404") ||
                     ex.Message.Contains("Request failed with status code: 401") ||
                     ex.Message.Contains("Request failed with status code: 403") ||
                     ex.Message.Contains("Cannot push because a reference that you are trying to update on the remote contains commits that are not present locally.") ||
                     ex.Message.Contains("Cannot push non-fastforwardable reference") ||
                     ex is RepositoryNotFoundException)
+#pragma warning restore S1067 // Expressions should not be too complex
                 {
                     throw;
                 }
 
                 var errorDescriptor =
                     Environment.NewLine + "Operation attempted with the " + gitCloneUri.ToGitUrl() + " repository (directory: " + cloneDirectoryPath + ")" +
-                    Environment.NewLine + ex.ToString() +
+                    Environment.NewLine + ex +
                     Environment.NewLine + "Operation: " + Environment.NewLine +
                     // Removing first two lines from the stack trace that contain the stack trace retrieval itself.
                     string.Join(Environment.NewLine, Environment.StackTrace.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Skip(2));
@@ -402,9 +405,6 @@ namespace GitHgMirror.Runner.Services
         }
 
 
-        public static string GetGitDirectoryPath(string cloneDirectoryPath)
-        {
-            return Path.Combine(cloneDirectoryPath, ".hg", "git");
-        }
+        public static string GetGitDirectoryPath(string cloneDirectoryPath) => Path.Combine(cloneDirectoryPath, ".hg", "git");
     }
 }

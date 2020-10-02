@@ -1,9 +1,5 @@
-﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GitHgMirror.Runner.Helpers
 {
@@ -34,7 +30,7 @@ namespace GitHgMirror.Runner.Helpers
             return new LockingProcessKillResult
             {
                 KilledProcesseFileNames = killedProcesseFileNames,
-                ReadOnlyFilePaths = readOnlyFilePaths
+                ReadOnlyFilePaths = readOnlyFilePaths,
             };
         }
 
