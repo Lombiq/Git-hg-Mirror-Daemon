@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+using GitHgMirror.Runner.Helpers;
+using GitHgMirror.Runner.Services;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using GitHgMirror.Runner.Helpers;
-using GitHgMirror.Runner.Services;
 
 namespace GitHgMirror.Runner
 {
@@ -54,7 +51,8 @@ namespace GitHgMirror.Runner
 
                                     _eventLog.WriteEntry(
                                         "Removing the untouched repository folder: " + repositoryDirectory +
-                                        " initially failed, so trying to kill processes that are locking files in it and setting all files not to be read-only resulted in the following." +
+                                        " initially failed, so trying to kill processes that are locking files in it and " +
+                                        "setting all files not to be read-only resulted in the following." +
                                         " Processes killed: " + (killResult.KilledProcesseFileNames.Any() ? string.Join(", ", killResult.KilledProcesseFileNames) : "no processes") +
                                         " Read-only files: " + (killResult.ReadOnlyFilePaths.Any() ? string.Join(", ", killResult.ReadOnlyFilePaths) : "no files"),
                                         EventLogEntryType.Warning);
@@ -70,7 +68,7 @@ namespace GitHgMirror.Runner
                             {
                                 _eventLog.WriteEntry(
                                     "Removing the untouched repository folder \"" + repositoryDirectory +
-                                    "\" failed with the following exception: " + ex.ToString(),
+                                    "\" failed with the following exception: " + ex,
                                     EventLogEntryType.Error);
                             }
 

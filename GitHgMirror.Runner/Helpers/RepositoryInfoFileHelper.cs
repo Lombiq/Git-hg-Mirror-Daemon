@@ -1,21 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
+using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GitHgMirror.Runner.Helpers
 {
     public static class RepositoryInfoFileHelper
     {
-        public static void CreateOrUpdateFile(string cloneDirectoryPath, string mirroringDescriptor)
-        {
+        public static void CreateOrUpdateFile(string cloneDirectoryPath, string mirroringDescriptor) =>
             // Not placing the debug info file into the clone directory because that would bother Mercurial.
             File.WriteAllText(
                 GetFilePath(cloneDirectoryPath),
-                mirroringDescriptor + Environment.NewLine + DateTime.UtcNow.ToString());
-        }
+                mirroringDescriptor + Environment.NewLine + DateTime.UtcNow.ToString(CultureInfo.InvariantCulture));
 
         public static DateTime GetLastUpdatedDateTimeUtc(string cloneDirectoryPath)
         {
@@ -28,12 +23,7 @@ namespace GitHgMirror.Runner.Helpers
 
             var fileLines = File.ReadAllLines(filePath);
 
-            if (fileLines.Length < 2)
-            {
-                return DateTime.MinValue;
-            }
-
-            return DateTime.Parse(fileLines[1]);
+            return fileLines.Length < 2 ? DateTime.MinValue : DateTime.Parse(fileLines[1], CultureInfo.InvariantCulture);
         }
 
         public static void DeleteFileIfExists(string cloneDirectoryPath)
@@ -47,9 +37,6 @@ namespace GitHgMirror.Runner.Helpers
         }
 
 
-        private static string GetFilePath(string cloneDirectoryPath)
-        {
-            return cloneDirectoryPath + "-info.txt";
-        }
+        private static string GetFilePath(string cloneDirectoryPath) => cloneDirectoryPath + "-info.txt";
     }
 }

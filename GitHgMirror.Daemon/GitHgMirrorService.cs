@@ -1,31 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Configuration;
-using System.Data;
-using System.Diagnostics;
-using System.Linq;
-using System.ServiceProcess;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using GitHgMirror.Runner;
+using System;
+using System.Configuration;
+using System.Diagnostics;
+using System.Globalization;
+using System.ServiceProcess;
+using System.Threading;
 
 namespace GitHgMirror.Daemon
 {
     public partial class GitHgMirrorService : ServiceBase
     {
+        private readonly ManualResetEvent _waitHandle = new ManualResetEvent(false);
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+
         private MirroringSettings _settings;
         private MirrorRunner _runner;
         private UntouchedRepositoriesCleaner _cleaner;
-        private ManualResetEvent _waitHandle = new ManualResetEvent(false);
-        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private System.Timers.Timer _startTimer;
+        private System.Timers.Timer _cleanTimer;
 
 
-        public GitHgMirrorService()
-        {
-            InitializeComponent();
-        }
+
+        public GitHgMirrorService() => InitializeComponent();
 
 
         protected override void OnStart(string[] args)
@@ -35,8 +31,8 @@ namespace GitHgMirror.Daemon
                 EventLog.CreateEventSource(new EventSourceCreationData("GitHgMirror.Daemon", "Git-hg Mirror Daemon"));
             }
 
-            // Keep in mind that the event log consumes memory so unless you keep this well beyond what you can spare the
-            // server will run out of RAM.
+            // Keep in mind that the event log consumes memory so unless you keep this well beyond what you can spare
+            // the server will run out of RAM.
             serviceEventLog.MaximumKilobytes = 196608; // 192MB
             serviceEventLog.WriteEntry("GitHgMirrorDaemon started.");
 
@@ -45,21 +41,17 @@ namespace GitHgMirror.Daemon
                 ApiEndpointUrl = new Uri(ConfigurationManager.AppSettings[Constants.ApiEndpointUrl]),
                 ApiPassword = ConfigurationManager.ConnectionStrings[Constants.ApiPasswordKey]?.ConnectionString ?? string.Empty,
                 RepositoriesDirectoryPath = ConfigurationManager.AppSettings[Constants.RepositoriesDirectoryPath],
-                MaxDegreeOfParallelism = int.Parse(ConfigurationManager.AppSettings[Constants.MaxDegreeOfParallelism]),
-                BatchSize = int.Parse(ConfigurationManager.AppSettings[Constants.BatchSize])
+                BatchSize = int.Parse(ConfigurationManager.AppSettings[Constants.BatchSize], CultureInfo.InvariantCulture),
             };
 
-            var startTimer = new System.Timers.Timer(10000);
-            startTimer.Elapsed += timer_Elapsed;
-            startTimer.Enabled = true;
+            _startTimer = new System.Timers.Timer(10000);
+            _startTimer.Elapsed += StartTimerElapsed;
+            _startTimer.Enabled = true;
 
             _cleaner = new UntouchedRepositoriesCleaner(_settings, serviceEventLog);
-            var cleanerTimer = new System.Timers.Timer(3600000 * 2); // Two hours
-            cleanerTimer.Elapsed += (sender, e) =>
-                {
-                    _cleaner.Clean(_cancellationTokenSource.Token);
-                };
-            cleanerTimer.Enabled = true;
+            _cleanTimer = new System.Timers.Timer(3_600_000 * 2); // Two hours
+            _cleanTimer.Elapsed += (sender, e) => _cleaner.Clean(_cancellationTokenSource.Token);
+            _cleanTimer.Enabled = true;
         }
 
         protected override void OnStop()
@@ -74,7 +66,24 @@ namespace GitHgMirror.Daemon
         }
 
 
-        void timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+
+            base.Dispose(disposing);
+
+            _cancellationTokenSource.Dispose();
+            _waitHandle.Dispose();
+            _runner?.Dispose();
+            _startTimer?.Dispose();
+            _cleanTimer?.Dispose();
+        }
+
+
+        private void StartTimerElapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
             ((System.Timers.Timer)sender).Enabled = false;
 
@@ -97,7 +106,7 @@ namespace GitHgMirror.Daemon
                 catch (Exception ex)
                 {
                     serviceEventLog.WriteEntry(
-                        "Starting mirroring failed with the following exception: " + ex.ToString() +
+                        "Starting mirroring failed with the following exception: " + ex +
                         Environment.NewLine +
                         "A new start will be attempted in 30s.",
                         EventLogEntryType.Error);
