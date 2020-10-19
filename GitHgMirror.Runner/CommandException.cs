@@ -59,8 +59,6 @@ namespace GitHgMirror.Runner
         /// </summary>
         public bool IsGitExceptionRealError() =>
             // If there is nothing to push git will return this message in the error stream.
-            // It's readable.
-#pragma warning disable S1067 // Expressions should not be too complex
             !Error.Contains("Everything up-to-date") &&
             // A new branch was added.
             !Error.Contains("* [new branch]") &&
@@ -76,6 +74,5 @@ namespace GitHgMirror.Runner
             !Error.Contains("Auto packing the repository in background for optimum performance.") &&
             // An existing tag was updated.
             !Error.Contains("[tag update]");
-#pragma warning restore S1067 // Expressions should not be too complex
     }
 }

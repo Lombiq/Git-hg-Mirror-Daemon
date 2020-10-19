@@ -361,15 +361,12 @@ namespace GitHgMirror.Runner.Services
             catch (LibGit2SharpException ex)
             {
                 // We won't re-try these as these errors are most possibly not transient ones.
-                // It's readable.
-#pragma warning disable S1067 // Expressions should not be too complex
                 if (ex.Message.Contains("Request failed with status code: 404") ||
                     ex.Message.Contains("Request failed with status code: 401") ||
                     ex.Message.Contains("Request failed with status code: 403") ||
                     ex.Message.Contains("Cannot push because a reference that you are trying to update on the remote contains commits that are not present locally.") ||
                     ex.Message.Contains("Cannot push non-fastforwardable reference") ||
                     ex is RepositoryNotFoundException)
-#pragma warning restore S1067 // Expressions should not be too complex
                 {
                     throw;
                 }
