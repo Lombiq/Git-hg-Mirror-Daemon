@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GitHgMirror.CommonTypes\GitHgMirror.CommonTypes.csproj" />
+    <ProjectReference Include="..\GitHgMirror.NonAnalyzed\GitHgMirror.NonAnalyzed.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />

@@ -32,6 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GitHgMirror.CommonTypes\GitHgMirror.CommonTypes.csproj" />
+    <ProjectReference Include="..\GitHgMirror.NonAnalyzed\GitHgMirror.NonAnalyzed.csproj" />
     <ProjectReference Include="..\GitHgMirror.Runner\GitHgMirror.Runner.csproj" />
   </ItemGroup>
   <ItemGroup>

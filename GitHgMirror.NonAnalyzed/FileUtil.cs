@@ -1,13 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace GitHgMirror.Runner.Helpers
+namespace GitHgMirror.NonAnalyzed
 {
     // Taken entirely from http://stackoverflow.com/a/20623311/220230
 
-    static public class FileUtil
+    public static class FileUtil
     {
         [StructLayout(LayoutKind.Sequential)]
         struct RM_UNIQUE_PROCESS

@@ -1,4 +1,4 @@
-﻿/********************************** Module Header **********************************\
+/********************************** Module Header **********************************\
 * Module Name:  ServiceRecoveryProperties.cs
 * Project:      CSWindowsServiceRecoveryProperty
 * Copyright (c) Microsoft Corporation.
@@ -18,16 +18,16 @@
 
 #region Using directives
 using System;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-using System.Diagnostics;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 #endregion
 
 
 namespace CSWindowsServiceRecoveryProperty
 {
-    internal class ServiceRecoveryProperty
+    public class ServiceRecoveryProperty
     {
         /// <summary>
         /// Change the recovery property of a Windows service.

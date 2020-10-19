@@ -1,4 +1,4 @@
-﻿/************************************ Module Header ***********************************\
+/************************************ Module Header ***********************************\
 * Module Name:  Win32.cs
 * Project:      CSWindowsServiceRecoveryProperty
 * Copyright (c) Microsoft Corporation.
@@ -28,7 +28,7 @@ namespace CSWindowsServiceRecoveryProperty
 {
     // Enumeration for SC_ACTION
     // The SC_ACTION_TYPE enumeration specifies the actions that the SCM can perform.
-    internal enum SC_ACTION_TYPE
+    public enum SC_ACTION_TYPE
     {
         None = 0,
         RestartService = 1,
@@ -39,7 +39,7 @@ namespace CSWindowsServiceRecoveryProperty
     // Struct for SERVICE_FAILURE_ACTIONS
     // Represents an action that the service control manager can perform.
     [StructLayout(LayoutKind.Sequential)]
-    internal struct SC_ACTION
+    public struct SC_ACTION
     {
         public int Type;
         public int Delay;
@@ -49,7 +49,7 @@ namespace CSWindowsServiceRecoveryProperty
     // Represents the action the service controller should take on each failure of a 
     // service.
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-    internal struct SERVICE_FAILURE_ACTIONS
+    public struct SERVICE_FAILURE_ACTIONS
     {
         public int dwResetPeriod;
         public string lpRebootMsg;
@@ -62,7 +62,7 @@ namespace CSWindowsServiceRecoveryProperty
     // Struct for FailureActionsOnNonCrashFailures
     // Contains the failure actions flag setting of a service.
     [StructLayout(LayoutKind.Sequential)]
-    internal struct SERVICE_FAILURE_ACTIONS_FLAG
+    public struct SERVICE_FAILURE_ACTIONS_FLAG
     {
         public bool fFailureActionsOnNonCrashFailures;
     }
@@ -71,7 +71,7 @@ namespace CSWindowsServiceRecoveryProperty
     // The LUID_AND_ATTRIBUTES structure represents a locally unique identifier 
     // (LUID) and its attributes.
     [StructLayout(LayoutKind.Sequential)]
-    internal struct LUID_AND_ATTRIBUTES
+    public struct LUID_AND_ATTRIBUTES
     {
         public long Luid;
         public int Attributes;
@@ -86,7 +86,7 @@ namespace CSWindowsServiceRecoveryProperty
     // when marshalling this struct to Win32. You do not want to know how many hours 
     // I had to spend on this alone!!!
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal struct TOKEN_PRIVILEGES
+    public struct TOKEN_PRIVILEGES
     {
         public int PrivilegeCount;
         public LUID_AND_ATTRIBUTES Privileges;
@@ -97,7 +97,7 @@ namespace CSWindowsServiceRecoveryProperty
     /// </summary>
     [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode = true)]
     [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]
-    internal class SafeServiceHandle : SafeHandleZeroOrMinusOneIsInvalid
+    public class SafeServiceHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         internal SafeServiceHandle()
             : base(true)
@@ -116,7 +116,7 @@ namespace CSWindowsServiceRecoveryProperty
     /// </summary>
     [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode = true)]
     [SecurityPermission(SecurityAction.Demand, UnmanagedCode = true)]
-    internal class SafeTokenHandle : SafeHandleZeroOrMinusOneIsInvalid
+    public class SafeTokenHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         private SafeTokenHandle()
             : base(true)
@@ -136,7 +136,7 @@ namespace CSWindowsServiceRecoveryProperty
     }
 
     [SuppressUnmanagedCodeSecurity()]
-    internal class Win32
+    public class Win32
     {
         public const int SERVICE_ALL_ACCESS = 0xF01FF;
         public const int SERVICE_QUERY_CONFIG = 0x0001;
