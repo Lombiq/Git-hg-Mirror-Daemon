@@ -2,5 +2,6 @@
   <Import Project="tools/Lombiq.Analyzers/Build.props"/>
   <PropertyGroup>
     <CodeAnalysisRuleSet>$(MSBuildThisFileDirectory)GitHgMirror.ruleset</CodeAnalysisRuleSet>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 </Project>
