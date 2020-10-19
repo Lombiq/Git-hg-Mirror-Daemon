@@ -13,11 +13,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitHgMirror.Tester", "GitHg
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7CC898F3-3DA8-4EBD-A4D0-8F510D93A520}"
 	ProjectSection(SolutionItems) = preProject
+		GitHgMirror.ruleset = GitHgMirror.ruleset
 		Licence.md = Licence.md
 		Readme.md = Readme.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirror.NonAnalyzed", "GitHgMirror.NonAnalyzed\GitHgMirror.NonAnalyzed.csproj", "{A4E64B35-30DB-435B-BF99-9E514C5A5CE9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitHgMirror.NonAnalyzed", "GitHgMirror.NonAnalyzed\GitHgMirror.NonAnalyzed.csproj", "{A4E64B35-30DB-435B-BF99-9E514C5A5CE9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
