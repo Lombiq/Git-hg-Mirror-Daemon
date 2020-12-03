@@ -9,16 +9,13 @@ namespace GitHgMirror.Runner.Services
 
         protected readonly CommandRunner _commandRunner = new CommandRunner();
 
-
         protected CommandExecutorBase(EventLog eventLog) => _eventLog = eventLog;
-
 
         public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
-
 
         protected virtual void Dispose(bool disposing)
         {

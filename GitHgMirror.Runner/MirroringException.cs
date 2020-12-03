@@ -19,7 +19,6 @@ namespace GitHgMirror.Runner
         {
         }
 
-
         public override string ToString() =>
             typeof(MirroringException).FullName + ": " + Message + Environment.NewLine +
             StackTrace + Environment.NewLine +

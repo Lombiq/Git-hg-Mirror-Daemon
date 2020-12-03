@@ -11,7 +11,6 @@ namespace GitHgMirror.Runner
         public string Output { get; private set; }
         public string Error { get; private set; }
 
-
         public CommandException(string message, string output, string error)
             : base(message)
         {
@@ -25,7 +24,6 @@ namespace GitHgMirror.Runner
             Output = output;
             Error = error;
         }
-
 
         public override string ToString() =>
             typeof(CommandException).FullName + ": " +

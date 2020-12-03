@@ -15,7 +15,6 @@ namespace GitHgMirror.Runner.Services
         {
         }
 
-
         public void PushToGit(Uri gitCloneUri, string cloneDirectoryPath, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -33,8 +32,8 @@ namespace GitHgMirror.Runner.Services
                         "Starting to push to git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                         EventLogEntryType.Information);
 
-                    // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230
-                    // So can't use "+refs/*:refs/*" here, must iterate.
+                    // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230 So
+                    // can't use "+refs/*:refs/*" here, must iterate.
                     foreach (var reference in repository.Refs)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
@@ -55,8 +54,8 @@ namespace GitHgMirror.Runner.Services
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // These will be the messages of an exception thrown when a large push times out. So we'll re-try pushing
-                // commit by commit.
+                // These will be the messages of an exception thrown when a large push times out. So we'll re-try
+                // pushing commit by commit.
                 if (!ex.Message.Contains("Failed to write chunk footer: The operation timed out") &&
                     !ex.Message.Contains("Failed to write chunk footer: The connection with the server was terminated abnormally") &&
                     !ex.Message.Contains("Failed to receive response: The server returned an invalid or unrecognized response"))
@@ -89,9 +88,8 @@ namespace GitHgMirror.Runner.Services
                         // We can't use push by commit hash (as described on
                         // http://stackoverflow.com/questions/3230074/git-pushing-specific-commit) with libgit2 because
                         // of lack of support (see: https://github.com/libgit2/libgit2/issues/3178). So we need to use
-                        // git directly.
-                        // This is super-slow as it iterates over every commit in every branch (and a commit can be in
-                        // multiple branches), but will surely work.
+                        // git directly. This is super-slow as it iterates over every commit in every branch (and a
+                        // commit can be in multiple branches), but will surely work.
 
                         // To avoid re-pushing already pushed commits we try to start from an already existing remote
                         // reference.
@@ -157,7 +155,6 @@ namespace GitHgMirror.Runner.Services
                                     "Starting to push commit " + sha + " to the branch " + branch.FriendlyName + " in the git repo: " + gitCloneUri + " (" + cloneDirectoryPath + ").",
                                     EventLogEntryType.Information);
 
-
                                 var tryCount = 0;
                                 var reRunGitPush = false;
 
@@ -179,10 +176,10 @@ namespace GitHgMirror.Runner.Services
                                         pushCount++;
 
                                         // Let's try a normal push every 300 commits. If it succeeds then the mirroring
-                                        // can finish faster (otherwise it could even time out).
-                                        // This may be a larger number than in hg revision by revision pulling because
-                                        // git commits can be repeated among branches, so the number of commits pushed
-                                        // can be lower than the number of push operations.
+                                        // can finish faster (otherwise it could even time out). This may be a larger
+                                        // number than in hg revision by revision pulling because git commits can be
+                                        // repeated among branches, so the number of commits pushed can be lower than
+                                        // the number of push operations.
                                         if (pushCount > 500)
                                         {
                                             PushToGit(gitCloneUri, cloneDirectoryPath, cancellationToken);
@@ -193,8 +190,8 @@ namespace GitHgMirror.Runner.Services
                                     {
                                         if (commandException.IsGitExceptionRealError() &&
                                             // When trying to re-push a commit we'll get an error like below, but this
-                                            // isn't an issue:
-                                            // ! [rejected]        b028f04f5092cb47db015dd7d9bfc2ad8cd8ce98 -> master (non-fast-forward)
+                                            // isn't an issue: ! [rejected] b028f04f5092cb47db015dd7d9bfc2ad8cd8ce98 ->
+                                            // master (non-fast-forward)
                                             !commandException.Error.Contains(" ! [rejected]"))
                                         {
                                             // Pushing commit by commit is very slow, thus restarting from the beginning
@@ -221,7 +218,6 @@ namespace GitHgMirror.Runner.Services
                                     }
                                 }
                                 while (reRunGitPush);
-
 
                                 _eventLog.WriteEntry(
                                     "Finished pushing commit " + sha + " to the branch " + branch.FriendlyName +
@@ -278,10 +274,10 @@ namespace GitHgMirror.Runner.Services
                     // hg-git from a git repo. The git.exe version will work for two-way mirrors...
                     if (useLibGit2Sharp)
                     {
-                        // We can't just use the +refs/*:refs/* refspec since on GitHub PRs have their own specials
-                        // refs as refs/pull/[ID]/head and refs/pull/[ID]/merge refs. Pushing a latter ref merges the
-                        // PR, what of course we don't want. So we need to filter just the interesting refs.
-                        // Also we really shouldn't fetch and push other namespaces like meta/config either, see:
+                        // We can't just use the +refs/*:refs/* refspec since on GitHub PRs have their own specials refs
+                        // as refs/pull/[ID]/head and refs/pull/[ID]/merge refs. Pushing a latter ref merges the PR,
+                        // what of course we don't want. So we need to filter just the interesting refs. Also we really
+                        // shouldn't fetch and push other namespaces like meta/config either, see:
                         // https://groups.google.com/forum/#!topic/repo-discuss/zpqpPpHAwSM
                         Commands.Fetch(repository, remoteName, new[] { "+refs/heads/*:refs/heads/*" }, null, null);
                         Commands.Fetch(repository, remoteName, new[] { "+refs/tags/*:refs/tags/*" }, null, null);
@@ -308,7 +304,6 @@ namespace GitHgMirror.Runner.Services
                 });
             }
         }
-
 
         private void RunGitOperationOnClonedRepo(Uri gitCloneUri, string cloneDirectoryPath, Action<Repository, string> operation) =>
             RunLibGit2SharpOperationWithRetry(gitCloneUri, cloneDirectoryPath, () =>
@@ -339,7 +334,6 @@ namespace GitHgMirror.Runner.Services
                         repository.AddMirrorRemote(remoteName, gitUrl);
                     }
                 }
-
 
                 operation(repository, remoteName);
             });
@@ -400,7 +394,6 @@ namespace GitHgMirror.Runner.Services
                 }
             }
         }
-
 
         public static string GetGitDirectoryPath(string cloneDirectoryPath) => Path.Combine(cloneDirectoryPath, ".hg", "git");
     }

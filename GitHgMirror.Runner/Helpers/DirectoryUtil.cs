@@ -35,7 +35,6 @@ namespace GitHgMirror.Runner.Helpers
             };
         }
 
-
         public class LockingProcessKillResult
         {
             public IEnumerable<string> KilledProcesseFileNames { get; set; }

@@ -8,7 +8,8 @@ namespace GitHgMirror.Daemon
     {
         public static void Main()
         {
-            // Below code taken mostly from http://www.codeproject.com/Articles/27112/Installing-NET-Windows-Services-the-easiest-way
+            // Below code taken mostly from
+            // http://www.codeproject.com/Articles/27112/Installing-NET-Windows-Services-the-easiest-way
             var service = ServiceController.GetServices().SingleOrDefault(controller => controller.ServiceName == "GitHgMirrorService");
 
             if (service == null)
@@ -31,11 +32,9 @@ namespace GitHgMirror.Daemon
         }
     }
 
-
     internal static class SelfInstaller
     {
         private static readonly string _exePath = typeof(SelfInstaller).Assembly.Location;
-
 
         public static bool InstallMe()
         {

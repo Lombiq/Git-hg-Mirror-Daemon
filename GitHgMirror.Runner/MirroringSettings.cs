@@ -37,19 +37,19 @@ namespace GitHgMirror.Runner
         public int SecondsBetweenConfigurationCountChecks { get; set; } = 60;
 
         /// <summary>
-        /// Gets or sets the time in seconds after which a mirroring will be forcefully terminated if it doesn't complete.
+        /// Gets or sets the time in seconds after which a mirroring will be forcefully terminated if it doesn't
+        /// complete.
         /// </summary>
         public int MirroringTimoutSeconds { get; set; } = 48 * 60 * 60; // 48 hours.
 
         public MercurialSettings MercurialSettings { get; set; } = new MercurialSettings();
     }
 
-
     public class MercurialSettings
     {
         /// <summary>
-        /// Gets or sets a value indicating whether all remote Mercurial operations will use the --insecure switch
-        /// which will make Mercurial bypass server certificate checks.
+        /// Gets or sets a value indicating whether all remote Mercurial operations will use the --insecure switch which
+        /// will make Mercurial bypass server certificate checks.
         /// </summary>
         public bool UseInsecure { get; set; }
 
@@ -66,8 +66,8 @@ namespace GitHgMirror.Runner
         public bool UseDebugForRemoteCommands { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether all Mercurial operations will use the --traceback switch to show
-        /// the traceback of exceptions. Useful if you need to find out details on exceptions.
+        /// Gets or sets a value indicating whether all Mercurial operations will use the --traceback switch to show the
+        /// traceback of exceptions. Useful if you need to find out details on exceptions.
         /// </summary>
         public bool UseTraceback { get; set; }
     }

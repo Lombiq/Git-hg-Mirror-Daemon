@@ -9,11 +9,10 @@ namespace GitHgMirror.Tester
     {
         private static readonly ManualResetEvent _waitHandle = new ManualResetEvent(false);
 
-
         public static void Main()
         {
-            // If true then a unique event log will be used for all copies of this executable. This helps if you want
-            // to run the app in multiple instances from source and not let the events show up across copies.
+            // If true then a unique event log will be used for all copies of this executable. This helps if you want to
+            // run the app in multiple instances from source and not let the events show up across copies.
             const bool useUniqueEventlog = true;
 
             var eventLogName = "Git-hg Mirror Daemon";
@@ -39,7 +38,6 @@ namespace GitHgMirror.Tester
             };
 
             eventLog.EntryWritten += (sender, e) => Console.WriteLine(e.Entry.Message);
-
 
             var settings = new MirroringSettings
             {

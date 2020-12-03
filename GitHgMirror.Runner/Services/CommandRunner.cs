@@ -13,7 +13,6 @@ namespace GitHgMirror.Runner.Services
         private Process _process;
         private string _error = string.Empty;
 
-
         /// <summary>
         /// Runs a command line command through the Windows command line.
         /// </summary>
@@ -64,7 +63,6 @@ namespace GitHgMirror.Runner.Services
             _process.Dispose();
             _process = null;
         }
-
 
         private void StartProcessIfNotRunning()
         {

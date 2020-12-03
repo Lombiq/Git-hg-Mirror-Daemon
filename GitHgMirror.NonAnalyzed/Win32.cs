@@ -2,32 +2,32 @@
 * Module Name:  Win32.cs
 * Project:      CSWindowsServiceRecoveryProperty
 * Copyright (c) Microsoft Corporation.
-* 
+*
 * The file declares the P/Invoke signatures of the Win32 APIs and structs.
-* 
+*
 * This source is subject to the Microsoft Public License.
 * See http://www.microsoft.com/opensource/licenses.mspx#Ms-PL.
 * All other rights reserved.
-* 
-* THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
-* EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
+*
+* THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
+* EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \**************************************************************************************/
 
 #region Using directives
+
+using Microsoft.Win32.SafeHandles;
 using System;
+using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Security.Permissions;
-using Microsoft.Win32.SafeHandles;
-using System.Runtime.ConstrainedExecution;
-#endregion
 
+#endregion Using directives
 
 namespace CSWindowsServiceRecoveryProperty
 {
-    // Enumeration for SC_ACTION
-    // The SC_ACTION_TYPE enumeration specifies the actions that the SCM can perform.
+    // Enumeration for SC_ACTION The SC_ACTION_TYPE enumeration specifies the actions that the SCM can perform.
     public enum SC_ACTION_TYPE
     {
         None = 0,
@@ -36,8 +36,7 @@ namespace CSWindowsServiceRecoveryProperty
         Run_Command = 3
     }
 
-    // Struct for SERVICE_FAILURE_ACTIONS
-    // Represents an action that the service control manager can perform.
+    // Struct for SERVICE_FAILURE_ACTIONS Represents an action that the service control manager can perform.
     [StructLayout(LayoutKind.Sequential)]
     public struct SC_ACTION
     {
@@ -45,9 +44,8 @@ namespace CSWindowsServiceRecoveryProperty
         public int Delay;
     }
 
-    // Struct for ChangeServiceFailureActions
-    // Represents the action the service controller should take on each failure of a 
-    // service.
+    // Struct for ChangeServiceFailureActions Represents the action the service controller should take on each failure
+    // of a service.
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     public struct SERVICE_FAILURE_ACTIONS
     {
@@ -55,21 +53,20 @@ namespace CSWindowsServiceRecoveryProperty
         public string lpRebootMsg;
         public string lpCommand;
         public int cActions;
+
         // A pointer to an array of SC_ACTION structures
         public IntPtr lpsaActions;
     }
 
-    // Struct for FailureActionsOnNonCrashFailures
-    // Contains the failure actions flag setting of a service.
+    // Struct for FailureActionsOnNonCrashFailures Contains the failure actions flag setting of a service.
     [StructLayout(LayoutKind.Sequential)]
     public struct SERVICE_FAILURE_ACTIONS_FLAG
     {
         public bool fFailureActionsOnNonCrashFailures;
     }
 
-    // Struct required to set shutdown privileges
-    // The LUID_AND_ATTRIBUTES structure represents a locally unique identifier 
-    // (LUID) and its attributes.
+    // Struct required to set shutdown privileges The LUID_AND_ATTRIBUTES structure represents a locally unique
+    // identifier (LUID) and its attributes.
     [StructLayout(LayoutKind.Sequential)]
     public struct LUID_AND_ATTRIBUTES
     {
@@ -77,14 +74,11 @@ namespace CSWindowsServiceRecoveryProperty
         public int Attributes;
     }
 
-    // Struct for AdjustTokenPrivileges
-    // The TOKEN_PRIVILEGES structure contains information about a set of privileges 
-    // for an access token. Struct required to set shutdown privileges. The Pack 
-    // attribute specified here is important. We are in essence cheating here because 
-    // the Privileges field is actually a variable size array of structs.  We use the 
-    // Pack=1 to align the Privileges field exactly after the PrivilegeCount field 
-    // when marshalling this struct to Win32. You do not want to know how many hours 
-    // I had to spend on this alone!!!
+    // Struct for AdjustTokenPrivileges The TOKEN_PRIVILEGES structure contains information about a set of privileges
+    // for an access token. Struct required to set shutdown privileges. The Pack attribute specified here is important.
+    // We are in essence cheating here because the Privileges field is actually a variable size array of structs. We use
+    // the Pack=1 to align the Privileges field exactly after the PrivilegeCount field when marshalling this struct to
+    // Win32. You do not want to know how many hours I had to spend on this alone!!!
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct TOKEN_PRIVILEGES
     {
@@ -168,9 +162,8 @@ namespace CSWindowsServiceRecoveryProperty
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool CloseServiceHandle(IntPtr hSCObject);
 
-        // Win32 function to change the service config for the failure actions.
-        // If the service controller handles the SC_ACTION_REBOOT action, 
-        // the caller must have the SE_SHUTDOWN_NAME privilege.
+        // Win32 function to change the service config for the failure actions. If the service controller handles the
+        // SC_ACTION_REBOOT action, the caller must have the SE_SHUTDOWN_NAME privilege.
         [DllImport("advapi32.dll", EntryPoint = "ChangeServiceConfig2",
             CharSet = CharSet.Auto, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -190,8 +183,8 @@ namespace CSWindowsServiceRecoveryProperty
             [MarshalAs(UnmanagedType.Struct)]
             ref SERVICE_FAILURE_ACTIONS_FLAG lpInfo);
 
-        // This method adjusts privileges for this process which is needed when
-        // specifying the reboot option for a service failure recover action.
+        // This method adjusts privileges for this process which is needed when specifying the reboot option for a
+        // service failure recover action.
         [DllImport("advapi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool AdjustTokenPrivileges(

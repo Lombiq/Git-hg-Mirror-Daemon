@@ -25,7 +25,6 @@ namespace GitHgMirror.Runner
 
         private int _pageCount;
 
-
         public MirrorRunner(MirroringSettings settings, EventLog eventLog)
         {
             _settings = settings;
@@ -35,7 +34,6 @@ namespace GitHgMirror.Runner
             _pageCountAdjustTimer = new System.Timers.Timer(settings.SecondsBetweenConfigurationCountChecks * 1000);
             _pageCountAdjustTimer.Elapsed += AdjustPageCount;
         }
-
 
         public void Start()
         {
@@ -70,7 +68,6 @@ namespace GitHgMirror.Runner
             _pageCountAdjustTimer.Dispose();
             _cancellationTokenSource.Dispose();
         }
-
 
         private void AdjustPageCount(object sender, System.Timers.ElapsedEventArgs e)
         {
@@ -160,10 +157,10 @@ namespace GitHgMirror.Runner
                                                 "Starting to execute mirroring \"" + configuration + "\" on page " + pageNum + ".");
 
                                             // Hg and git push commands randomly hang without any apparent reason (when
-                                            // just pushing small payloads). To prevent such a hang causing
-                                            // repositories stop syncing and Tasks being blocked forever there is a
-                                            // timeout for mirroring. Such a kill timeout is not a nice solution but
-                                            // the hangs are unexplainable.
+                                            // just pushing small payloads). To prevent such a hang causing repositories
+                                            // stop syncing and Tasks being blocked forever there is a timeout for
+                                            // mirroring. Such a kill timeout is not a nice solution but the hangs are
+                                            // unexplainable.
                                             var mirrorExecutionTask =
                                                 Task.Run(() => mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token));
                                             // Necessary for the timeout value.

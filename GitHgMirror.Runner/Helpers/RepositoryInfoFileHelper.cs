@@ -36,7 +36,6 @@ namespace GitHgMirror.Runner.Helpers
             }
         }
 
-
         private static string GetFilePath(string cloneDirectoryPath) => cloneDirectoryPath + "-info.txt";
     }
 }

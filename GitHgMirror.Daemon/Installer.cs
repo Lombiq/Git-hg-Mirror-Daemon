@@ -27,8 +27,8 @@ namespace GitHgMirror.Daemon
             serviceAdmin.AfterInstall += (sender, e) =>
             {
                 // Adding failure actions (i.e. what Windows should do when the service crashes) with delay in ms. Code
-                // taken from https://code.msdn.microsoft.com/windowsdesktop/CSWindowsServiceRecoveryPro-2147e7ac/
-                // Such crashes should be very rare, but sometimes happen for some reason when there are a lot of errors
+                // taken from https://code.msdn.microsoft.com/windowsdesktop/CSWindowsServiceRecoveryPro-2147e7ac/ Such
+                // crashes should be very rare, but sometimes happen for some reason when there are a lot of errors
                 // (like when GitHub goes down).
                 var failureActions = new List<SC_ACTION>
                 {

@@ -10,9 +10,7 @@ namespace GitHgMirror.Runner
     {
         private readonly MirroringSettings _settings;
 
-
         public ApiService(MirroringSettings settings) => _settings = settings;
-
 
         public T Get<T>(string path)
         {
@@ -24,7 +22,6 @@ namespace GitHgMirror.Runner
         public void Post(string path, object value) =>
             PrepareWebClientCall(path, (url, wc) =>
                 wc.UploadData(url, "POST", Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(value))));
-
 
         private void PrepareWebClientCall(string path, Action<string, WebClient> execute)
         {

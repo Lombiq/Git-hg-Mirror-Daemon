@@ -13,13 +13,11 @@ namespace GitHgMirror.Runner
         private readonly MirroringSettings _settings;
         private readonly EventLog _eventLog;
 
-
         public UntouchedRepositoriesCleaner(MirroringSettings settings, EventLog eventLog)
         {
             _settings = settings;
             _eventLog = eventLog;
         }
-
 
         public void Clean(CancellationToken cancellationToken)
         {

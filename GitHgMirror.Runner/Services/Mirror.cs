@@ -15,14 +15,12 @@ namespace GitHgMirror.Runner.Services
         private readonly HgCommandExecutor _hgCommandExecutor;
         private readonly GitCommandExecutor _gitCommandExecutor;
 
-
         public Mirror(EventLog eventLog)
             : base(eventLog)
         {
             _hgCommandExecutor = new HgCommandExecutor(eventLog);
             _gitCommandExecutor = new GitCommandExecutor(eventLog);
         }
-
 
         public void MirrorRepositories(
             MirroringConfiguration configuration,
@@ -151,6 +149,7 @@ namespace GitHgMirror.Runner.Services
                         }
 
                         break;
+
                     case MirroringDirection.HgToGit:
                         if (isCloned)
                         {
@@ -175,6 +174,7 @@ namespace GitHgMirror.Runner.Services
                         }
 
                         break;
+
                     case MirroringDirection.TwoWay:
                         Action syncHgAndGitHistories = () =>
                             {
@@ -202,9 +202,9 @@ namespace GitHgMirror.Runner.Services
                             // The easiest solution to do two-way git mirroring is to sync separately, with two clones.
                             // Otherwise when e.g. repository A adds a new commit, then repository B is pulled in, the
                             // head of the branch will be at the point where it is in B. Thus pushing to A will fail
-                            // with "Cannot push non-fastforwardable reference". There are other similar errors that
-                            // can arise but can't easily be fixed automatically in a safe way. So first pulling both
-                            // repos then pushing them won't work.
+                            // with "Cannot push non-fastforwardable reference". There are other similar errors that can
+                            // arise but can't easily be fixed automatically in a safe way. So first pulling both repos
+                            // then pushing them won't work.
 
                             var gitDirectoryPath = GitCommandExecutor.GetGitDirectoryPath(cloneDirectoryPath);
 
@@ -279,7 +279,6 @@ namespace GitHgMirror.Runner.Services
                                 }
                             }
 
-
                             _hgCommandExecutor
                                 .PushWithBookmarks(quotedHgCloneUrl, quotedCloneDirectoryPath, settings, cancellationToken);
 
@@ -291,6 +290,7 @@ namespace GitHgMirror.Runner.Services
                         }
 
                         break;
+
                     default:
                         throw new NotSupportedException("Not supported MirroringDirection.");
                 }
@@ -313,8 +313,8 @@ namespace GitHgMirror.Runner.Services
 
                 try
                 {
-                    // Re-cloning a repo is costly. During local debugging you can flip this variable from the
-                    // Immediate Window to prevent it if necessary too.
+                    // Re-cloning a repo is costly. During local debugging you can flip this variable from the Immediate
+                    // Window to prevent it if necessary too.
                     var continueWithRepoFolderDelete = true;
 
                     // These git exceptions are caused by hg errors in a way, so despite them coming from git the whole
@@ -408,7 +408,8 @@ namespace GitHgMirror.Runner.Services
             // A subfolder per clone dir start letter.
             var cloneDirectoryParentPath = Path.Combine(settings.RepositoriesDirectoryPath, repositoryDirectoryName[0].ToString());
             var cloneDirectoryPath = Path.Combine(cloneDirectoryParentPath, repositoryDirectoryName);
-            // Also checking if the directory is empty. If yes, it was a failed attempt and really the repo is not cloned.
+            // Also checking if the directory is empty. If yes, it was a failed attempt and really the repo is not
+            // cloned.
             return Directory.Exists(cloneDirectoryPath) && Directory.EnumerateFileSystemEntries(cloneDirectoryPath).Any();
         }
 
@@ -418,14 +419,12 @@ namespace GitHgMirror.Runner.Services
         /// </summary>
         public static string GetRepositoryLockFilePath(string cloneDirectoryPath) => cloneDirectoryPath + "-lock";
 
-
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
             _hgCommandExecutor.Dispose();
             _gitCommandExecutor.Dispose();
         }
-
 
         /// <summary>
         /// Runs a git command and if it throws an exception it will mark the exception as coming from git. This allows
@@ -444,7 +443,6 @@ namespace GitHgMirror.Runner.Services
                 throw;
             }
         }
-
 
         private static string GetCloneDirectoryName(MirroringConfiguration configuration) =>
             // Including the ID so if a config is removed, then newly added then it won't be considered the same (this

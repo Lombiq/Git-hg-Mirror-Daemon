@@ -9,7 +9,7 @@ using System.Threading;
 namespace GitHgMirror.Runner.Services
 {
     /// <remarks>
-    /// <para>>
+    /// <para>
     /// While it would be nice to have cancellation for "atomic" hg operations like clone, apart from that being non-
     /// trivial to add to the current implementation they can also be risky, since such cancellations can corrupt a
     /// repo.
@@ -18,8 +18,10 @@ namespace GitHgMirror.Runner.Services
     internal class HgCommandExecutor : CommandExecutorBase
     {
         private const string GitBookmarkSuffix = "-git";
+
         private const string HgGitConfig =
-            // Setting the suffix for all bookmarks created corresponding to git branches (when importing from git to hg).
+            // Setting the suffix for all bookmarks created corresponding to git branches (when importing from git to
+            // hg).
             " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix +
             // Enabling the hggit extension.
             " --config extensions.hggit=" +
@@ -28,12 +30,10 @@ namespace GitHgMirror.Runner.Services
             // Disabling the eol extension since it will unnecessarily warn of line ending issues.
             " --config extensions.eol=!";
 
-
         public HgCommandExecutor(EventLog eventLog)
             : base(eventLog)
         {
         }
-
 
         public void CloneGit(
             Uri gitCloneUri,
@@ -243,13 +243,13 @@ namespace GitHgMirror.Runner.Services
             }
         }
 
-
         /// <summary>
         /// Runs the specified command for a git repo in hg.
         /// </summary>
         /// <param name="gitCloneUri">The git clone URI.</param>
         /// <param name="command">
-        /// The command, including an optional placeholder for the git URL in form of {url}, e.g.: "clone --noupdate {url}".
+        /// The command, including an optional placeholder for the git URL in form of {url}, e.g.: "clone --noupdate
+        /// {url}".
         /// </param>
         private void RunGitRepoCommand(Uri gitCloneUri, string command, MirroringSettings settings)
         {
@@ -287,8 +287,8 @@ namespace GitHgMirror.Runner.Services
 
         /// <summary>
         /// Pulling chunks a repo history in chunks of revisions. This will be slow but surely work, even if one
-        /// changeset is huge like this one: http://hg.openjdk.java.net/openjfx/9-dev/rt/rev/86d5cbe0c60f (~100MB,
-        /// 11000 files).
+        /// changeset is huge like this one: http://hg.openjdk.java.net/openjfx/9-dev/rt/rev/86d5cbe0c60f (~100MB, 11000
+        /// files).
         /// </summary>
         private void PullPerRevisionsHg(
             string quotedHgCloneUrl,
@@ -332,12 +332,11 @@ namespace GitHgMirror.Runner.Services
                 }
                 catch (CommandException pullException)
                 {
-                    // This error happens when we try to go beyond existing revisions and it means we reached the end
-                    // of the repo history.
-                    // Maybe the hg identify command could be used to retrieve the latest revision number instead (see:
-                    // https://selenic.com/hg/help/identify) although it says "can't query remote revision number,
-                    // branch, or tag" (and even if it could, what if new changes are being pushed?). So using exceptions
-                    // for now.
+                    // This error happens when we try to go beyond existing revisions and it means we reached the end of
+                    // the repo history. Maybe the hg identify command could be used to retrieve the latest revision
+                    // number instead (see: https://selenic.com/hg/help/identify) although it says "can't query remote
+                    // revision number, branch, or tag" (and even if it could, what if new changes are being pushed?).
+                    // So using exceptions for now.
                     if (pullException.Error.Contains("abort: unknown revision "))
                     {
                         finished = true;
@@ -427,7 +426,6 @@ namespace GitHgMirror.Runner.Services
 
             return RunCommandAndLogOutput(hgCommand);
         }
-
 
         private static string PrefixHgCommandWithHgGitConfig(string hgCommand) => "hg" + HgGitConfig + " " + hgCommand;
     }

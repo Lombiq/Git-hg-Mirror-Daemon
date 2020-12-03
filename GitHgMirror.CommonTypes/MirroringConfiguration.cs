@@ -12,7 +12,6 @@ namespace GitHgMirror.CommonTypes
         public bool GitUrlIsHgUrl { get; set; }
         public MirroringDirection Direction { get; set; }
 
-
         public override string ToString() =>
             Id + " " +
             HgCloneUri + " - " +

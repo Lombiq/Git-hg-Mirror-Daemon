@@ -19,10 +19,7 @@ namespace GitHgMirror.Daemon
         private System.Timers.Timer _startTimer;
         private System.Timers.Timer _cleanTimer;
 
-
-
         public GitHgMirrorService() => InitializeComponent();
-
 
         protected override void OnStart(string[] args)
         {
@@ -65,7 +62,6 @@ namespace GitHgMirror.Daemon
             serviceEventLog.WriteEntry("Mirroring stopped.");
         }
 
-
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -81,7 +77,6 @@ namespace GitHgMirror.Daemon
             _startTimer?.Dispose();
             _cleanTimer?.Dispose();
         }
-
 
         private void StartTimerElapsed(object sender, System.Timers.ElapsedEventArgs e)
         {

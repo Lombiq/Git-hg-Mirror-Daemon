@@ -10,17 +10,17 @@ namespace GitHgMirror.NonAnalyzed
     public static class FileUtil
     {
         [StructLayout(LayoutKind.Sequential)]
-        struct RM_UNIQUE_PROCESS
+        private struct RM_UNIQUE_PROCESS
         {
             public int dwProcessId;
             public System.Runtime.InteropServices.ComTypes.FILETIME ProcessStartTime;
         }
 
-        const int RmRebootReasonNone = 0;
-        const int CCH_RM_MAX_APP_NAME = 255;
-        const int CCH_RM_MAX_SVC_NAME = 63;
+        private const int RmRebootReasonNone = 0;
+        private const int CCH_RM_MAX_APP_NAME = 255;
+        private const int CCH_RM_MAX_SVC_NAME = 63;
 
-        enum RM_APP_TYPE
+        private enum RM_APP_TYPE
         {
             RmUnknownApp = 0,
             RmMainWindow = 1,
@@ -32,7 +32,7 @@ namespace GitHgMirror.NonAnalyzed
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        struct RM_PROCESS_INFO
+        private struct RM_PROCESS_INFO
         {
             public RM_UNIQUE_PROCESS Process;
 
@@ -45,12 +45,13 @@ namespace GitHgMirror.NonAnalyzed
             public RM_APP_TYPE ApplicationType;
             public uint AppStatus;
             public uint TSSessionId;
+
             [MarshalAs(UnmanagedType.Bool)]
             public bool bRestartable;
         }
 
         [DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)]
-        static extern int RmRegisterResources(uint pSessionHandle,
+        private static extern int RmRegisterResources(uint pSessionHandle,
                                               UInt32 nFiles,
                                               string[] rgsFilenames,
                                               UInt32 nApplications,
@@ -59,13 +60,13 @@ namespace GitHgMirror.NonAnalyzed
                                               string[] rgsServiceNames);
 
         [DllImport("rstrtmgr.dll", CharSet = CharSet.Auto)]
-        static extern int RmStartSession(out uint pSessionHandle, int dwSessionFlags, string strSessionKey);
+        private static extern int RmStartSession(out uint pSessionHandle, int dwSessionFlags, string strSessionKey);
 
         [DllImport("rstrtmgr.dll")]
-        static extern int RmEndSession(uint pSessionHandle);
+        private static extern int RmEndSession(uint pSessionHandle);
 
         [DllImport("rstrtmgr.dll")]
-        static extern int RmGetList(uint dwSessionHandle,
+        private static extern int RmGetList(uint dwSessionHandle,
                                     out uint pnProcInfoNeeded,
                                     ref uint pnProcInfo,
                                     [In, Out] RM_PROCESS_INFO[] rgAffectedApps,
@@ -84,7 +85,7 @@ namespace GitHgMirror.NonAnalyzed
         static public List<Process> WhoIsLocking(string path)
         {
             string key = Guid.NewGuid().ToString();
-            List<Process> processes = new List<Process>();
+            var processes = new List<Process>();
 
             int res = RmStartSession(out uint handle, 0, key);
             if (res != 0) throw new Exception("Could not begin restart session.  Unable to determine file locker.");
@@ -108,7 +109,7 @@ namespace GitHgMirror.NonAnalyzed
                 if (res == ERROR_MORE_DATA)
                 {
                     // Create an array to store the process results
-                    RM_PROCESS_INFO[] processInfo = new RM_PROCESS_INFO[pnProcInfoNeeded];
+                    var processInfo = new RM_PROCESS_INFO[pnProcInfoNeeded];
                     pnProcInfo = pnProcInfoNeeded;
 
                     // Get the list
@@ -117,8 +118,7 @@ namespace GitHgMirror.NonAnalyzed
                     {
                         processes = new List<Process>((int)pnProcInfo);
 
-                        // Enumerate all of the results and add them to the 
-                        // list to be returned
+                        // Enumerate all of the results and add them to the list to be returned
                         for (int i = 0; i < pnProcInfo; i++)
                         {
                             try
