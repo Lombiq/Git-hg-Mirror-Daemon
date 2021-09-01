@@ -20,8 +20,8 @@ This project is developed by [Lombiq Technologies Ltd](https://lombiq.com/). Com
 
 This is needed on the server as well as locally if you want to test mirroring.
 
-1. Install [TortoiseHg](https://tortoisehg.bitbucket.io/download/index.html); [v4.1.1](http://bitbucket.org/tortoisehg/files/downloads/tortoisehg-4.1.1-x64.msi) is tested, newer may work too.
-2. Install [Git](https://git-scm.com/); [v2.12.1](https://github.com/git-for-windows/git/releases/download/v2.12.1.windows.1/Git-2.12.1-64-bit.exe) is tested, newer may work too (if you have GitExtensions already installed, you can skip this step). During installation select the option "Use Git from the Windows Command Prompt"; everything else can be the default.
+1. Install [TortoiseHg](https://tortoisehg.bitbucket.io/download/index.html); [v5.0.2](https://www.mercurial-scm.org/release/tortoisehg/windows/tortoisehg-5.0.2-x64.msi) is tested, newer may work too.
+2. Install [Git](https://git-scm.com/); [v2.30.1](https://github.com/git-for-windows/git/releases/download/v2.12.1.windows.1/Git-2.12.1-64-bit.exe) is tested, newer may work too (if you have GitExtensions already installed, you can skip this step). During installation select the option "Use Git from the Windows Command Prompt"; everything else can be the default.
 
 
 ## Installation on the server
@@ -80,7 +80,7 @@ You can configure some settings in `GitHgMirror.Tester.Program`. If you want to 
         {
             Direction = MirroringDirection.GitToHg,
             GitCloneUri = new Uri("git+https://github.com/path-to-git-repo.git"),
-            HgCloneUri = new Uri("https://LombiqBot:password@bitbucket.org/path-to-hg-repo")
+            HgCloneUri = new Uri("https://LombiqBot:password@bitbucket.org/path-to-hg-repo"),
         };
         mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token);
     }
