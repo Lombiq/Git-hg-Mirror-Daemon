@@ -54,6 +54,15 @@ If you get `mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate
     [hostfingerprints]
     bitbucket.org = ‎3F:D3:C5:17:23:3C:CD:F5:2D:17:76:06:93:7E:EE:97:42:21:14:AA
     github.com = A0:C4:A7:46:00:ED:A7:2D:C0:BE:CB:9A:8C:B6:07:CA:58:EE:74:5E
+    hg.sr.ht = 1D:05:E7:BD:1A:14:26:7B:EC:FF:DF:0D:49:66:E7:6A:0B:A7:60:68
+    riverbankcomputing.com = 55:37:0F:68:9D:76:61:32:A2:87:EE:67:5B:66:AD:9D:53:7F:77:03
+
+These fingerprints are the same that can be seen in browsers as an SSL certificate's thumbprint.
+
+Or if you're using a newer version of Mercurial, you'll get a warning, telling you to use a different hash instead. Use that in the `[hostsecurity]` section:
+
+    [hostsecurity]
+    hg.sr.ht = sha256:7D:78:10:80:34:45:19:83:F0:DE:F2:D1:85:BC:32:55:65:6A:C0:BE:73:E1:9E:46:D6:C3:7F
 
 **Fingerprints should be all uppercase!**
 
