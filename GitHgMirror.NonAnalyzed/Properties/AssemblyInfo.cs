@@ -3,12 +3,12 @@ using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following set of attributes. Change these attribute
 // values to modify the information associated with an assembly.
-[assembly: AssemblyTitle("GitHgMirror.Daemon")]
+[assembly: AssemblyTitle("GitHgMirror.NonAnalyzed")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("GitHgMirror.Daemon")]
-[assembly: AssemblyCopyright("Copyright ©  2013")]
+[assembly: AssemblyProduct("GitHgMirror.NonAnalyzed")]
+[assembly: AssemblyCopyright("Copyright ©  2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -17,7 +17,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("d4a7153f-e2a9-4fa1-94de-9dc294702f5d")]
+[assembly: Guid("a4e64b35-30db-435b-bf99-9e514c5a5ce9")]
 
 // Version information for an assembly consists of the following four values:
 //

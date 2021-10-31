@@ -1,29 +1,26 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace GitHgMirror.Runner.Helpers
+namespace GitHgMirror.NonAnalyzed
 {
     // Taken entirely from http://stackoverflow.com/a/20623311/220230
 
-    static public class FileUtil
+    public static class FileUtil
     {
         [StructLayout(LayoutKind.Sequential)]
-        struct RM_UNIQUE_PROCESS
+        private struct RM_UNIQUE_PROCESS
         {
             public int dwProcessId;
             public System.Runtime.InteropServices.ComTypes.FILETIME ProcessStartTime;
         }
 
-        const int RmRebootReasonNone = 0;
-        const int CCH_RM_MAX_APP_NAME = 255;
-        const int CCH_RM_MAX_SVC_NAME = 63;
+        private const int RmRebootReasonNone = 0;
+        private const int CCH_RM_MAX_APP_NAME = 255;
+        private const int CCH_RM_MAX_SVC_NAME = 63;
 
-        enum RM_APP_TYPE
+        private enum RM_APP_TYPE
         {
             RmUnknownApp = 0,
             RmMainWindow = 1,
@@ -35,7 +32,7 @@ namespace GitHgMirror.Runner.Helpers
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        struct RM_PROCESS_INFO
+        private struct RM_PROCESS_INFO
         {
             public RM_UNIQUE_PROCESS Process;
 
@@ -48,12 +45,13 @@ namespace GitHgMirror.Runner.Helpers
             public RM_APP_TYPE ApplicationType;
             public uint AppStatus;
             public uint TSSessionId;
+
             [MarshalAs(UnmanagedType.Bool)]
             public bool bRestartable;
         }
 
         [DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)]
-        static extern int RmRegisterResources(uint pSessionHandle,
+        private static extern int RmRegisterResources(uint pSessionHandle,
                                               UInt32 nFiles,
                                               string[] rgsFilenames,
                                               UInt32 nApplications,
@@ -62,13 +60,13 @@ namespace GitHgMirror.Runner.Helpers
                                               string[] rgsServiceNames);
 
         [DllImport("rstrtmgr.dll", CharSet = CharSet.Auto)]
-        static extern int RmStartSession(out uint pSessionHandle, int dwSessionFlags, string strSessionKey);
+        private static extern int RmStartSession(out uint pSessionHandle, int dwSessionFlags, string strSessionKey);
 
         [DllImport("rstrtmgr.dll")]
-        static extern int RmEndSession(uint pSessionHandle);
+        private static extern int RmEndSession(uint pSessionHandle);
 
         [DllImport("rstrtmgr.dll")]
-        static extern int RmGetList(uint dwSessionHandle,
+        private static extern int RmGetList(uint dwSessionHandle,
                                     out uint pnProcInfoNeeded,
                                     ref uint pnProcInfo,
                                     [In, Out] RM_PROCESS_INFO[] rgAffectedApps,
@@ -79,26 +77,23 @@ namespace GitHgMirror.Runner.Helpers
         /// </summary>
         /// <param name="path">Path of the file.</param>
         /// <returns>Processes locking the file</returns>
-        /// <remarks>See also:
-        /// http://msdn.microsoft.com/en-us/library/windows/desktop/aa373661(v=vs.85).aspx
-        /// http://wyupdate.googlecode.com/svn-history/r401/trunk/frmFilesInUse.cs (no copyright in code at time of viewing)
-        /// 
+        /// <remarks>
+        /// See also: http://msdn.microsoft.com/en-us/library/windows/desktop/aa373661(v=vs.85).aspx
+        /// http://wyupdate.googlecode.com/svn-history/r401/trunk/frmFilesInUse.cs (no copyright in code at time of
+        /// viewing)
         /// </remarks>
         static public List<Process> WhoIsLocking(string path)
         {
-            uint handle;
             string key = Guid.NewGuid().ToString();
-            List<Process> processes = new List<Process>();
+            var processes = new List<Process>();
 
-            int res = RmStartSession(out handle, 0, key);
+            int res = RmStartSession(out uint handle, 0, key);
             if (res != 0) throw new Exception("Could not begin restart session.  Unable to determine file locker.");
 
             try
             {
                 const int ERROR_MORE_DATA = 234;
-                uint pnProcInfoNeeded = 0,
-                     pnProcInfo = 0,
-                     lpdwRebootReasons = RmRebootReasonNone;
+                uint pnProcInfo = 0, lpdwRebootReasons = RmRebootReasonNone;
 
                 string[] resources = new string[] { path }; // Just checking on one resource.
 
@@ -109,12 +104,12 @@ namespace GitHgMirror.Runner.Helpers
                 //Note: there's a race condition here -- the first call to RmGetList() returns
                 //      the total number of process. However, when we call RmGetList() again to get
                 //      the actual processes this number may have increased.
-                res = RmGetList(handle, out pnProcInfoNeeded, ref pnProcInfo, null, ref lpdwRebootReasons);
+                res = RmGetList(handle, out uint pnProcInfoNeeded, ref pnProcInfo, null, ref lpdwRebootReasons);
 
                 if (res == ERROR_MORE_DATA)
                 {
                     // Create an array to store the process results
-                    RM_PROCESS_INFO[] processInfo = new RM_PROCESS_INFO[pnProcInfoNeeded];
+                    var processInfo = new RM_PROCESS_INFO[pnProcInfoNeeded];
                     pnProcInfo = pnProcInfoNeeded;
 
                     // Get the list
@@ -123,8 +118,7 @@ namespace GitHgMirror.Runner.Helpers
                     {
                         processes = new List<Process>((int)pnProcInfo);
 
-                        // Enumerate all of the results and add them to the 
-                        // list to be returned
+                        // Enumerate all of the results and add them to the list to be returned
                         for (int i = 0; i < pnProcInfo; i++)
                         {
                             try

@@ -1,25 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace GitHgMirror.Runner.Services
 {
     /// <remarks>
+    /// <para>
     /// While it would be nice to have cancellation for "atomic" hg operations like clone, apart from that being non-
     /// trivial to add to the current implementation they can also be risky, since such cancellations can corrupt a
     /// repo.
+    /// </para>
     /// </remarks>
     internal class HgCommandExecutor : CommandExecutorBase
     {
         private const string GitBookmarkSuffix = "-git";
+
         private const string HgGitConfig =
-            // Setting the suffix for all bookmarks created corresponding to git branches (when importing from git to hg).
+            // Setting the suffix for all bookmarks created corresponding to git branches (when importing from git to
+            // hg).
             " --config git.branch_bookmark_suffix=" + GitBookmarkSuffix +
             // Enabling the hggit extension.
             " --config extensions.hggit=" +
@@ -28,31 +30,29 @@ namespace GitHgMirror.Runner.Services
             // Disabling the eol extension since it will unnecessarily warn of line ending issues.
             " --config extensions.eol=!";
 
-
         public HgCommandExecutor(EventLog eventLog)
             : base(eventLog)
         {
         }
 
-
         public void CloneGit(
-            Uri gitCloneUri, 
-            string quotedCloneDirectoryPath, 
-            MirroringSettings settings, 
+            Uri gitCloneUri,
+            string quotedCloneDirectoryPath,
+            MirroringSettings settings,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             CdDirectory(quotedCloneDirectoryPath);
-            // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it in will 
-            // fail with a "the connection was forcibly closed by remote host"-like error. This is why we start with 
+            // Cloning a large git repo will work even when (after cloning the corresponding hg repo) pulling it in will
+            // fail with a "the connection was forcibly closed by remote host"-like error. This is why we start with
             // cloning the git repo.
             RunGitRepoCommand(gitCloneUri, "clone --noupdate {url} " + quotedCloneDirectoryPath, settings);
         }
 
         public void ImportHistoryFromGit(
-            string quotedCloneDirectoryPath, 
-            MirroringSettings settings, 
+            string quotedCloneDirectoryPath,
+            MirroringSettings settings,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -62,8 +62,8 @@ namespace GitHgMirror.Runner.Services
         }
 
         public void ExportHistoryToGit(
-            string quotedCloneDirectoryPath, 
-            MirroringSettings settings, 
+            string quotedCloneDirectoryPath,
+            MirroringSettings settings,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -73,9 +73,9 @@ namespace GitHgMirror.Runner.Services
         }
 
         public void CloneHg(
-            string quotedHgCloneUrl, 
-            string quotedCloneDirectoryPath, 
-            MirroringSettings settings, 
+            string quotedHgCloneUrl,
+            string quotedCloneDirectoryPath,
+            MirroringSettings settings,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -103,9 +103,9 @@ namespace GitHgMirror.Runner.Services
         }
 
         public void PullHg(
-            string quotedHgCloneUrl, 
-            string quotedCloneDirectoryPath, 
-            MirroringSettings settings, 
+            string quotedHgCloneUrl,
+            string quotedCloneDirectoryPath,
+            MirroringSettings settings,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -129,8 +129,8 @@ namespace GitHgMirror.Runner.Services
         }
 
         public void CreateOrUpdateBookmarksForBranches(
-            string quotedCloneDirectoryPath, 
-            MirroringSettings settings, 
+            string quotedCloneDirectoryPath,
+            MirroringSettings settings,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -163,7 +163,7 @@ namespace GitHgMirror.Runner.Services
                 }
 
                 if (branch == "default") bookmark = "master" + GitBookmarkSuffix;
-                else bookmark = bookmark + GitBookmarkSuffix;
+                else bookmark += GitBookmarkSuffix;
 
                 // Don't move the bookmark if on the changeset there is already a git bookmark, because this means that
                 // there was a branch created in git. E.g. we shouldn't move the master bookmark to the default head
@@ -176,10 +176,10 @@ namespace GitHgMirror.Runner.Services
                 var existingBookmarks = changesetLogOutput
                       .Split(Environment.NewLine.ToArray())
                       .Skip(1) // The first line is the command itself
-                      .Where(line => !string.IsNullOrEmpty(line) && line.StartsWith("bookmark:"))
+                      .Where(line => !string.IsNullOrEmpty(line) && line.StartsWith("bookmark:", StringComparison.InvariantCulture))
                       .Select(line => Regex.Match(line, @"bookmark:\s+(.+)(\s|$)").Groups[1].Value);
 
-                if (!existingBookmarks.Any(existingBookmark => existingBookmark.EndsWith(GitBookmarkSuffix)))
+                if (!existingBookmarks.Any(existingBookmark => existingBookmark.EndsWith(GitBookmarkSuffix, StringComparison.InvariantCulture)))
                 {
                     // Need --force so it moves the bookmark if it already exists.
                     RunHgCommandAndLogOutput(
@@ -190,9 +190,9 @@ namespace GitHgMirror.Runner.Services
         }
 
         public void PushWithBookmarks(
-            string quotedHgCloneUrl, 
-            string quotedCloneDirectoryPath, 
-            MirroringSettings settings, 
+            string quotedHgCloneUrl,
+            string quotedCloneDirectoryPath,
+            MirroringSettings settings,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -201,7 +201,7 @@ namespace GitHgMirror.Runner.Services
 
             var bookmarksOutput = RunHgCommandAndLogOutput("hg bookmarks", settings);
 
-            // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there 
+            // There will be at least one bookmark, "master" with a git repo. However with hg-hg mirroring maybe there
             // are no bookmarks.
             if (bookmarksOutput.Contains("no bookmarks set"))
             {
@@ -217,9 +217,9 @@ namespace GitHgMirror.Runner.Services
                       .Where(line => !string.IsNullOrEmpty(line))
                       .Select(line => "-B " + line);
 
-                // Pushing a lot of bookmarks at once would result in a "RuntimeError: maximum recursion depth exceeded" 
+                // Pushing a lot of bookmarks at once would result in a "RuntimeError: maximum recursion depth exceeded"
                 // error.
-                var batchSize = 29;
+                const int batchSize = 29;
                 var bookmarksBatch = bookmarks.Take(batchSize);
                 var skip = 0;
                 var bookmarkCount = bookmarks.Count();
@@ -243,13 +243,13 @@ namespace GitHgMirror.Runner.Services
             }
         }
 
-
         /// <summary>
         /// Runs the specified command for a git repo in hg.
         /// </summary>
         /// <param name="gitCloneUri">The git clone URI.</param>
         /// <param name="command">
-        /// The command, including an optional placeholder for the git URL in form of {url}, e.g.: "clone --noupdate {url}".
+        /// The command, including an optional placeholder for the git URL in form of {url}, e.g.: "clone --noupdate
+        /// {url}".
         /// </param>
         private void RunGitRepoCommand(Uri gitCloneUri, string command, MirroringSettings settings)
         {
@@ -262,7 +262,10 @@ namespace GitHgMirror.Runner.Services
             var quotedGitCloneUrl = gitUri.ToString().EncloseInQuotes();
             command = command.Replace("{url}", quotedGitCloneUrl);
 
+            // Would be quite ugly that way.
+#pragma warning disable S3240 // The simplest possible condition syntax should be used
             if (!string.IsNullOrEmpty(userName))
+#pragma warning restore S3240 // The simplest possible condition syntax should be used
             {
                 RunRemoteHgCommandAndLogOutput(
                     PrefixHgCommandWithHgGitConfig(
@@ -284,21 +287,22 @@ namespace GitHgMirror.Runner.Services
 
         /// <summary>
         /// Pulling chunks a repo history in chunks of revisions. This will be slow but surely work, even if one
-        /// changeset is huge like this one: http://hg.openjdk.java.net/openjfx/9-dev/rt/rev/86d5cbe0c60f (~100MB, 
-        /// 11000 files).
+        /// changeset is huge like this one: http://hg.openjdk.java.net/openjfx/9-dev/rt/rev/86d5cbe0c60f (~100MB, 11000
+        /// files).
         /// </summary>
         private void PullPerRevisionsHg(
-            string quotedHgCloneUrl, 
-            string quotedCloneDirectoryPath, 
-            MirroringSettings settings, 
+            string quotedHgCloneUrl,
+            string quotedCloneDirectoryPath,
+            MirroringSettings settings,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             CdDirectory(quotedCloneDirectoryPath);
 
-            var startRevision = int.Parse(RunHgCommandAndLogOutput("hg identify --rev tip --num", settings)
-                .Split(new[] { Environment.NewLine }, StringSplitOptions.None)[1]);
+            var startRevision = int.Parse(
+                RunHgCommandAndLogOutput("hg identify --rev tip --num", settings).Split(new[] { Environment.NewLine }, StringSplitOptions.None)[1],
+                CultureInfo.InvariantCulture);
             var revision = startRevision + 1;
 
             var finished = false;
@@ -328,41 +332,48 @@ namespace GitHgMirror.Runner.Services
                 }
                 catch (CommandException pullException)
                 {
-                    // This error happens when we try to go beyond existing revisions and it means we reached the end 
-                    // of the repo history.
-                    // Maybe the hg identify command could be used to retrieve the latest revision number instead (see:
-                    // https://selenic.com/hg/help/identify) although it says "can't query remote revision number, 
-                    // branch, or tag" (and even if it could, what if new changes are being pushed?). So using exceptions 
-                    // for now.
+                    // This error happens when we try to go beyond existing revisions and it means we reached the end of
+                    // the repo history. Maybe the hg identify command could be used to retrieve the latest revision
+                    // number instead (see: https://selenic.com/hg/help/identify) although it says "can't query remote
+                    // revision number, branch, or tag" (and even if it could, what if new changes are being pushed?).
+                    // So using exceptions for now.
                     if (pullException.Error.Contains("abort: unknown revision "))
                     {
                         finished = true;
                     }
-                    // If such a pull fails then we can't fall back more, have to retry.
                     else if (pullException.IsHgConnectionTerminatedError() && pullRetryCount < 2)
                     {
+                        // If such a pull fails then we can't fall back more, have to retry.
+
+                        // It is used though.
+#pragma warning disable S1854 // Unused assignments should be removed
                         pullRetryCount++;
+#pragma warning restore S1854 // Unused assignments should be removed
 
                         // Letting temporary issues resolve themselves.
                         Thread.Sleep(30000);
                     }
-                    else throw;
+                    else
+                    {
+                        throw;
+                    }
                 }
             }
         }
 
         private string RunRemoteHgCommandAndLogOutput(string hgCommand, MirroringSettings settings, int retryCount = 0)
         {
-            var output = "";
+            var output = string.Empty;
             try
             {
                 if (settings.MercurialSettings.UseInsecure)
                 {
-                    hgCommand = hgCommand + " --insecure";
+                    hgCommand += " --insecure";
                 }
+
                 if (settings.MercurialSettings.UseDebugForRemoteCommands && !settings.MercurialSettings.UseDebug)
                 {
-                    hgCommand = hgCommand + " --debug";
+                    hgCommand += " --debug";
                 }
 
                 output = RunHgCommandAndLogOutput(hgCommand, settings);
@@ -371,13 +382,16 @@ namespace GitHgMirror.Runner.Services
             }
             catch (CommandException ex)
             {
-                // We'll randomly get such errors when interacting with Mercurial as well as with Git, otherwise properly
-                // running repos. So we re-try the operation a few times, maybe it'll work...
+                // We'll randomly get such errors when interacting with Mercurial as well as with Git, otherwise
+                // properly running repos. So we re-try the operation a few times, maybe it'll work...
                 if (ex.Error.Contains("EOF occurred in violation of protocol"))
                 {
                     if (retryCount >= 5)
                     {
-                        throw new IOException("Couldn't run the following Mercurial command successfully even after " + retryCount + " tries due to an \"EOF occurred in violation of protocol\" error: " + hgCommand, ex);
+                        throw new IOException(
+                            "Couldn't run the following Mercurial command successfully even after " + retryCount +
+                                " tries due to an \"EOF occurred in violation of protocol\" error: " + hgCommand,
+                            ex);
                     }
 
                     // Let's wait a bit before re-trying so our prayers can heal the connection in the meantime.
@@ -387,7 +401,7 @@ namespace GitHgMirror.Runner.Services
                 }
 
                 // Catching warning-level "bitbucket.org certificate with fingerprint .. not verified (check
-                // hostfingerprints or web.cacerts config setting)" kind of errors that happen when mirroring happens 
+                // hostfingerprints or web.cacerts config setting)" kind of errors that happen when mirroring happens
                 // accessing an insecure host.
                 if (!ex.Error.Contains("not verified (check hostfingerprints or web.cacerts config setting)"))
                 {
@@ -402,21 +416,17 @@ namespace GitHgMirror.Runner.Services
         {
             if (settings.MercurialSettings.UseDebug)
             {
-                hgCommand = hgCommand + " --debug";
+                hgCommand += " --debug";
             }
 
             if (settings.MercurialSettings.UseTraceback)
             {
-                hgCommand = hgCommand + " --traceback";
+                hgCommand += " --traceback";
             }
 
             return RunCommandAndLogOutput(hgCommand);
         }
 
-
-        private static string PrefixHgCommandWithHgGitConfig(string hgCommand)
-        {
-            return "hg" + HgGitConfig + " " + hgCommand;
-        }
+        private static string PrefixHgCommandWithHgGitConfig(string hgCommand) => "hg" + HgGitConfig + " " + hgCommand;
     }
 }

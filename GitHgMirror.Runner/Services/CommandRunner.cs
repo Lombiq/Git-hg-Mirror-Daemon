@@ -1,27 +1,24 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace GitHgMirror.Runner.Services
 {
-    public class CommandRunner : IDisposable
+    public sealed class CommandRunner : IDisposable
     {
+        private static readonly ManualResetEvent _waitHandle = new ManualResetEvent(false);
+
         private Process _process;
-        private static ManualResetEvent _waitHandle = new ManualResetEvent(false);
         private string _error = string.Empty;
 
-
         /// <summary>
-        /// Runs a command line command through the Windows command line
+        /// Runs a command line command through the Windows command line.
         /// </summary>
-        /// <param name="command">The command string</param>
-        /// <returns>Output</returns>
-        /// <exception cref="CommandException">Thrown if the command fails</exception>
+        /// <param name="command">The command string.</param>
+        /// <returns>Output of the command.</returns>
+        /// <exception cref="CommandException">Thrown if the command fails.</exception>
         public string RunCommand(string command)
         {
             StartProcessIfNotRunning();
@@ -32,7 +29,7 @@ namespace GitHgMirror.Runner.Services
 
             var output = ReadOutputUntilBlankLine();
 
-            // Waiting for error lines to appear. Sometimes if a command fails it won't be included in this error output 
+            // Waiting for error lines to appear. Sometimes if a command fails it won't be included in this error output
             // but rather it will appear in later outputs for some reason. That's why we wait a bit here.
             _waitHandle.WaitOne(1000);
             _waitHandle.Reset();
@@ -48,7 +45,11 @@ namespace GitHgMirror.Runner.Services
 
                 var error = _error;
                 _error = string.Empty;
-                throw new CommandException(string.Format("Executing command \"{0}\" failed with the output \"{1}\" and error \"{2}\".", command, output, error), output, error);
+                throw new CommandException(
+                    // False alarm.
+#pragma warning disable S2302 // "nameof" should be used
+                    $"Executing command \"{command}\" failed with the output \"{output}\" and error \"{error}\".", output, error);
+#pragma warning restore S2302 // "nameof" should be used
             }
 
             return output;
@@ -62,7 +63,6 @@ namespace GitHgMirror.Runner.Services
             _process.Dispose();
             _process = null;
         }
-
 
         private void StartProcessIfNotRunning()
         {
@@ -102,9 +102,6 @@ namespace GitHgMirror.Runner.Services
             return string.Join(Environment.NewLine, lines);
         }
 
-        private string ReadOutputUntilBlankLine()
-        {
-            return ReadOutputUntil(lines => lines.Count > 0 && string.IsNullOrEmpty(lines.Last()));
-        }
+        private string ReadOutputUntilBlankLine() => ReadOutputUntil(lines => lines.Count > 0 && string.IsNullOrEmpty(lines.Last()));
     }
 }

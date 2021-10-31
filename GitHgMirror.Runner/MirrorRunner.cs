@@ -1,31 +1,29 @@
-﻿using System;
+using GitHgMirror.CommonTypes;
+using GitHgMirror.Runner.Services;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using GitHgMirror.CommonTypes;
-using GitHgMirror.Runner.Services;
-using Newtonsoft.Json;
 
 namespace GitHgMirror.Runner
 {
-    public class MirrorRunner
+    public sealed class MirrorRunner : IDisposable
     {
         private readonly MirroringSettings _settings;
         private readonly EventLog _eventLog;
         private readonly ApiService _apiService;
 
         private readonly ConcurrentQueue<int> _mirrorQueue = new ConcurrentQueue<int>();
-        private int _pageCount = 0;
         private readonly List<Task> _mirrorTasks = new List<Task>();
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private readonly System.Timers.Timer _pageCountAdjustTimer;
 
+        private int _pageCount;
 
         public MirrorRunner(MirroringSettings settings, EventLog eventLog)
         {
@@ -36,7 +34,6 @@ namespace GitHgMirror.Runner
             _pageCountAdjustTimer = new System.Timers.Timer(settings.SecondsBetweenConfigurationCountChecks * 1000);
             _pageCountAdjustTimer.Elapsed += AdjustPageCount;
         }
-
 
         public void Start()
         {
@@ -65,6 +62,12 @@ namespace GitHgMirror.Runner
             Task.WhenAll(_mirrorTasks.ToArray()).Wait();
         }
 
+        public void Dispose()
+        {
+            Stop();
+            _pageCountAdjustTimer.Dispose();
+            _cancellationTokenSource.Dispose();
+        }
 
         private void AdjustPageCount(object sender, System.Timers.ElapsedEventArgs e)
         {
@@ -79,7 +82,8 @@ namespace GitHgMirror.Runner
                 {
                     _eventLog.WriteEntry(
                         "Checked page count whether to adjust it but this wasn't needed (current page count: " +
-                        _pageCount.ToString() + ", new page count: " + newPageCount.ToString() + ").");
+                        _pageCount.ToString(CultureInfo.InvariantCulture) + ", new page count: " +
+                        newPageCount.ToString(CultureInfo.InvariantCulture) + ").");
 
                     return;
                 }
@@ -92,8 +96,8 @@ namespace GitHgMirror.Runner
                 }
 
                 _eventLog.WriteEntry(
-                    "Adjusted page count: old page count was " + _pageCount.ToString() + ", new page count is " +
-                    newPageCount.ToString() + ".");
+                    "Adjusted page count: old page count was " + _pageCount.ToString(CultureInfo.InvariantCulture) +
+                    ", new page count is " + newPageCount.ToString(CultureInfo.InvariantCulture) + ".");
 
                 _pageCount = newPageCount;
             }
@@ -106,45 +110,43 @@ namespace GitHgMirror.Runner
             }
         }
 
-        private void CreateNewMirrorTask()
-        {
-            _mirrorTasks.Add(Task.Run(async () =>
-            {
-                // Checking for new queue items until canceled.
-                while (!_cancellationTokenSource.IsCancellationRequested)
+        private void CreateNewMirrorTask() =>
+            _mirrorTasks.Add(Task.Run(
+                async () =>
                 {
-                    int pageNum;
-
-                    if (_mirrorQueue.TryDequeue(out pageNum))
+                    // Checking for new queue items until canceled.
+                    while (!_cancellationTokenSource.IsCancellationRequested)
                     {
-                        _eventLog.WriteEntry("Starting processing page " + pageNum + ".");
-
-                        if (pageNum < _pageCount)
+                        if (_mirrorQueue.TryDequeue(out var pageNum))
                         {
-                            try
+                            _eventLog.WriteEntry("Starting processing page " + pageNum + ".");
+
+                            if (pageNum < _pageCount)
                             {
-                                var skip = pageNum * _settings.BatchSize;
-                                var configurations = _apiService
-                                    .Get<List<MirroringConfiguration>>("?skip=" + skip + "&take=" + _settings.BatchSize);
-
-                                _eventLog.WriteEntry(
-                                    "Page " + pageNum + " has " + configurations.Count +
-                                    " mirroring configurations. Starting mirrorings.");
-
-                                for (int c = 0; c < configurations.Count; c++)
+                                try
                                 {
-                                    using (var mirror = new Mirror(_eventLog))
+                                    var skip = pageNum * _settings.BatchSize;
+                                    var configurations = _apiService
+                                        .Get<List<MirroringConfiguration>>("?skip=" + skip + "&take=" + _settings.BatchSize);
+
+                                    _eventLog.WriteEntry(
+                                        "Page " + pageNum + " has " + configurations.Count +
+                                        " mirroring configurations. Starting mirrorings.");
+
+                                    for (int c = 0; c < configurations.Count; c++)
                                     {
+                                        const string ReportPath = "Report";
+                                        using var mirror = new Mirror(_eventLog);
                                         _cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
                                         var configuration = configurations[c];
 
-                                        if (!mirror.IsCloned(configuration, _settings))
+                                        if (!Mirror.IsCloned(configuration, _settings))
                                         {
-                                            _apiService.Post("Report", new MirroringStatusReport
+                                            _apiService.Post(ReportPath, new MirroringStatusReport
                                             {
                                                 ConfigurationId = configuration.Id,
-                                                Status = MirroringStatus.Cloning
+                                                Status = MirroringStatus.Cloning,
                                             });
                                         }
 
@@ -154,115 +156,119 @@ namespace GitHgMirror.Runner
                                             _eventLog.WriteEntry(
                                                 "Starting to execute mirroring \"" + configuration + "\" on page " + pageNum + ".");
 
-                                            // Hg and git push commands randomly hang without any apparent reason (when 
-                                            // just pushing small payloads). To prevent such a hang causing repositories 
-                                            // stop syncing and Tasks being blocked forever there is a timeout for mirroring.
-                                            // Such a kill timeout is not a nice solution but the hangs are unexplainable.
+                                            // Hg and git push commands randomly hang without any apparent reason (when
+                                            // just pushing small payloads). To prevent such a hang causing repositories
+                                            // stop syncing and Tasks being blocked forever there is a timeout for
+                                            // mirroring. Such a kill timeout is not a nice solution but the hangs are
+                                            // unexplainable.
                                             var mirrorExecutionTask =
                                                 Task.Run(() => mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token));
+                                            // Necessary for the timeout value.
+#pragma warning disable VSTHRD103 // Call async methods when in an async method
                                             if (mirrorExecutionTask.Wait(_settings.MirroringTimoutSeconds * 1000))
+#pragma warning restore VSTHRD103 // Call async methods when in an async method
                                             {
-                                                _apiService.Post("Report", new MirroringStatusReport
+                                                _apiService.Post(ReportPath, new MirroringStatusReport
                                                 {
                                                     ConfigurationId = configuration.Id,
-                                                    Status = MirroringStatus.Syncing
+                                                    Status = MirroringStatus.Syncing,
                                                 });
                                             }
                                             else
                                             {
-                                                _apiService.Post("Report", new MirroringStatusReport
+                                                _apiService.Post(ReportPath, new MirroringStatusReport
                                                 {
                                                     ConfigurationId = configuration.Id,
                                                     Status = MirroringStatus.Failed,
                                                     Message =
                                                         "Mirroring didn't finish after " + _settings.MirroringTimoutSeconds +
-                                                        "s so was terminated. Possible causes include one of the repos being too slow to access (could be a temporary issue with the hosting provider) or simply being too big."
+                                                        "s so was terminated. Possible causes include one of the repos " +
+                                                        "being too slow to access (could be a temporary issue with the " +
+                                                        "hosting provider) or simply being too big.",
                                                 });
 
-                                                _eventLog.WriteEntry(string.Format(
-                                                    "Mirroring the hg repository {0} and git repository {1} in the direction {2} has hung and was forcefully terminated after {3}s.",
-                                                    configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, _settings.MirroringTimoutSeconds),
+                                                _eventLog.WriteEntry(
+                                                    $"Mirroring the hg repository {configuration.HgCloneUri} and git " +
+                                                    $"repository {configuration.GitCloneUri} in the direction {configuration.Direction} " +
+                                                    $"has hung and was forcefully terminated after {_settings.MirroringTimoutSeconds}s.",
                                                     EventLogEntryType.Error);
                                             }
                                         }
                                         catch (AggregateException ex)
                                         {
-                                            var mirroringException = ex.InnerException as MirroringException;
+                                            if (!(ex.InnerException is MirroringException mirroringException)) throw;
 
-                                            if (mirroringException == null) throw;
-
-                                            _eventLog.WriteEntry(string.Format(
-                                                "An exception occurred while processing a mirroring between the hg repository {0} and git repository {1} in the direction {2}." +
-                                                Environment.NewLine + "Exception: {3}",
-                                                configuration.HgCloneUri, configuration.GitCloneUri, configuration.Direction, mirroringException),
+                                            _eventLog.WriteEntry(
+                                                $"An exception occurred while processing a mirroring between the hg repository " +
+                                                $"{configuration.HgCloneUri} and git repository {configuration.GitCloneUri}" +
+                                                $" in the direction {configuration.Direction}." +
+                                                $"{Environment.NewLine}Exception: {mirroringException}",
                                                 EventLogEntryType.Error);
 
-                                            _apiService.Post("Report", new MirroringStatusReport
+                                            _apiService.Post(ReportPath, new MirroringStatusReport
                                             {
                                                 ConfigurationId = configuration.Id,
                                                 Status = MirroringStatus.Failed,
-                                                Message = mirroringException.InnerException.Message
+                                                Message = mirroringException.InnerException.Message,
                                             });
                                         }
 
                                         _eventLog.WriteEntry(
                                             "Finished executing mirroring \"" + configuration + "\" on page " + pageNum + ".");
                                     }
+
+                                    if (!configurations.Any())
+                                    {
+                                        // Waiting only half of the count check time to not to wait excessively. This
+                                        // way there is a good chance that the next such execution will be skipped
+                                        // completely, due to the page count being adjusted in the meantime.
+                                        var waitMilliseconds = _settings.SecondsBetweenConfigurationCountChecks / 2 * 1000;
+
+                                        _eventLog.WriteEntry(
+                                            "Page " + pageNum + " didn't contain any mirroring configurations, though it should have. Waiting " +
+                                            waitMilliseconds.ToString(CultureInfo.InvariantCulture) + "ms.");
+
+                                        // If there is no configuration on this page then that's due to some obscure
+                                        // issue: this shouldn't happen because empty pages can only exist if mirroring
+                                        // configs were removed, but then this whole block should be skipped (that is,
+                                        // if the page count was since updated, which is done every minute). However
+                                        // we've seen the page fetch request succeed with an empty result even when
+                                        // responding with HTTP 500...
+                                        await Task.Delay(waitMilliseconds);
+                                    }
                                 }
-
-                                if (!configurations.Any())
+                                catch (Exception ex) when (!ex.IsFatalOrCancellation())
                                 {
-                                    // Waiting only half of the count check time to not to wait excessively. This way
-                                    // there is a good chance that the next such execution will be skipped completely,
-                                    // due to the page count being adjusted in the meantime.
-                                    var waitMilliseconds = _settings.SecondsBetweenConfigurationCountChecks / 2 * 1000;
+                                    if ((ex as AggregateException)?.InnerException.IsFatalOrCancellation() == false)
+                                    {
+                                        const int waitMilliseconds = 30000;
 
-                                    _eventLog.WriteEntry(
-                                        "Page " + pageNum + " didn't contain any mirroring configurations, though it should have. Waiting " +
-                                        waitMilliseconds.ToString() + "ms.");
+                                        _eventLog.WriteEntry(
+                                            "Unhandled exception while running mirrorings: " + ex +
+                                            " Waiting " + waitMilliseconds + "ms before trying the next page in this Task.",
+                                            EventLogEntryType.Error);
 
-                                    // If there is no configuration on this page then that's due to some obscure issue: 
-                                    // this shouldn't happen because empty pages can only exist if mirroring configs 
-                                    // were removed, but then this whole block should be skipped (that is, if the page
-                                    // count was since updated, which is done every minute).
-                                    // However we've seen the page fetch request succeed with an empty result even when 
-                                    // responding with HTTP 500...
-                                    await Task.Delay(waitMilliseconds);
+                                        await Task.Delay(waitMilliseconds);
+                                    }
                                 }
                             }
-                            catch (Exception ex) when (!ex.IsFatalOrCancellation())
+                            else
                             {
-                                if ((ex as AggregateException)?.InnerException.IsFatalOrCancellation() == false)
-                                {
-                                    var waitMilliseconds = 30000;
-
-                                    _eventLog.WriteEntry(
-                                        "Unhandled exception while running mirrorings: " + ex.ToString() +
-                                        " Waiting " + waitMilliseconds + "ms before trying the next page in this Task.",
-                                        EventLogEntryType.Error);
-
-                                    await Task.Delay(waitMilliseconds);
-                                }
+                                _eventLog.WriteEntry(
+                                    "Page " + pageNum + " is an empty page (due to configs having been removed). Nothing to do.");
                             }
+
+                            _eventLog.WriteEntry("Finished processing page " + pageNum + ".");
+
+                            _mirrorQueue.Enqueue(pageNum);
                         }
                         else
                         {
-                            _eventLog.WriteEntry(
-                                "Page " + pageNum + " is an empty page (due to configs having been removed). Nothing to do.");
+                            // If there is no queue item present, wait 10s, then re-try.
+                            await Task.Delay(10000);
                         }
-
-                        _eventLog.WriteEntry("Finished processing page " + pageNum + ".");
-
-                        _mirrorQueue.Enqueue(pageNum);
                     }
-                    else
-                    {
-                        // If there is no queue item present, wait 10s, then re-try.
-                        await Task.Delay(10000);
-                    }
-                }
-
-            }, _cancellationTokenSource.Token));
-        }
+                },
+                _cancellationTokenSource.Token));
     }
 }

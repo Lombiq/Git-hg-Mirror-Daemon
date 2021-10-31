@@ -20,14 +20,14 @@ This project is developed by [Lombiq Technologies Ltd](https://lombiq.com/). Com
 
 This is needed on the server as well as locally if you want to test mirroring.
 
-1. Install [TortoiseHg](https://tortoisehg.bitbucket.io/download/index.html); [v4.1.1](http://bitbucket.org/tortoisehg/files/downloads/tortoisehg-4.1.1-x64.msi) is tested, newer may work too.
-2. Install [Git](https://git-scm.com/); [v2.12.1](https://github.com/git-for-windows/git/releases/download/v2.12.1.windows.1/Git-2.12.1-64-bit.exe) is tested, newer may work too (if you have GitExtensions already installed, you can skip this step). During installation select the option "Use Git from the Windows Command Prompt"; everything else can be the default.
+1. Install [TortoiseHg](https://tortoisehg.bitbucket.io/download/index.html); [v5.0.2](https://www.mercurial-scm.org/release/tortoisehg/windows/tortoisehg-5.0.2-x64.msi) is tested, newer may work too.
+2. Install [Git](https://git-scm.com/); [v2.30.1](https://github.com/git-for-windows/git/releases/download/v2.12.1.windows.1/Git-2.12.1-64-bit.exe) is tested, newer may work too (if you have GitExtensions already installed, you can skip this step). During installation select the option "Use Git from the Windows Command Prompt"; everything else can be the default.
 
 
 ## Installation on the server
 
 1. Set up Mercurial and Git as described above.
-2. Copy the service exe and its dependencies (basically the whole Release bin folder) onto the server in a desired location (e.g. *C:\GitHgMirror\GitHgMirrorDaemon*).
+2. Copy the service exe and its dependencies (basically the whole *bin\Release\net45* folder) onto the server in a desired location (e.g. *C:\GitHgMirror\GitHgMirrorDaemon*).
 3. Configure the service in the *GitHgMirror.Daemon.exe.config* file (for documentation on these take a look at the `GitHgMirror.Daemon.Constants` class), at least set a custom API password. This should be the same as what's configured in the frontend component. If you're updating the service on an already running server then make sure not to overwrite the config file to keep the settings.
 4. Unless you want Windows Defender to check every repository for viruses exclude the repository directory (e.g. _C:\GitHgMirror\Repositories_) and the _GitHgMirror.Daemon.exe_, _hg.exe_ and _git.exe_ processes from scanning.
 5. Run the exe as administrator. This will install the service (running it again uninstalls it). Verify if the installation was successful by checking Services.
@@ -54,6 +54,15 @@ If you get `mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate
     [hostfingerprints]
     bitbucket.org = ‎3F:D3:C5:17:23:3C:CD:F5:2D:17:76:06:93:7E:EE:97:42:21:14:AA
     github.com = A0:C4:A7:46:00:ED:A7:2D:C0:BE:CB:9A:8C:B6:07:CA:58:EE:74:5E
+    hg.sr.ht = 41:26:72:03:97:76:89:E8:4A:6F:E3:5B:92:0A:C3:37:26:F9:8F:7B
+    riverbankcomputing.com = 55:37:0F:68:9D:76:61:32:A2:87:EE:67:5B:66:AD:9D:53:7F:77:03
+
+These fingerprints are the same that can be seen in browsers as an SSL certificate's thumbprint.
+
+Or if you're using a newer version of Mercurial, you'll get a warning, telling you to use a different hash instead. Use that in the `[hostsecurity]` section:
+
+    [hostsecurity]
+    hg.sr.ht = sha256:7D:78:10:80:34:45:19:83:F0:DE:F2:D1:85:BC:32:55:65:6A:C0:BE:73:E1:9E:46:D6:C3:7F
 
 **Fingerprints should be all uppercase!**
 
@@ -80,7 +89,7 @@ You can configure some settings in `GitHgMirror.Tester.Program`. If you want to 
         {
             Direction = MirroringDirection.GitToHg,
             GitCloneUri = new Uri("git+https://github.com/path-to-git-repo.git"),
-            HgCloneUri = new Uri("https://LombiqBot:password@bitbucket.org/path-to-hg-repo")
+            HgCloneUri = new Uri("https://LombiqBot:password@bitbucket.org/path-to-hg-repo"),
         };
         mirror.MirrorRepositories(configuration, _settings, _cancellationTokenSource.Token);
     }

@@ -3,20 +3,22 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29926.136
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirror.CommonTypes", "GitHgMirror.CommonTypes\GitHgMirror.CommonTypes.csproj", "{EC2E86CF-0ACB-442D-A23E-7D1E88061B81}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitHgMirror.CommonTypes", "GitHgMirror.CommonTypes\GitHgMirror.CommonTypes.csproj", "{EC2E86CF-0ACB-442D-A23E-7D1E88061B81}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirror.Daemon", "GitHgMirror.Daemon\GitHgMirror.Daemon.csproj", "{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitHgMirror.Daemon", "GitHgMirror.Daemon\GitHgMirror.Daemon.csproj", "{5A16A5C6-A7D2-4E1A-8B7E-BCB4FC0E49F9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirror.Runner", "GitHgMirror.Runner\GitHgMirror.Runner.csproj", "{81BAD149-A525-4CE1-9671-70F5314DAFE2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitHgMirror.Runner", "GitHgMirror.Runner\GitHgMirror.Runner.csproj", "{81BAD149-A525-4CE1-9671-70F5314DAFE2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitHgMirror.Tester", "GitHgMirror.Tester\GitHgMirror.Tester.csproj", "{DF997DD8-35CF-4979-86C7-1E20EDF8E650}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitHgMirror.Tester", "GitHgMirror.Tester\GitHgMirror.Tester.csproj", "{DF997DD8-35CF-4979-86C7-1E20EDF8E650}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7CC898F3-3DA8-4EBD-A4D0-8F510D93A520}"
 	ProjectSection(SolutionItems) = preProject
+		GitHgMirror.ruleset = GitHgMirror.ruleset
 		Licence.md = Licence.md
-		NuGet.config = NuGet.config
 		Readme.md = Readme.md
 	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GitHgMirror.NonAnalyzed", "GitHgMirror.NonAnalyzed\GitHgMirror.NonAnalyzed.csproj", "{A4E64B35-30DB-435B-BF99-9E514C5A5CE9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -40,6 +42,10 @@ Global
 		{DF997DD8-35CF-4979-86C7-1E20EDF8E650}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DF997DD8-35CF-4979-86C7-1E20EDF8E650}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DF997DD8-35CF-4979-86C7-1E20EDF8E650}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A4E64B35-30DB-435B-BF99-9E514C5A5CE9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4E64B35-30DB-435B-BF99-9E514C5A5CE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A4E64B35-30DB-435B-BF99-9E514C5A5CE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A4E64B35-30DB-435B-BF99-9E514C5A5CE9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
