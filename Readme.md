@@ -54,7 +54,7 @@ If you get `mercurial abort: error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate
     [hostfingerprints]
     bitbucket.org = ‎3F:D3:C5:17:23:3C:CD:F5:2D:17:76:06:93:7E:EE:97:42:21:14:AA
     github.com = A0:C4:A7:46:00:ED:A7:2D:C0:BE:CB:9A:8C:B6:07:CA:58:EE:74:5E
-    hg.sr.ht = 1D:05:E7:BD:1A:14:26:7B:EC:FF:DF:0D:49:66:E7:6A:0B:A7:60:68
+    hg.sr.ht = 41:26:72:03:97:76:89:E8:4A:6F:E3:5B:92:0A:C3:37:26:F9:8F:7B
     riverbankcomputing.com = 55:37:0F:68:9D:76:61:32:A2:87:EE:67:5B:66:AD:9D:53:7F:77:03
 
 These fingerprints are the same that can be seen in browsers as an SSL certificate's thumbprint.
