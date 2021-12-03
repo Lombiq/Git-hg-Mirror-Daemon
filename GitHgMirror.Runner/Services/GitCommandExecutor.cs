@@ -42,7 +42,28 @@ namespace GitHgMirror.Runner.Services
                         // would be force push and completely overwrite the remote repo's content. This would always
                         // succeed no matter what is there but could wipe out changes made between the repo was fetched
                         // and pushed.
-                        repository.Network.Push(repository.Network.Remotes[remoteName], reference.CanonicalName);
+                        try
+                        {
+                            repository.Network.Push(repository.Network.Remotes[remoteName], reference.CanonicalName);
+                        }
+                        catch (LibGit2SharpException ex)
+                        {
+                            var extendedException = new LibGit2SharpException(
+                                $"{ex.Message} Affected branch: {reference.CanonicalName}",
+                                ex)
+                            {
+                                Source = ex.Source,
+                            };
+
+                            // Due to ex.Data being an old ICollection, this copy needs to be this awkward and not a
+                            // compact LINQ expression, for example.
+                            foreach (var key in ex.Data.Keys)
+                            {
+                                extendedException.Data.Add(key, ex.Data[key]);
+                            }
+
+                            throw extendedException;
+                        }
                     }
 
                     _eventLog.WriteEntry(
