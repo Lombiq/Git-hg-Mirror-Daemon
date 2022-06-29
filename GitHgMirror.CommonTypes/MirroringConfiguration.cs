@@ -11,11 +11,13 @@ namespace GitHgMirror.CommonTypes
         public Uri GitCloneUri { get; set; }
         public bool GitUrlIsHgUrl { get; set; }
         public MirroringDirection Direction { get; set; }
+        public string GitPushRefsRegex { get; set; }
 
         public override string ToString() =>
             Id + " " +
             HgCloneUri + " - " +
             GitCloneUri + " " +
-            Direction.ToString();
+            Direction.ToString() + " " +
+            "Refs regex: " + GitPushRefsRegex;
     }
 }

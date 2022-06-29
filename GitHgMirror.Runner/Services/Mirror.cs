@@ -112,7 +112,7 @@ namespace GitHgMirror.Runner.Services
                         {
                             RunGitCommandAndMarkException(() => _gitCommandExecutor
                                 .FetchOrCloneFromGit(configuration.GitCloneUri, cloneDirectoryPath, true, cancellationToken));
-                            _gitCommandExecutor.PushToGit(configuration.HgCloneUri, cloneDirectoryPath, cancellationToken);
+                            _gitCommandExecutor.PushToGit(configuration.HgCloneUri, cloneDirectoryPath, configuration.GitPushRefsRegex, cancellationToken);
                         }
                         else
                         {
@@ -170,7 +170,7 @@ namespace GitHgMirror.Runner.Services
                             _hgCommandExecutor.CreateOrUpdateBookmarksForBranches(quotedCloneDirectoryPath, settings, cancellationToken);
                             _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings, cancellationToken);
                             RunGitCommandAndMarkException(() =>
-                                _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath, cancellationToken));
+                                _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath, configuration.GitPushRefsRegex, cancellationToken));
                         }
 
                         break;
@@ -194,7 +194,7 @@ namespace GitHgMirror.Runner.Services
                                 _hgCommandExecutor.ExportHistoryToGit(quotedCloneDirectoryPath, settings, cancellationToken);
 
                                 RunGitCommandAndMarkException(() =>
-                                    _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath, cancellationToken));
+                                    _gitCommandExecutor.PushToGit(configuration.GitCloneUri, cloneDirectoryPath, configuration.GitPushRefsRegex, cancellationToken));
                             };
 
                         if (hgUrlIsGitUrl)
@@ -214,7 +214,7 @@ namespace GitHgMirror.Runner.Services
                                 RunGitCommandAndMarkException(() => _gitCommandExecutor
                                     .FetchOrCloneFromGit(configuration.HgCloneUri, secondToFirstClonePath, true, cancellationToken));
                                 RunGitCommandAndMarkException(() => _gitCommandExecutor
-                                    .PushToGit(configuration.GitCloneUri, secondToFirstClonePath, cancellationToken));
+                                    .PushToGit(configuration.GitCloneUri, secondToFirstClonePath, configuration.GitPushRefsRegex, cancellationToken));
                             }
 
                             var firstToSecondClonePath = Path.Combine(gitDirectoryPath, "firstToSecond");
@@ -223,7 +223,7 @@ namespace GitHgMirror.Runner.Services
                             try
                             {
                                 RunGitCommandAndMarkException(() => _gitCommandExecutor
-                                    .PushToGit(configuration.HgCloneUri, firstToSecondClonePath, cancellationToken));
+                                    .PushToGit(configuration.HgCloneUri, firstToSecondClonePath, configuration.GitPushRefsRegex, cancellationToken));
 
                                 PullSecondPushToFirst();
                             }
@@ -238,7 +238,7 @@ namespace GitHgMirror.Runner.Services
                                 RunGitCommandAndMarkException(() => _gitCommandExecutor
                                     .FetchOrCloneFromGit(configuration.GitCloneUri, firstToSecondClonePath, true, cancellationToken));
                                 RunGitCommandAndMarkException(() => _gitCommandExecutor
-                                    .PushToGit(configuration.HgCloneUri, firstToSecondClonePath, cancellationToken));
+                                    .PushToGit(configuration.HgCloneUri, firstToSecondClonePath, configuration.GitPushRefsRegex, cancellationToken));
                             }
                         }
                         else
