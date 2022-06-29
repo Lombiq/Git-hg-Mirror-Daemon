@@ -35,9 +35,14 @@ namespace GitHgMirror.Runner.Services
 
                     // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230 So
                     // can't use "+refs/*:refs/*" here, must iterate.
-                    var matchedReferences = repository.Refs
-                        .Where(reference =>
-                            Regex.IsMatch(reference.CanonicalName, pushRefsRegex, RegexOptions.Compiled, TimeSpan.FromSeconds(1)));
+                    IEnumerable<Reference> matchedReferences = repository.Refs;
+
+                    if (!string.IsNullOrEmpty(pushRefsRegex))
+                    {
+                        matchedReferences = matchedReferences
+                            .Where(reference =>
+                                Regex.IsMatch(reference.CanonicalName, pushRefsRegex, RegexOptions.Compiled, TimeSpan.FromSeconds(1)));
+                    }
 
                     foreach (var reference in matchedReferences)
                     {
