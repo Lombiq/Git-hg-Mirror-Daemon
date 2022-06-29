@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace GitHgMirror.Runner.Services
@@ -15,7 +16,7 @@ namespace GitHgMirror.Runner.Services
         {
         }
 
-        public void PushToGit(Uri gitCloneUri, string cloneDirectoryPath, CancellationToken cancellationToken)
+        public void PushToGit(Uri gitCloneUri, string cloneDirectoryPath, string pushRefsRegex, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -34,7 +35,11 @@ namespace GitHgMirror.Runner.Services
 
                     // Refspec patterns on push are not supported, see: http://stackoverflow.com/a/25721274/220230 So
                     // can't use "+refs/*:refs/*" here, must iterate.
-                    foreach (var reference in repository.Refs)
+                    var matchedReferences = repository.Refs
+                        .Where(reference =>
+                            Regex.IsMatch(reference.CanonicalName, pushRefsRegex, RegexOptions.Compiled, TimeSpan.FromSeconds(1)));
+
+                    foreach (var reference in matchedReferences)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
@@ -203,7 +208,7 @@ namespace GitHgMirror.Runner.Services
                                         // the number of push operations.
                                         if (pushCount > 500)
                                         {
-                                            PushToGit(gitCloneUri, cloneDirectoryPath, cancellationToken);
+                                            PushToGit(gitCloneUri, cloneDirectoryPath, pushRefsRegex, cancellationToken);
                                             return;
                                         }
                                     }
