@@ -52,12 +52,34 @@ namespace GitHgMirror.Runner.Services
                         // would be force push and completely overwrite the remote repo's content. This would always
                         // succeed no matter what is there but could wipe out changes made between the repo was fetched
                         // and pushed.
+                        var upToDate = false;
+
                         try
                         {
-                            repository.Network.Push(repository.Network.Remotes[remoteName], reference.CanonicalName);
+                            repository.Network.Push(
+                                repository.Network.Remotes[remoteName],
+                                reference.CanonicalName,
+                                new PushOptions
+                                {
+                                    // Here we check if is there anything to push, if not cancel the operation.
+                                    OnNegotiationCompletedBeforePush = (updates) =>
+                                    {
+                                        upToDate = updates.All(update => update.DestinationObjectId == update.SourceObjectId);
+
+                                        return !upToDate;
+                                    },
+                                });
                         }
                         catch (LibGit2SharpException ex)
                         {
+                            if (upToDate)
+                            {
+                                // LibGit2Sharp throws an exception because the push gets canceled by the
+                                // OnNegotiationCompletedBeforePush. Not so much to do here, because everything is
+                                // up to date.
+                                continue;
+                            }
+
                             var extendedException = new LibGit2SharpException(
                                 $"{ex.Message} Affected branch: {reference.CanonicalName}",
                                 ex)
