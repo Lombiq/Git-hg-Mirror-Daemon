@@ -1,4 +1,5 @@
 using GitHgMirror.CommonTypes;
+using GitHgMirror.Runner.Extensions;
 using GitHgMirror.Runner.Services;
 using System;
 using System.Collections.Concurrent;
@@ -14,6 +15,7 @@ namespace GitHgMirror.Runner
 {
     public sealed class MirrorRunner : IDisposable
     {
+        private readonly TimeSpan _syncWaitTimeout = TimeSpan.FromMinutes(10);
         private readonly MirroringSettings _settings;
         private readonly EventLog _eventLog;
         private readonly ApiService _apiService;
@@ -114,11 +116,14 @@ namespace GitHgMirror.Runner
             _mirrorTasks.Add(Task.Run(
                 async () =>
                 {
+                    var syncWaitTimeout = TimeSpan.Zero;
+
                     // Checking for new queue items until canceled.
-                    while (!_cancellationTokenSource.IsCancellationRequested)
+                    while (!await _cancellationTokenSource.Token.WaitAsync(syncWaitTimeout))
                     {
                         if (_mirrorQueue.TryDequeue(out var pageNum))
                         {
+                            syncWaitTimeout = _syncWaitTimeout;
                             _eventLog.WriteEntry("Starting processing page " + pageNum + ".");
 
                             if (pageNum < _pageCount)
@@ -265,7 +270,7 @@ namespace GitHgMirror.Runner
                         else
                         {
                             // If there is no queue item present, wait 10s, then re-try.
-                            await Task.Delay(10000);
+                            syncWaitTimeout = TimeSpan.FromSeconds(10);
                         }
                     }
                 },
