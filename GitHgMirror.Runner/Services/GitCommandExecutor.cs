@@ -62,7 +62,7 @@ namespace GitHgMirror.Runner.Services
                                 new PushOptions
                                 {
                                     // Here we check if is there anything to push, if not cancel the operation.
-                                    OnNegotiationCompletedBeforePush = (updates) =>
+                                    OnNegotiationCompletedBeforePush = updates =>
                                     {
                                         upToDate = updates.All(update => update.DestinationObjectId == update.SourceObjectId);
 
