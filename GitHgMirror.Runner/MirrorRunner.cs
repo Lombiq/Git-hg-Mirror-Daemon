@@ -1,4 +1,5 @@
 using GitHgMirror.CommonTypes;
+using GitHgMirror.Runner.Extensions;
 using GitHgMirror.Runner.Services;
 using System;
 using System.Collections.Concurrent;
@@ -118,7 +119,7 @@ namespace GitHgMirror.Runner
                     var syncWaitTimeout = TimeSpan.Zero;
 
                     // Checking for new queue items until canceled.
-                    while (!_cancellationTokenSource.Token.WaitHandle.WaitOne(syncWaitTimeout))
+                    while (!await _cancellationTokenSource.Token.WaitAsync(syncWaitTimeout))
                     {
                         if (_mirrorQueue.TryDequeue(out var pageNum))
                         {
@@ -269,9 +270,7 @@ namespace GitHgMirror.Runner
                         else
                         {
                             // If there is no queue item present, wait 10s, then re-try.
-                            await Task.Delay(10000);
-                            // Reset the sync wait timeout as well.
-                            syncWaitTimeout = TimeSpan.Zero;
+                            syncWaitTimeout = TimeSpan.FromSeconds(10);
                         }
                     }
                 },
