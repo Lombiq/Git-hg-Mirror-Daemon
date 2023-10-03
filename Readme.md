@@ -6,12 +6,7 @@ Two-way Git-Mercurial repository syncing Windows service used by [Git-hg Mirror]
 
 This is a C# project that you'll need Visual Studio to work with. Commits in the master/default branch represent deployments, i.e. the latest commit in that branch shows the version currently running in production.
 
-The project's source is available in two public source repositories, automatically mirrored in both directions with Git-hg Mirror itself:
-
-- [https://bitbucket.org/Lombiq/git-hg-mirror-daemon](https://bitbucket.org/Lombiq/git-hg-mirror-daemon) (Mercurial repository)
-- [https://github.com/Lombiq/Git-hg-Mirror-Daemon](https://github.com/Lombiq/Git-hg-Mirror-Daemon) (Git repository)
-
-Bug reports, feature requests and comments are warmly welcome, **please do so via GitHub**. Feel free to send pull requests too, no matter which source repository you choose for this purpose.
+Bug reports, feature requests, comments and pull requests are warmly welcome!
 
 This project is developed by [Lombiq Technologies Ltd](https://lombiq.com/). Commercial-grade support is available through Lombiq.
 
