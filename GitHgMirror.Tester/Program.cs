@@ -41,8 +41,8 @@ namespace GitHgMirror.Tester
 
             var settings = new MirroringSettings
             {
-                ApiEndpointUrl = new Uri("http://githgmirror.com.127-0-0-1.org.uk/api/GitHgMirror.Common/Mirrorings"),
-                ApiPassword = "Fsdfp342LE8%!",
+                ApiEndpointUrl = new Uri("https://localhost:44300/repo-mirror/api/GitHgMirror.Common/Mirrorings"),
+                ApiPassword = "Password1!",
                 RepositoriesDirectoryPath = @"C:\GitHgMirror\Repos",
                 MaxDegreeOfParallelism = 1,
                 BatchSize = 1,
