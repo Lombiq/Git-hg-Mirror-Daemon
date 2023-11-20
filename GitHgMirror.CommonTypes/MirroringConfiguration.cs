@@ -6,7 +6,7 @@ namespace GitHgMirror.CommonTypes
     [DebuggerDisplay("{ToString()}")]
     public class MirroringConfiguration
     {
-        public int Id { get; set; }
+        public string Id { get; set; }
         public Uri HgCloneUri { get; set; }
         public Uri GitCloneUri { get; set; }
         public bool GitUrlIsHgUrl { get; set; }
