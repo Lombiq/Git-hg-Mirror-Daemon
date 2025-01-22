@@ -13,16 +13,16 @@ namespace GitHgMirror.Tester
         {
             // If true then a unique event log will be used for all copies of this executable. This helps if you want to
             // run the app in multiple instances from source and not let the events show up across copies.
-            const bool useUniqueEventlog = true;
+            const bool useUniqueEventLog = true;
 
             var eventLogName = "Git-hg Mirror Daemon";
             var eventSourceName = "GitHgMirror.Tester";
 
-            if (useUniqueEventlog)
+            if (useUniqueEventLog)
             {
                 var suffix = "-" + typeof(Program).Assembly.Location.GetHashCode();
                 // "Only the first eight characters of a custom log name are significant" so we need to make the name
-                // unique withing 8 characters.
+                // unique within 8 characters.
                 eventLogName = "GHM" + suffix;
                 eventSourceName += suffix;
             }
